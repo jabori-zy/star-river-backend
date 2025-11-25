@@ -12,7 +12,6 @@ use crate::node::{
 #[async_trait]
 impl NodeEventHandlerExt for StartNodeContext {
     type EngineEvent = Event;
-    type Error = StartNodeError;
 
     /// 处理引擎事件
     async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), StartNodeError> {

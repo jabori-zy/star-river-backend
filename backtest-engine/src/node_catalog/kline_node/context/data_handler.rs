@@ -4,7 +4,7 @@ use snafu::{IntoError, OptionExt, ResultExt};
 use star_river_core::kline::Kline;
 use strategy_core::{
     communication::strategy::StrategyResponse,
-    error::node_error::StrategyCmdRespRecvFailedSnafu,
+    error::node_error::{StrategyCmdRespRecvFailedSnafu, StrategySnafu},
     node::context_trait::{NodeCommunicationExt, NodeInfoExt},
 };
 // third-party
@@ -12,10 +12,7 @@ use tokio::sync::oneshot;
 
 // current crate
 use super::{KlineNodeContext, KlineNodeError};
-use crate::{
-    node::node_error::kline_node_error::BacktestStrategySnafu,
-    strategy::strategy_command::{GetKlineDataCmdPayload, GetKlineDataCommand},
-};
+use crate::strategy::strategy_command::{GetKlineDataCmdPayload, GetKlineDataCommand};
 
 impl KlineNodeContext {
     // 从策略中获取k线数据
@@ -50,7 +47,11 @@ impl KlineNodeContext {
                 return Ok(payload.kline_series.first().cloned());
             }
             StrategyResponse::Fail { error, .. } => {
-                return Err(BacktestStrategySnafu {}.into_error(error));
+                return Err(StrategySnafu {
+                    node_name: self.node_name().clone(),
+                }
+                .into_error(error)
+                .into());
             }
         }
     }

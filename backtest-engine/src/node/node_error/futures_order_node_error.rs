@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
+use strategy_core::error::NodeError;
 use virtual_trading::error::VirtualTradingSystemError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum FuturesOrderNodeError {
+    #[snafu(transparent)]
+    NodeError { source: NodeError, backtrace: Backtrace },
+
     #[snafu(transparent)]
     VirtualTradingSystem {
         source: VirtualTradingSystemError,
@@ -39,6 +43,7 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
+            FuturesOrderNodeError::NodeError { .. } => 1000,            // node error
             FuturesOrderNodeError::VirtualTradingSystem { .. } => 1001, //虚拟交易系统错误
             FuturesOrderNodeError::CannotCreateOrder { .. } => 1002,    //无法创建订单
             FuturesOrderNodeError::OrderConfigNotFound { .. } => 1003,  //订单配置未找到
@@ -51,7 +56,8 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            FuturesOrderNodeError::VirtualTradingSystem { source, .. } => source.error_code_chain(),
+            FuturesOrderNodeError::NodeError { source, .. } => generate_error_code_chain(source),
+            FuturesOrderNodeError::VirtualTradingSystem { source, .. } => generate_error_code_chain(source),
             FuturesOrderNodeError::CannotCreateOrder { .. } => vec![self.error_code()],
             FuturesOrderNodeError::OrderConfigNotFound { .. } => vec![self.error_code()],
             FuturesOrderNodeError::GetSymbolInfoFailed { source, .. } => {
@@ -67,9 +73,8 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
         match language {
             ErrorLanguage::English => self.to_string(),
             ErrorLanguage::Chinese => match self {
-                FuturesOrderNodeError::VirtualTradingSystem { source, .. } => {
-                    format!("虚拟交易系统错误，原因: {}", source)
-                }
+                FuturesOrderNodeError::NodeError { source, .. } => source.error_message(language),
+                FuturesOrderNodeError::VirtualTradingSystem { source, .. } => source.error_message(language),
                 FuturesOrderNodeError::CannotCreateOrder { .. } => {
                     format!("无法创建订单，因为当前正在处理订单或未成交订单不为空")
                 }

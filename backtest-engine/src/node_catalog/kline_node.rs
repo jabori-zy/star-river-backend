@@ -10,7 +10,7 @@ use context::KlineNodeContext;
 use kline_node_type::KlineNodeBacktestConfig;
 use snafu::{OptionExt, ResultExt};
 use star_river_core::{
-    custom_type::{CycleId, NodeId, NodeName, StrategyId},
+    custom_type::{NodeId, NodeName, StrategyId},
     state_machine::Metadata,
 };
 use strategy_core::{
@@ -25,7 +25,7 @@ use crate::{
         node_command::BacktestNodeCommand,
         node_error::{
             KlineNodeError,
-            kline_node_error::{DataSourceAccountIsNotConfiguredSnafu, SymbolsIsNotConfiguredSnafu},
+            kline_node_error::{ExchangeModeNotConfiguredSnafu, SymbolsIsNotConfiguredSnafuSnafu},
         },
         node_event::BacktestNodeEvent,
         node_state_machine::NodeRunState,
@@ -138,30 +138,23 @@ impl KlineNode {
             })?
             .to_owned();
 
-        tracing::debug!(kline_node_backtest_config = %kline_node_backtest_config, "kline node backtest config");
         // check data source account is configured
 
         kline_node_backtest_config
             .get("exchangeModeConfig")
             .and_then(|config| config.get("selectedAccount"))
-            .context(DataSourceAccountIsNotConfiguredSnafu {
+            .context(ExchangeModeNotConfiguredSnafu {
                 node_name: node_name.clone(),
             })?;
 
-        let result = kline_node_backtest_config
+        kline_node_backtest_config
             .get("exchangeModeConfig")
             .and_then(|config| config.get("selectedSymbols"))
             .and_then(|symbols| symbols.as_array())
-            .context(SymbolsIsNotConfiguredSnafu {
+            .and_then(|arr| if arr.is_empty() { None } else { Some(arr) })
+            .context(SymbolsIsNotConfiguredSnafuSnafu {
                 node_name: node_name.clone(),
             })?;
-
-        if result.len() == 0 {
-            return Err(SymbolsIsNotConfiguredSnafu {
-                node_name: node_name.clone(),
-            }
-            .build());
-        }
 
         // Add nodeName to the backtest config
         if let Some(obj) = kline_node_backtest_config.as_object_mut() {

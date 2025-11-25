@@ -211,16 +211,16 @@ impl BacktestNode {
         }
     }
 
-    pub async fn set_output_handles(&mut self) {
-        match self {
-            BacktestNode::Start(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await,
-            BacktestNode::Kline(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await,
-            BacktestNode::Indicator(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await,
-            BacktestNode::IfElse(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await,
-            BacktestNode::FuturesOrder(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await,
-            BacktestNode::Position(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await,
-            BacktestNode::Variable(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await,
-        }
+    pub async fn set_output_handles(&mut self) -> Result<(), BacktestNodeError> {
+        Ok(match self {
+            BacktestNode::Start(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await?,
+            BacktestNode::Kline(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await?,
+            BacktestNode::Indicator(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await?,
+            BacktestNode::IfElse(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await?,
+            BacktestNode::FuturesOrder(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await?,
+            BacktestNode::Position(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await?,
+            BacktestNode::Variable(node) => node.with_ctx_write(|ctx| ctx.set_output_handles()).await?,
+        })
     }
 
     pub async fn set_leaf_node(&mut self, is_leaf_node: bool) {

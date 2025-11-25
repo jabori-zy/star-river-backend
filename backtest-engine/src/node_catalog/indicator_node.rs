@@ -67,7 +67,7 @@ impl IndicatorNode {
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
         strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
-    ) -> Result<Self, BacktestNodeError> {
+    ) -> Result<Self, IndicatorNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_indicator_node_config(node_config)?;
 
         let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
@@ -87,9 +87,9 @@ impl IndicatorNode {
             node_command_receiver,
         );
         // 通过配置，获取指标缓存键
-        let indicator_keys = Self::get_indicator_keys(&node_config);
+        let indicator_keys = Self::get_indicator_keys(&node_config)?;
         // 通过配置，获取回测K线缓存键
-        let selected_kline_key = Self::get_kline_key(&node_config);
+        let selected_kline_key = Self::get_kline_key(&node_config)?;
 
         let context = IndicatorNodeContext::new(metadata, node_config, selected_kline_key, indicator_keys);
         Ok(Self {
@@ -99,7 +99,7 @@ impl IndicatorNode {
 
     fn check_indicator_node_config(
         node_config: serde_json::Value,
-    ) -> Result<(StrategyId, NodeId, NodeName, IndicatorNodeBacktestConfig), BacktestNodeError> {
+    ) -> Result<(StrategyId, NodeId, NodeName, IndicatorNodeBacktestConfig), IndicatorNodeError> {
         let node_id = node_config
             .get("id")
             .and_then(|id| id.as_str())
@@ -189,11 +189,9 @@ impl IndicatorNode {
                 .build()
             })?
             .to_owned();
-        tracing::debug!("time_range_json: {:?}", time_range_json);
         let time_range = deserialize_time_range(time_range_json.into_deserializer()).context(ConfigDeserializationFailedSnafu {
             node_name: node_name.clone(),
         })?;
-        tracing::debug!("time_range: {:?}", time_range);
 
         let data_source = backtest_config_json
             .get("dataSource")
@@ -271,6 +269,7 @@ impl IndicatorNode {
         };
 
         let backtest_config = IndicatorNodeBacktestConfig {
+            node_name: node_name.clone(),
             data_source,
             exchange_mode_config: Some(exchange_mode_config),
             file_mode_config: None,
@@ -278,32 +277,16 @@ impl IndicatorNode {
         Ok((strategy_id, node_id, node_name, backtest_config))
     }
 
-    fn get_indicator_keys(backtest_config: &IndicatorNodeBacktestConfig) -> HashMap<IndicatorKey, (i32, String)> {
-        let exchange = backtest_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_account
-            .exchange
-            .clone();
-        let symbol = backtest_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_symbol
-            .symbol
-            .clone();
-        let interval = backtest_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_symbol
-            .interval
-            .clone();
-        let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
+    fn get_indicator_keys(
+        backtest_config: &IndicatorNodeBacktestConfig,
+    ) -> Result<HashMap<IndicatorKey, (i32, String)>, IndicatorNodeError> {
+        let exchange = backtest_config.exchange_mode()?.selected_account.exchange.clone();
+        let symbol = backtest_config.exchange_mode()?.selected_symbol.symbol.clone();
+        let interval = backtest_config.exchange_mode()?.selected_symbol.interval.clone();
+        let time_range = backtest_config.exchange_mode()?.time_range.clone();
 
         let mut indicator_keys = HashMap::new();
-        for indicator in backtest_config.exchange_mode_config.as_ref().unwrap().selected_indicators.iter() {
+        for indicator in backtest_config.exchange_mode()?.selected_indicators.iter() {
             let indicator_key = IndicatorKey {
                 exchange: exchange.clone(),
                 symbol: symbol.clone(),
@@ -314,40 +297,22 @@ impl IndicatorNode {
             };
             indicator_keys.insert(indicator_key, (indicator.config_id, indicator.output_handle_id.clone()));
         }
-        indicator_keys
+        Ok(indicator_keys)
     }
 
-    fn get_kline_key(backtest_config: &IndicatorNodeBacktestConfig) -> KlineKey {
-        let exchange = backtest_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_account
-            .exchange
-            .clone();
-        let symbol = backtest_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_symbol
-            .symbol
-            .clone();
-        let interval = backtest_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_symbol
-            .interval
-            .clone();
-        let time_range = backtest_config.exchange_mode_config.as_ref().unwrap().time_range.clone();
+    fn get_kline_key(backtest_config: &IndicatorNodeBacktestConfig) -> Result<KlineKey, IndicatorNodeError> {
+        let exchange = backtest_config.exchange_mode()?.selected_account.exchange.clone();
+        let symbol = backtest_config.exchange_mode()?.selected_symbol.symbol.clone();
+        let interval = backtest_config.exchange_mode()?.selected_symbol.interval.clone();
+        let time_range = backtest_config.exchange_mode()?.time_range.clone();
 
         let kline_key = KlineKey {
-            exchange: exchange.clone(),
-            symbol: symbol.clone(),
-            interval: interval.clone(),
+            exchange: exchange,
+            symbol: symbol,
+            interval: interval,
             start_time: Some(time_range.start_date.to_string()),
             end_time: Some(time_range.end_date.to_string()),
         };
-        kline_key
+        Ok(kline_key)
     }
 }

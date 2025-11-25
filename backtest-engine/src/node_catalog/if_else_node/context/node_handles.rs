@@ -12,7 +12,7 @@ use super::IfElseNodeContext;
 use crate::node::node_event::BacktestNodeEvent;
 
 impl NodeHandleExt for IfElseNodeContext {
-    fn set_output_handles(&mut self) {
+    fn set_output_handles(&mut self) -> Result<(), Self::Error> {
         // 添加else出口
         let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
         let else_output_handle_id = format!("{}_else_output", self.node_id()); // else分支作为默认出口
@@ -34,6 +34,7 @@ impl NodeHandleExt for IfElseNodeContext {
             tracing::debug!("[{}] set case output handle: {}", self.node_name(), &output_handle_id);
             self.add_output_handle(false, case_id, output_handle_id, tx);
         });
+        Ok(())
     }
 
     fn default_output_handle(&self) -> Result<&NodeOutputHandle<BacktestNodeEvent>, NodeError> {

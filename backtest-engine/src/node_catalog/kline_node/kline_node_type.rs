@@ -6,7 +6,7 @@ use star_river_core::{
 use strategy_core::strategy::{SelectedAccount, SelectedSymbol};
 
 use crate::{
-    node::node_error::kline_node_error::{DataSourceAccountIsNotConfiguredSnafu, KlineNodeError, TimeRangeIsNotConfiguredSnafu},
+    node::node_error::kline_node_error::{ExchangeModeNotConfiguredSnafu, KlineNodeError},
     strategy::strategy_config::BacktestDataSource,
 };
 
@@ -20,30 +20,11 @@ pub struct KlineNodeBacktestConfig {
 }
 
 impl KlineNodeBacktestConfig {
-    pub fn symbols(&self) -> Vec<SelectedSymbol> {
+    pub fn exchange_mode(&self) -> Result<&KlineNodeExchangeModeConfig, KlineNodeError> {
         if let Some(exchange_mode_config) = &self.exchange_mode_config {
-            exchange_mode_config.selected_symbols.clone()
+            Ok(exchange_mode_config)
         } else {
-            vec![]
-        }
-    }
-
-    pub fn account(&self) -> Result<&SelectedAccount, KlineNodeError> {
-        if let Some(exchange_mode_config) = &self.exchange_mode_config {
-            Ok(&exchange_mode_config.selected_account)
-        } else {
-            Err(DataSourceAccountIsNotConfiguredSnafu {
-                node_name: self.node_name.clone(),
-            }
-            .build())
-        }
-    }
-
-    pub fn time_range(&self) -> Result<&TimeRange, KlineNodeError> {
-        if let Some(exchange_mode_config) = &self.exchange_mode_config {
-            Ok(&exchange_mode_config.time_range)
-        } else {
-            Err(TimeRangeIsNotConfiguredSnafu {
+            Err(ExchangeModeNotConfiguredSnafu {
                 node_name: self.node_name.clone(),
             }
             .build())

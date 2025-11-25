@@ -31,7 +31,7 @@ use virtual_trading::{
 
 use super::{futures_order_node_types::FuturesOrderNodeConfig, state_machine::FuturesOrderNodeStateMachine};
 use crate::{
-    node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
+    node::{node_command::BacktestNodeCommand, node_error::FuturesOrderNodeError, node_event::BacktestNodeEvent},
     strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
 };
 
@@ -90,6 +90,7 @@ impl NodeMetaDataExt for FuturesOrderNodeContext {
     type NodeEvent = BacktestNodeEvent;
     type NodeCommand = BacktestNodeCommand;
     type StrategyCommand = BacktestStrategyCommand;
+    type Error = FuturesOrderNodeError;
 
     fn metadata(&self) -> &NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &self.metadata
@@ -102,8 +103,6 @@ impl NodeMetaDataExt for FuturesOrderNodeContext {
 
 #[async_trait]
 impl NodeBenchmarkExt for FuturesOrderNodeContext {
-    type Error = crate::node::node_error::BacktestNodeError;
-
     async fn mount_node_cycle_tracker(
         &self,
         node_id: NodeId,

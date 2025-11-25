@@ -1,8 +1,8 @@
 // third-party
 use event_center::{CmdRespRecvFailedSnafu, EventCenterSingleton};
 use event_center_core::communication::response::Response;
-use key::{KeyTrait, KlineKey};
-use snafu::{IntoError, ResultExt};
+use key::{KeyTrait, KlineKey, error::TimeRangeNotSetSnafu};
+use snafu::{IntoError, OptionExt, ResultExt};
 use star_river_core::{custom_type::AccountId, exchange::Exchange, kline::Kline};
 use star_river_event::communication::{
     ExchangeEngineCommand, GetKlineHistoryCmdPayload, GetKlineHistoryCommand, MarketEngineCommand, RegisterExchangeCmdPayload,
@@ -10,7 +10,7 @@ use star_river_event::communication::{
 };
 use strategy_core::{
     communication::strategy::StrategyResponse,
-    error::node_error::StrategyCmdRespRecvFailedSnafu,
+    error::node_error::{StrategyCmdRespRecvFailedSnafu, StrategySnafu},
     node::context_trait::{NodeCommunicationExt, NodeInfoExt},
 };
 use tokio::sync::oneshot;
@@ -19,7 +19,7 @@ use tracing::instrument;
 // current crate
 use super::{KlineNodeContext, KlineNodeError};
 use crate::{
-    node::node_error::kline_node_error::{BacktestStrategySnafu, LoadKlineFromExchangeFailedSnafu, RegisterExchangeFailedSnafu},
+    node::node_error::kline_node_error::{LoadKlineFromExchangeFailedSnafu, RegisterExchangeFailedSnafu},
     strategy::strategy_command::{AppendKlineDataCmdPayload, AppendKlineDataCommand, InitKlineDataCmdPayload, InitKlineDataCommand},
 };
 
@@ -27,11 +27,11 @@ impl KlineNodeContext {
     // 从交易所获取k线历史(仅获取最小interval的k线)
     #[instrument(target = "backtest::kline::binance", skip(self))]
     pub async fn load_kline_history_from_exchange(&self) -> Result<(), KlineNodeError> {
-        let account_id = self.node_config.account()?.account_id;
+        let account_id = self.node_config.exchange_mode()?.selected_account.account_id;
 
-        let exchange = self.node_config.account()?.exchange.clone();
+        let exchange = self.node_config.exchange_mode()?.selected_account.exchange.clone();
 
-        let time_range = self.node_config.time_range()?;
+        let time_range = self.node_config.exchange_mode()?.time_range.clone();
 
         match exchange {
             Exchange::Metatrader5(_) => self.get_mt5_kline_history(account_id, &time_range).await?,
@@ -55,20 +55,18 @@ impl KlineNodeContext {
             kline_key.exchange(),
             kline_key.symbol(),
             kline_key.interval(),
-            kline_key.time_range().unwrap(),
-        );
-        tracing::debug!(
-            "请求的k线timeRange: {:?}, interval: {:?}",
-            kline_key.time_range().unwrap(),
-            kline_key.interval()
+            kline_key.time_range().context(TimeRangeNotSetSnafu {
+                exchange: kline_key.exchange().to_string(),
+                symbol: kline_key.symbol().to_string(),
+                interval: kline_key.interval().to_string(),
+            })?,
         );
         let cmd: MarketEngineCommand = GetKlineHistoryCommand::new(node_id.clone(), resp_tx, payload).into();
-        EventCenterSingleton::send_command(cmd.into()).await.unwrap();
+        EventCenterSingleton::send_command(cmd.into()).await?;
 
-        let response = resp_rx.await.unwrap();
+        let response = resp_rx.await.context(CmdRespRecvFailedSnafu {})?;
         match response {
             Response::Success { payload, .. } => {
-                tracing::debug!("请求的k线历史: {:#?}", payload.kline_history);
                 return Ok(payload.kline_history.clone());
             }
             Response::Fail { error, .. } => {
@@ -90,7 +88,11 @@ impl KlineNodeContext {
         })?;
         match response {
             StrategyResponse::Success { .. } => Ok(()),
-            StrategyResponse::Fail { error, .. } => Err(BacktestStrategySnafu {}.into_error(error)),
+            StrategyResponse::Fail { error, .. } => Err(StrategySnafu {
+                node_name: self.node_name().clone(),
+            }
+            .into_error(error)
+            .into()),
         }
     }
 
@@ -107,7 +109,11 @@ impl KlineNodeContext {
                 return Ok(());
             }
             StrategyResponse::Fail { error, .. } => {
-                return Err(BacktestStrategySnafu {}.into_error(error));
+                return Err(StrategySnafu {
+                    node_name: self.node_name().clone(),
+                }
+                .into_error(error)
+                .into());
             }
         }
     }
@@ -115,8 +121,8 @@ impl KlineNodeContext {
     // 注册交易所
     #[instrument(skip(self))]
     pub async fn register_exchange(&self) -> Result<(), KlineNodeError> {
-        let account_id = self.node_config.account()?.account_id;
-        let exchange = self.node_config.account()?.exchange.clone();
+        let account_id = self.node_config.exchange_mode()?.selected_account.account_id;
+        let exchange = self.node_config.exchange_mode()?.selected_account.exchange.clone();
         let node_id = self.node_id().clone();
         let node_name = self.node_name().clone();
 

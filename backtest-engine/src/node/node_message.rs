@@ -162,16 +162,6 @@ pub mod common_log_message {
         en: "@[{node_name}] min interval initialization successful",
         zh: "@[{node_name}] 最小周期初始化成功"
     );
-
-    log_message!(
-        InitMinIntervalFailedMsg,
-        params: (
-            node_name: String,
-            error: String
-        ),
-        en: "@[{node_name}] min interval initialization failed: {error}",
-        zh: "@[{node_name}] 最小周期初始化失败: {error}"
-    );
 }
 
 // StartNode 独特的日志消息

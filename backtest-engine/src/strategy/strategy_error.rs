@@ -82,10 +82,10 @@ pub enum BacktestStrategyError {
     #[snafu(display("[{strategy_name}] kline data lengths are not all the same"))]
     KlineDataLengthNotSame { strategy_name: String, backtrace: Backtrace },
 
-    #[snafu(display("[{strategy_name}] kline key not found: {kline_key}"))]
-    KlineKeyNotFound {
+    #[snafu(display("[{strategy_name}] key not found: {key}"))]
+    KeyNotFound {
         strategy_name: String,
-        kline_key: String,
+        key: String,
         backtrace: Backtrace,
     },
 
@@ -139,7 +139,7 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::GetDataByDatetimeFailed { .. } => 1010,    // 获取数据失败
             BacktestStrategyError::GetStartNodeConfigFailed { .. } => 1011,   // 获取开始节点配置失败
             BacktestStrategyError::KlineDataLengthNotSame { .. } => 1012,     // kline数据长度不相同
-            BacktestStrategyError::KlineKeyNotFound { .. } => 1013,           // kline key未找到
+            BacktestStrategyError::KeyNotFound { .. } => 1013,                // kline key未找到
             BacktestStrategyError::PlayIndexOutOfRange { .. } => 1014,        // 播放索引超出范围
             BacktestStrategyError::GetNodeConfigFailed { .. } => 1015,        // 获取节点配置失败
             BacktestStrategyError::MissingDataSource { .. } => 1016,          // 缺少数据源
@@ -171,7 +171,7 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             }
 
             // 客户端错误 - 资源未找到 (404)
-            BacktestStrategyError::KlineKeyNotFound { .. } => StatusCode::NOT_FOUND,
+            BacktestStrategyError::KeyNotFound { .. } => StatusCode::NOT_FOUND,
 
             // 客户端错误 - 冲突/状态错误 (409)
             BacktestStrategyError::AlreadyPlaying { .. } | BacktestStrategyError::AlreadyPausing { .. } => StatusCode::CONFLICT,
@@ -237,8 +237,10 @@ impl StarRiverErrorTrait for BacktestStrategyError {
                 BacktestStrategyError::KlineDataLengthNotSame { strategy_name, .. } => {
                     format!("策略 [{strategy_name}] kline数据长度不相同")
                 }
-                BacktestStrategyError::KlineKeyNotFound {
-                    strategy_name, kline_key, ..
+                BacktestStrategyError::KeyNotFound {
+                    strategy_name,
+                    key: kline_key,
+                    ..
                 } => {
                     format!("策略 [{strategy_name}] kline key 不存在: {kline_key}")
                 }

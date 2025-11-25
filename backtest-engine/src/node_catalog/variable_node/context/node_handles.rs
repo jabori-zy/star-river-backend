@@ -9,7 +9,7 @@ use super::VariableNodeContext;
 use crate::node::node_event::BacktestNodeEvent;
 
 impl NodeHandleExt for VariableNodeContext {
-    fn set_output_handles(&mut self) {
+    fn set_output_handles(&mut self) -> Result<(), Self::Error> {
         let node_id = self.node_id().clone();
         let node_name = self.node_name().clone();
         let variable_configs = self.node_config.variable_configs.clone();
@@ -30,5 +30,6 @@ impl NodeHandleExt for VariableNodeContext {
             tracing::debug!("[{node_name}] setting variable output handle: {}", output_handle_id);
             self.add_output_handle(false, config_id, output_handle_id, tx);
         }
+        Ok(())
     }
 }

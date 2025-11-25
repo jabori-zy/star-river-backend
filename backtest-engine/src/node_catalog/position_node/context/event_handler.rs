@@ -18,7 +18,6 @@ use crate::{
 #[async_trait]
 impl NodeEventHandlerExt for PositionNodeContext {
     type EngineEvent = Event;
-    type Error = PositionNodeError;
 
     async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), PositionNodeError> {
         Ok(())

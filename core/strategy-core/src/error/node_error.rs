@@ -3,7 +3,7 @@ use std::sync::Arc;
 use snafu::{Backtrace, Snafu};
 use star_river_core::{
     custom_type::NodeName,
-    error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode},
+    error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain},
 };
 
 #[derive(Debug, Snafu)]
@@ -85,6 +85,13 @@ pub enum NodeError {
         source: tokio::sync::oneshot::error::RecvError,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("@[{node_name}] strategy error: {source}"))]
+    StrategyError {
+        node_name: NodeName,
+        source: Arc<dyn StarRiverErrorTrait + Send + Sync + 'static>,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for NodeError
@@ -110,6 +117,7 @@ impl StarRiverErrorTrait for NodeError {
             NodeError::StrategyCommandSendFailed { .. } => 1012,        // strategy command send failed
             NodeError::NodeCommandSendFailed { .. } => 1013,            // node command send failed.
             NodeError::StrategyCmdRespRecvFailed { .. } => 1014,        // strategy command response receive failed.
+            NodeError::StrategyError { .. } => 1015,                    // strategy error.
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -130,6 +138,7 @@ impl StarRiverErrorTrait for NodeError {
             NodeError::StrategyCommandSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             NodeError::NodeCommandSendFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             NodeError::StrategyCmdRespRecvFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            NodeError::StrategyError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -192,6 +201,9 @@ impl StarRiverErrorTrait for NodeError {
                     NodeError::StrategyCmdRespRecvFailed { node_name, source, .. } => {
                         format!("@[{node_name}] 策略命令响应接收失败, 原因: {}", source)
                     }
+                    NodeError::StrategyError { node_name, source, .. } => {
+                        format!("@[{node_name}] 策略错误: {}", source)
+                    }
                 }
             }
         }
@@ -200,6 +212,7 @@ impl StarRiverErrorTrait for NodeError {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             // non-transparent errors - return own error code
+            NodeError::StrategyError { source, .. } => generate_error_code_chain(source.as_ref()),
             _ => vec![self.error_code()],
         }
     }

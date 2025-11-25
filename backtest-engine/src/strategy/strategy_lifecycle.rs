@@ -155,20 +155,6 @@ impl StrategyLifecycle for BacktestStrategy {
                     })
                     .await?;
                 }
-                BacktestStrategyStateAction::InitSignalCount => {
-                    let strategy_name_clone = strategy_name.clone();
-                    self.with_ctx_write_async(|ctx| {
-                        Box::pin(async move {
-                            let signal_count = ctx.get_signal_count().await;
-                            if let Ok(count) = signal_count {
-                                ctx.set_total_signal_count(count).await;
-                            } else {
-                                tracing::error!("[{}] get signal count failed", &strategy_name_clone);
-                            }
-                        })
-                    })
-                    .await;
-                }
                 BacktestStrategyStateAction::InitSignalGenerator => {
                     self.with_ctx_write_async(|ctx| {
                         Box::pin(async move {

@@ -89,6 +89,7 @@ impl NodeMetaDataExt for StartNodeContext {
     type NodeEvent = BacktestNodeEvent;
     type NodeCommand = BacktestNodeCommand;
     type StrategyCommand = BacktestStrategyCommand;
+    type Error = StartNodeError;
 
     fn metadata(&self) -> &NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &self.metadata
@@ -101,8 +102,6 @@ impl NodeMetaDataExt for StartNodeContext {
 
 #[async_trait]
 impl NodeBenchmarkExt for StartNodeContext {
-    type Error = StartNodeError;
-
     async fn mount_node_cycle_tracker(
         &self,
         node_id: NodeId,

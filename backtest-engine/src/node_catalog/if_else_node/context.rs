@@ -17,7 +17,7 @@ use strategy_core::{
 
 use super::{if_else_node_type::IfElseNodeBacktestConfig, state_machine::IfElseNodeStateMachine};
 use crate::{
-    node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
+    node::{node_command::BacktestNodeCommand, node_error::IfElseNodeError, node_event::BacktestNodeEvent},
     strategy::strategy_command::BacktestStrategyCommand,
 };
 
@@ -67,6 +67,7 @@ impl NodeMetaDataExt for IfElseNodeContext {
     type NodeEvent = BacktestNodeEvent;
     type NodeCommand = BacktestNodeCommand;
     type StrategyCommand = BacktestStrategyCommand;
+    type Error = IfElseNodeError;
 
     fn metadata(&self) -> &NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &self.metadata
@@ -79,8 +80,6 @@ impl NodeMetaDataExt for IfElseNodeContext {
 
 #[async_trait]
 impl NodeBenchmarkExt for IfElseNodeContext {
-    type Error = crate::node::node_error::BacktestNodeError;
-
     async fn mount_node_cycle_tracker(
         &self,
         node_id: NodeId,

@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use engine_core::context_trait::EngineEventHandler;
 use event_center::{EngineCommand, Event};
 use star_river_event::communication::indicator_engine::{
-    CalculateHistoryIndicatorRespPayload, CalculateHistoryIndicatorResponse, GetIndicatorLookbackRespPayload, GetIndicatorLookbackResponse,
+    CalculateIndicatorRespPayload, CalculateIndicatorResponse, GetIndicatorLookbackRespPayload, GetIndicatorLookbackResponse,
     IndicatorEngineCommand,
 };
 use ta_lib::TALib;
@@ -34,26 +34,22 @@ impl EngineEventHandler for IndicatorEngineContext {
                         cmd.respond(response);
                     }
                     // 计算指标
-                    IndicatorEngineCommand::CalculateHistoryIndicator(cmd) => {
+                    IndicatorEngineCommand::CalculateIndicator(cmd) => {
                         let cal_result =
                             CalculateIndicatorFunction::calculate_indicator(cmd.kline_series.clone(), cmd.indicator_config.clone()).await;
                         match cal_result {
                             Ok(indicators) => {
-                                let payload = CalculateHistoryIndicatorRespPayload::new(
-                                    cmd.kline_key.clone(),
-                                    cmd.indicator_config.clone(),
-                                    indicators,
-                                );
-                                let response = CalculateHistoryIndicatorResponse::success(payload);
+                                let payload =
+                                    CalculateIndicatorRespPayload::new(cmd.kline_key.clone(), cmd.indicator_config.clone(), indicators);
+                                let response = CalculateIndicatorResponse::success(payload);
                                 cmd.respond(response);
                             }
                             Err(error) => {
-                                let response = CalculateHistoryIndicatorResponse::fail(Arc::new(error));
+                                let response = CalculateIndicatorResponse::fail(Arc::new(error));
                                 cmd.respond(response);
                             }
                         }
                     }
-                    _ => {}
                 }
             }
             _ => {}

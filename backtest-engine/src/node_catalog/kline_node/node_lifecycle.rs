@@ -148,7 +148,9 @@ impl NodeLifecycle for KlineNode {
                     tracing::info!("[{node_name}] start to register exchange");
 
                     let exchange = self
-                        .with_ctx_read(|ctx| Ok::<Exchange, KlineNodeError>(ctx.node_config.account()?.exchange.clone()))
+                        .with_ctx_read(|ctx| {
+                            Ok::<Exchange, KlineNodeError>(ctx.node_config.exchange_mode()?.selected_account.exchange.clone())
+                        })
                         .await?;
 
                     // 发送开始注册日志

@@ -93,10 +93,6 @@ impl StrategyStateTransTrigger for BacktestStrategyStateTransTrigger {}
 /// Actions to execute during backtest strategy state transitions
 #[derive(Debug, Clone, Display)]
 pub enum BacktestStrategyStateAction {
-    /// Initialize signal count
-    #[strum(serialize = "InitSignalCount")]
-    InitSignalCount,
-
     /// Initialize initial playback speed
     #[strum(serialize = "InitInitialPlaySpeed")]
     InitInitialPlaySpeed,
@@ -206,7 +202,6 @@ pub fn backtest_strategy_transition(
                 BacktestStrategyStateAction::ListenAndHandleStrategyCommand,
                 BacktestStrategyStateAction::ListenAndHandleStrategyStatsEvent,
                 BacktestStrategyStateAction::InitNode,
-                BacktestStrategyStateAction::InitSignalCount,
                 BacktestStrategyStateAction::InitInitialPlaySpeed,
                 BacktestStrategyStateAction::InitVirtualTradingSystem,
                 BacktestStrategyStateAction::InitSignalGenerator,

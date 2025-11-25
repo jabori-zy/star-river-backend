@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
 use event_center::EventCenterError;
 use key::error::KeyError;
 use snafu::{Backtrace, Snafu};
@@ -28,12 +27,6 @@ pub enum KlineNodeError {
     #[snafu(transparent)]
     KeyError { source: KeyError, backtrace: Backtrace },
 
-    #[snafu(display("strategy error: {source}"))]
-    BacktestStrategy {
-        source: Arc<dyn StarRiverErrorTrait>,
-        backtrace: Backtrace,
-    },
-
     #[snafu(display("@[{node_name}] register exchange error"))]
     RegisterExchangeFailed {
         node_name: String,
@@ -58,15 +51,11 @@ pub enum KlineNodeError {
         end_time: String,
         backtrace: Backtrace,
     },
-
-    #[snafu(display("@@[{node_name}] data source account is not configured"))]
-    DataSourceAccountIsNotConfigured { node_name: NodeName, backtrace: Backtrace },
+    #[snafu(display("@[{node_name}] exchange mode is not configured"))]
+    ExchangeModeNotConfigured { node_name: NodeName, backtrace: Backtrace },
 
     #[snafu(display("@[{node_name}] symbols is not configured"))]
-    SymbolsIsNotConfigured { node_name: NodeName, backtrace: Backtrace },
-
-    #[snafu(display("@[{node_name}] time range is not configured"))]
-    TimeRangeIsNotConfigured { node_name: NodeName, backtrace: Backtrace },
+    SymbolsIsNotConfiguredSnafu { node_name: NodeName, backtrace: Backtrace },
 
     #[snafu(display("@[{node_name}] get min interval symbols failed"))]
     GetMinIntervalFromStrategyFailed {
@@ -135,19 +124,17 @@ impl StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::NodeStateMachineError { .. } => 1002,                  // node state machine error
             KlineNodeError::EventCenterError { .. } => 1003,                       // event center error
             KlineNodeError::KeyError { .. } => 1004,                               // key error
-            KlineNodeError::BacktestStrategy { .. } => 1005,                       // strategy error
-            KlineNodeError::RegisterExchangeFailed { .. } => 1006,                 // register exchange failed
-            KlineNodeError::LoadKlineFromExchangeFailed { .. } => 1007,            // load kline from exchange failed
-            KlineNodeError::InsufficientBacktestDataForMetaTrader5 { .. } => 1008, // insufficient meta trader 5 kline data
-            KlineNodeError::DataSourceAccountIsNotConfigured { .. } => 1009,       // data source account is not configured
-            KlineNodeError::SymbolsIsNotConfigured { .. } => 1010,                 // selected symbols is not configured
-            KlineNodeError::TimeRangeIsNotConfigured { .. } => 1011,               // time range is not configured
-            KlineNodeError::GetMinIntervalFromStrategyFailed { .. } => 1012,       // get min interval symbols from strategy failed
-            KlineNodeError::FirstKlineIsEmpty { .. } => 1013,                      // first kline is empty
-            KlineNodeError::AcquireSemaphoreFailed { .. } => 1014,                 // acquire semaphore failed
-            KlineNodeError::FetchKlineDataTaskFailed { .. } => 1015,               // fetch kline data task failed
-            KlineNodeError::InsufficientBacktestData { .. } => 1016,               // insufficient backtest data for exchange
-            KlineNodeError::PendingUpdateKlineNotExist { .. } => 1017,             // pending update kline not exist
+            KlineNodeError::RegisterExchangeFailed { .. } => 1005,                 // register exchange failed
+            KlineNodeError::LoadKlineFromExchangeFailed { .. } => 1006,            // load kline from exchange failed
+            KlineNodeError::InsufficientBacktestDataForMetaTrader5 { .. } => 1007, // insufficient meta trader 5 kline data
+            KlineNodeError::ExchangeModeNotConfigured { .. } => 1008,              // exchange mode is not configured
+            KlineNodeError::SymbolsIsNotConfiguredSnafu { .. } => 1009,            // symbols is not configured
+            KlineNodeError::GetMinIntervalFromStrategyFailed { .. } => 1010,       // get min interval symbols from strategy failed
+            KlineNodeError::FirstKlineIsEmpty { .. } => 1011,                      // first kline is empty
+            KlineNodeError::AcquireSemaphoreFailed { .. } => 1012,                 // acquire semaphore failed
+            KlineNodeError::FetchKlineDataTaskFailed { .. } => 1013,               // fetch kline data task failed
+            KlineNodeError::InsufficientBacktestData { .. } => 1014,               // insufficient backtest data for exchange
+            KlineNodeError::PendingUpdateKlineNotExist { .. } => 1015,             // pending update kline not exist
         };
 
         format!("{}_{:04}", prefix, code)
@@ -159,15 +146,13 @@ impl StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::NodeStateMachineError { source, .. } => source.http_status_code(),
             KlineNodeError::EventCenterError { source, .. } => source.http_status_code(),
             KlineNodeError::KeyError { source, .. } => source.http_status_code(),
-            KlineNodeError::BacktestStrategy { source, .. } => source.http_status_code(),
             KlineNodeError::RegisterExchangeFailed { source, .. } => source.http_status_code(),
             KlineNodeError::LoadKlineFromExchangeFailed { source, .. } => source.http_status_code(),
 
             // 服务器内部错误
             KlineNodeError::InsufficientBacktestDataForMetaTrader5 { .. } => StatusCode::BAD_REQUEST, // 400 - insufficient meta trader 5 kline data
-            KlineNodeError::DataSourceAccountIsNotConfigured { .. } => StatusCode::BAD_REQUEST, // 400 - data source account is not configured
-            KlineNodeError::SymbolsIsNotConfigured { .. } => StatusCode::BAD_REQUEST,           // 400 - selected symbols is not configured
-            KlineNodeError::TimeRangeIsNotConfigured { .. } => StatusCode::BAD_REQUEST,         // 400 - time range is not configured
+            KlineNodeError::ExchangeModeNotConfigured { .. } => StatusCode::BAD_REQUEST, // 400 - exchange mode is not configured
+            KlineNodeError::SymbolsIsNotConfiguredSnafu { .. } => StatusCode::BAD_REQUEST, // 400 - symbols is not configured
             KlineNodeError::GetMinIntervalFromStrategyFailed { source, .. } => source.http_status_code(), // 400 - get min interval symbols failed
             KlineNodeError::FirstKlineIsEmpty { .. } => StatusCode::INTERNAL_SERVER_ERROR,                // 500 - first kline is empty
             KlineNodeError::AcquireSemaphoreFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,           // 500 - acquire semaphore failed
@@ -186,8 +171,7 @@ impl StarRiverErrorTrait for KlineNodeError {
             KlineNodeError::KeyError { source, .. } => generate_error_code_chain(source),
             KlineNodeError::RegisterExchangeFailed { source, .. }
             | KlineNodeError::LoadKlineFromExchangeFailed { source, .. }
-            | KlineNodeError::GetMinIntervalFromStrategyFailed { source, .. }
-            | KlineNodeError::BacktestStrategy { source, .. } => generate_error_code_chain(source.as_ref()),
+            | KlineNodeError::GetMinIntervalFromStrategyFailed { source, .. } => generate_error_code_chain(source.as_ref()),
 
             _ => vec![self.error_code()],
         }
@@ -201,7 +185,6 @@ impl StarRiverErrorTrait for KlineNodeError {
                 KlineNodeError::NodeStateMachineError { source, .. } => source.error_message(language),
                 KlineNodeError::EventCenterError { source, .. } => source.error_message(language),
                 KlineNodeError::KeyError { source, .. } => source.error_message(language),
-                KlineNodeError::BacktestStrategy { source, .. } => source.error_message(language),
                 KlineNodeError::RegisterExchangeFailed { node_name, .. } => {
                     format!("[{}] 注册交易所错误", node_name)
                 }
@@ -218,14 +201,11 @@ impl StarRiverErrorTrait for KlineNodeError {
                         "回测时间范围从{start_time}到{end_time}，但第一根K线的时间为{first_kline_datetime}。 前往Metatrader5终端的工具-> 选项 -> 图表，然后将最大图表数据量设置为Unlimited，然后重启Metatrader5。"
                     )
                 }
-                KlineNodeError::DataSourceAccountIsNotConfigured { node_name, .. } => {
-                    format!("@[{node_name}] 数据源账户未配置")
+                KlineNodeError::ExchangeModeNotConfigured { node_name, .. } => {
+                    format!("@[{node_name}] 交易所模式未配置")
                 }
-                KlineNodeError::SymbolsIsNotConfigured { node_name, .. } => {
-                    format!("@[{node_name}] 未配置交易对")
-                }
-                KlineNodeError::TimeRangeIsNotConfigured { node_name, .. } => {
-                    format!("@[{node_name}] 未配置回测时间范围")
+                KlineNodeError::SymbolsIsNotConfiguredSnafu { node_name, .. } => {
+                    format!("@[{node_name}] 交易对未配置")
                 }
                 KlineNodeError::GetMinIntervalFromStrategyFailed { node_name, source, .. } => {
                     format!("@[{node_name}] 获取最小周期交易对失败。原因: [{}]", source)

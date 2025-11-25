@@ -234,15 +234,17 @@ impl GetKlineDataRespPayload {
 #[derive(Debug)]
 pub struct GetIndicatorDataCmdPayload {
     pub indicator_key: IndicatorKey,
-    pub play_index: Option<i32>,
+    pub datetime: Option<DateTime<Utc>>,
+    pub index: Option<u64>,
     pub limit: Option<i32>,
 }
 
 impl GetIndicatorDataCmdPayload {
-    pub fn new(indicator_key: IndicatorKey, play_index: Option<i32>, limit: Option<i32>) -> Self {
+    pub fn new(indicator_key: IndicatorKey, datetime: Option<DateTime<Utc>>, index: Option<u64>, limit: Option<i32>) -> Self {
         Self {
             indicator_key,
-            play_index,
+            datetime,
+            index,
             limit,
         }
     }
@@ -251,11 +253,15 @@ impl GetIndicatorDataCmdPayload {
 #[derive(Debug)]
 pub struct GetIndicatorDataRespPayload {
     pub indicator_series: Vec<Indicator>,
+    pub correct_index: Option<u64>,
 }
 
 impl GetIndicatorDataRespPayload {
-    pub fn new(data: Vec<Indicator>) -> Self {
-        Self { indicator_series: data }
+    pub fn new(indicator_series: Vec<Indicator>, correct_index: Option<u64>) -> Self {
+        Self {
+            indicator_series,
+            correct_index,
+        }
     }
 }
 

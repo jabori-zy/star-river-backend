@@ -21,7 +21,6 @@ use crate::node::{
 #[async_trait]
 impl NodeEventHandlerExt for VariableNodeContext {
     type EngineEvent = Event;
-    type Error = VariableNodeError;
 
     async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), VariableNodeError> {
         Ok(())

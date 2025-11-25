@@ -46,6 +46,7 @@ pub trait NodeMetaDataExt: Debug + Send + Sync + 'static {
     type NodeEvent: NodeEventTrait + From<CommonEvent>;
     type NodeCommand: NodeCommandTrait;
     type StrategyCommand: StrategyCommandTrait;
+    type Error: StarRiverErrorTrait;
 
     /// 获取基础上下文的不可变引用
     fn metadata(&self) -> &NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand>;
@@ -167,7 +168,7 @@ impl<Ctx> NodeRelationExt for Ctx where Ctx: NodeMetaDataExt {}
 ///
 /// 管理节点的输入/输出句柄和策略输出句柄
 pub trait NodeHandleExt: NodeMetaDataExt + NodeInfoExt {
-    fn set_output_handles(&mut self);
+    fn set_output_handles(&mut self) -> Result<(), Self::Error>;
 
     /// 添加输入句柄
     #[inline]
@@ -502,7 +503,6 @@ impl<Ctx> NodeTaskControlExt for Ctx where Ctx: NodeMetaDataExt {}
 #[async_trait]
 pub trait NodeEventHandlerExt: NodeMetaDataExt {
     type EngineEvent: EventTrait;
-    type Error: StarRiverErrorTrait;
 
     async fn handle_engine_event(&mut self, event: Self::EngineEvent) -> Result<(), Self::Error>;
     /// 处理节点事件
@@ -527,8 +527,6 @@ pub trait NodeEventHandlerExt: NodeMetaDataExt {
 /// 提供向策略发送性能统计数据的功能
 #[async_trait]
 pub trait NodeBenchmarkExt: NodeMetaDataExt + NodeInfoExt + NodeCommunicationExt {
-    type Error: StarRiverErrorTrait;
-
     /// 挂载节点周期追踪数据
     ///
     /// 将节点的性能统计数据发送到策略层

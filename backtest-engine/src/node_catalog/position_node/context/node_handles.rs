@@ -5,7 +5,7 @@ use super::PositionNodeContext;
 use crate::node::node_event::BacktestNodeEvent;
 
 impl NodeHandleExt for PositionNodeContext {
-    fn set_output_handles(&mut self) {
+    fn set_output_handles(&mut self) -> Result<(), Self::Error> {
         let node_id = self.node_id().clone();
         let node_name = self.node_name().clone();
         let position_operations = self.node_config.position_operations.clone();
@@ -36,5 +36,6 @@ impl NodeHandleExt for PositionNodeContext {
             tracing::debug!("[{node_name}] setting failed output handle: {}", failed_output_handle_id);
             self.add_output_handle(false, position_operation.position_operation_id, failed_output_handle_id, failed_tx);
         }
+        Ok(())
     }
 }

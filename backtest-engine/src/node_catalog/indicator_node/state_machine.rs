@@ -25,7 +25,7 @@ pub enum IndicatorNodeAction {
     ListenAndHandleNodeEvents,      // Listen and handle node messages
     ListenAndHandleStrategyCommand, // Handle strategy commands
     InitIndicatorLookback,          // Initialize indicator lookback
-    GetMinIntervalSymbols,          // Get minimum interval symbols
+    GetMinInterval,                 // Get minimum interval
     CalculateIndicator,             // Calculate indicator
     LogNodeState,                   // Log node state
     LogTransition,                  // Log state transition
@@ -57,7 +57,7 @@ pub fn indicator_node_transition(
                 IndicatorNodeAction::ListenAndHandleNodeEvents,
                 IndicatorNodeAction::ListenAndHandleStrategyCommand,
                 IndicatorNodeAction::InitIndicatorLookback,
-                IndicatorNodeAction::GetMinIntervalSymbols,
+                IndicatorNodeAction::GetMinInterval,
                 IndicatorNodeAction::CalculateIndicator,
             ],
         )),

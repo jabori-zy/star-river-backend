@@ -8,7 +8,7 @@ use star_river_event::backtest_strategy::node_event::kline_node_event::{KlineUpd
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
     communication::strategy::StrategyResponse,
-    error::node_error::StrategyCmdRespRecvFailedSnafu,
+    error::node_error::{StrategyCmdRespRecvFailedSnafu, StrategySnafu},
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
 };
 use tokio::sync::oneshot;
@@ -16,9 +16,7 @@ use tokio::sync::oneshot;
 // current crate
 use super::{KlineNodeContext, utils::is_cross_interval};
 // workspace crate
-use crate::node::node_error::kline_node_error::{
-    BacktestStrategySnafu, GetMinIntervalFromStrategyFailedSnafu, PendingUpdateKlineNotExistSnafu,
-};
+use crate::node::node_error::kline_node_error::{GetMinIntervalFromStrategyFailedSnafu, PendingUpdateKlineNotExistSnafu};
 use crate::{
     node::{
         node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
@@ -89,11 +87,11 @@ impl KlineNodeContext {
             } else {
                 let event = generate_event(symbol_handle_id);
                 self.output_handle_send(event)?;
-            }
 
-            let default_output_handle = self.default_output_handle()?;
-            let event = generate_event(default_output_handle.output_handle_id().clone());
-            self.default_output_handle_send(event)?;
+                let default_output_handle = self.default_output_handle()?;
+                let event = generate_event(default_output_handle.output_handle_id().clone());
+                self.default_output_handle_send(event)?;
+            }
         } else {
             if self.is_leaf_node() {
                 self.send_execute_over_event(Some(symbol_info.0), Some(self.strategy_time()))?;
@@ -121,7 +119,9 @@ impl KlineNodeContext {
             // 判断当前play_index
             if self.cycle_id() == 0 {
                 // 如果play_index为0，则向缓存引擎插入新的k线
-                self.insert_new_kline_to_strategy(symbol_key, &min_interval_kline).await
+                self.insert_new_kline_to_strategy(symbol_key, &min_interval_kline).await?;
+                self.handle_event_send(symbol_info, symbol_key, true, Some(min_interval_kline.clone()))
+                    .await
             } else {
                 // 核心步骤（插值算法）
                 let current_interval = symbol_key.interval();
@@ -173,7 +173,11 @@ impl KlineNodeContext {
                 Ok(())
             }
             StrategyResponse::Fail { error, .. } => {
-                return Err(BacktestStrategySnafu {}.into_error(error));
+                return Err(StrategySnafu {
+                    node_name: self.node_name().clone(),
+                }
+                .into_error(error)
+                .into());
             }
         }
     }
@@ -215,7 +219,11 @@ impl KlineNodeContext {
         match response {
             StrategyResponse::Success { .. } => Ok(new_kline),
             StrategyResponse::Fail { error, .. } => {
-                return Err(BacktestStrategySnafu {}.into_error(error));
+                return Err(StrategySnafu {
+                    node_name: self.node_name().clone(),
+                }
+                .into_error(error)
+                .into());
             }
         }
     }
@@ -260,9 +268,8 @@ impl KlineNodeContext {
 #[async_trait]
 impl NodeEventHandlerExt for KlineNodeContext {
     type EngineEvent = Event;
-    type Error = KlineNodeError;
 
-    async fn handle_command(&mut self, node_command: Self::NodeCommand) -> Result<(), KlineNodeError> {
+    async fn handle_command(&mut self, node_command: Self::NodeCommand) -> Result<(), Self::Error> {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
@@ -278,7 +285,7 @@ impl NodeEventHandlerExt for KlineNodeContext {
         }
     }
 
-    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), KlineNodeError> {
+    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), Self::Error> {
         match node_event {
             BacktestNodeEvent::StartNode(start_node_event) => match start_node_event {
                 StartNodeEvent::KlinePlay(_) => {
@@ -290,7 +297,7 @@ impl NodeEventHandlerExt for KlineNodeContext {
         }
     }
 
-    async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), KlineNodeError> {
+    async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), Self::Error> {
         Ok(())
     }
 }

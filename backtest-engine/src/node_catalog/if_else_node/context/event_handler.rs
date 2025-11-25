@@ -19,9 +19,8 @@ use crate::node::{
 #[async_trait]
 impl NodeEventHandlerExt for IfElseNodeContext {
     type EngineEvent = Event;
-    type Error = IfElseNodeError;
 
-    async fn handle_command(&mut self, node_command: Self::NodeCommand) -> Result<(), IfElseNodeError> {
+    async fn handle_command(&mut self, node_command: Self::NodeCommand) -> Result<(), Self::Error> {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
@@ -37,7 +36,7 @@ impl NodeEventHandlerExt for IfElseNodeContext {
         }
     }
 
-    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), IfElseNodeError> {
+    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), Self::Error> {
         if let BacktestNodeEvent::KlineNode(KlineNodeEvent::KlineUpdate(_))
         | BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(_))
         | BacktestNodeEvent::VariableNode(VariableNodeEvent::SysVarUpdate(_))
@@ -80,7 +79,7 @@ impl NodeEventHandlerExt for IfElseNodeContext {
         Ok(())
     }
 
-    async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), IfElseNodeError> {
+    async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), Self::Error> {
         Ok(())
     }
 }

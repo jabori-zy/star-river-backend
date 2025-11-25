@@ -8,7 +8,6 @@ use std::{collections::HashMap, fmt::Debug};
 
 // External project crates
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use key::{IndicatorKey, KlineKey};
 use star_river_core::{
     custom_type::{NodeId, NodeName},
@@ -26,7 +25,7 @@ use strategy_core::{
 use super::{indicator_node_type::IndicatorNodeBacktestConfig, state_machine::IndicatorNodeStateMachine};
 // Crate imports
 use crate::{
-    node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
+    node::{node_command::BacktestNodeCommand, node_error::IndicatorNodeError, node_event::BacktestNodeEvent, node_utils::NodeUtils},
     strategy::strategy_command::BacktestStrategyCommand,
 };
 
@@ -38,10 +37,10 @@ pub struct IndicatorNodeContext {
     node_config: IndicatorNodeBacktestConfig,
     selected_kline_key: KlineKey,                         // Selected kline cache key
     indicator_keys: HashMap<IndicatorKey, (i32, String)>, // Indicator key -> (config_id, output_handle_id)
-    kline_value: HashMap<IndicatorKey, Vec<Kline>>,       // Indicator key -> kline values
+    cache_kline_slice: HashMap<IndicatorKey, Vec<Kline>>, // Indicator key -> kline values
     indicator_lookback: HashMap<IndicatorKey, usize>,     // Indicator key -> lookback
-    min_interval_symbols: Vec<KlineKey>,
     min_interval: KlineInterval,
+    correct_index: u64, // Correct index
 }
 
 impl IndicatorNodeContext {
@@ -56,23 +55,15 @@ impl IndicatorNodeContext {
             node_config,
             selected_kline_key,
             indicator_keys,
-            kline_value: HashMap::new(),
+            cache_kline_slice: HashMap::new(),
             indicator_lookback: HashMap::new(),
-            min_interval_symbols: vec![],
             min_interval: KlineInterval::Minutes1,
+            correct_index: 0,
         }
-    }
-
-    pub fn set_min_interval_symbols(&mut self, min_interval_symbols: Vec<KlineKey>) {
-        self.min_interval_symbols = min_interval_symbols;
     }
 
     pub fn set_min_interval(&mut self, interval: KlineInterval) {
         self.min_interval = interval;
-    }
-
-    pub fn min_interval_symbols(&self) -> &Vec<KlineKey> {
-        &self.min_interval_symbols
     }
 
     pub fn indicator_keys(&self) -> &HashMap<IndicatorKey, (i32, String)> {
@@ -85,6 +76,7 @@ impl NodeMetaDataExt for IndicatorNodeContext {
     type NodeEvent = BacktestNodeEvent;
     type NodeCommand = BacktestNodeCommand;
     type StrategyCommand = BacktestStrategyCommand;
+    type Error = IndicatorNodeError;
 
     fn metadata(&self) -> &NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &self.metadata
@@ -97,16 +89,13 @@ impl NodeMetaDataExt for IndicatorNodeContext {
 
 #[async_trait]
 impl NodeBenchmarkExt for IndicatorNodeContext {
-    type Error = crate::node::node_error::BacktestNodeError;
-
     async fn mount_node_cycle_tracker(
         &self,
         node_id: NodeId,
         node_name: NodeName,
         cycle_tracker: CompletedCycle,
     ) -> Result<(), Self::Error> {
-        crate::node::node_utils::NodeUtils::mount_node_cycle_tracker(node_id, node_name, cycle_tracker, self.strategy_command_sender())
-            .await?;
+        NodeUtils::mount_node_cycle_tracker(node_id, node_name, cycle_tracker, self.strategy_command_sender()).await?;
         Ok(())
     }
 }

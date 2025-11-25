@@ -6,7 +6,7 @@ use super::FuturesOrderNodeContext;
 use crate::node::node_event::BacktestNodeEvent;
 
 impl NodeHandleExt for FuturesOrderNodeContext {
-    fn set_output_handles(&mut self) {
+    fn set_output_handles(&mut self) -> Result<(), Self::Error> {
         let node_id = self.node_id().clone();
         let node_name = self.node_name().clone();
         let futures_order_configs = self.node_config.futures_order_configs.clone();
@@ -63,5 +63,6 @@ impl NodeHandleExt for FuturesOrderNodeContext {
             tracing::debug!("[{node_name}] setting order error output handle: {}", error_output_handle_id);
             self.add_output_handle(false, order_config.order_config_id, error_output_handle_id, error_tx);
         }
+        Ok(())
     }
 }

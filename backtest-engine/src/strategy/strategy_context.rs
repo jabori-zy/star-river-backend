@@ -40,7 +40,6 @@ pub type BacktestStrategyMetadata =
 #[derive(Debug)]
 pub struct BacktestStrategyContext {
     metadata: BacktestStrategyMetadata,
-    total_signal_count: Arc<RwLock<i32>>,
     is_playing: Arc<RwLock<bool>>,
     initial_play_speed: Arc<RwLock<u32>>,
     cancel_play_token: CancellationToken,
@@ -71,7 +70,6 @@ impl BacktestStrategyContext {
 
         Self {
             metadata,
-            total_signal_count: Arc::new(RwLock::new(0)),
             is_playing: Arc::new(RwLock::new(false)),
             initial_play_speed: Arc::new(RwLock::new(0)),
             cancel_play_token: CancellationToken::new(),
@@ -183,20 +181,6 @@ impl BacktestStrategyContext {
     }
 
     // ========================================================================
-    // 7. 信号计数 (Signal Count)
-    // ========================================================================
-
-    /// 获取信号总数
-    pub async fn total_signal_count(&self) -> i32 {
-        *self.total_signal_count.read().await
-    }
-
-    /// 设置信号总数
-    pub async fn set_total_signal_count(&self, count: i32) {
-        *self.total_signal_count.write().await = count;
-    }
-
-    // ========================================================================
     // 8. 缓存键管理 (Key Management)
     // ========================================================================
 
@@ -222,39 +206,6 @@ impl BacktestStrategyContext {
     /// 设置最小周期
     pub fn set_min_interval(&mut self, interval: KlineInterval) {
         self.min_interval = interval;
-    }
-
-    // ========================================================================
-    // 10. K线数据管理 (Kline Data)
-    // ========================================================================
-
-    /// 设置K线数据
-    pub async fn set_kline_data(&self, key: KlineKey, data: Vec<Kline>) {
-        self.kline_data.write().await.insert(key, data);
-    }
-
-    // ========================================================================
-    // 11. 指标数据管理 (Indicator Data)
-    // ========================================================================
-
-    /// 获取所有指标数据
-    pub async fn indicator_data(&self) -> HashMap<IndicatorKey, Vec<Indicator>> {
-        self.indicator_data.read().await.clone()
-    }
-
-    /// 获取指定指标数据
-    pub async fn get_indicator_data(&self, key: &IndicatorKey) -> Option<Vec<Indicator>> {
-        self.indicator_data.read().await.get(key).cloned()
-    }
-
-    /// 设置指标数据
-    pub async fn set_indicator_data(&self, key: IndicatorKey, data: Vec<Indicator>) {
-        self.indicator_data.write().await.insert(key, data);
-    }
-
-    /// 获取指标数据的Arc引用
-    pub fn indicator_data_arc(&self) -> Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>> {
-        self.indicator_data.clone()
     }
 
     // ========================================================================

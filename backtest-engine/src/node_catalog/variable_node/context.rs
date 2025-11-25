@@ -18,7 +18,7 @@ use tokio::sync::{Mutex, RwLock};
 
 use super::{state_machine::VariableNodeStateMachine, variable_node_type::VariableNodeBacktestConfig};
 use crate::{
-    node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
+    node::{node_command::BacktestNodeCommand, node_error::VariableNodeError, node_event::BacktestNodeEvent},
     strategy::strategy_command::BacktestStrategyCommand,
     virtual_trading_system::BacktestVts,
 };
@@ -53,6 +53,7 @@ impl NodeMetaDataExt for VariableNodeContext {
     type NodeEvent = BacktestNodeEvent;
     type NodeCommand = BacktestNodeCommand;
     type StrategyCommand = BacktestStrategyCommand;
+    type Error = VariableNodeError;
 
     fn metadata(&self) -> &NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &self.metadata

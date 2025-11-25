@@ -81,7 +81,6 @@ impl StrategyEventListener for BacktestStrategy {
             })
             .await;
 
-        tracing::debug!("strategy command receiver: {:?}", command_receiver.lock().await);
         let context = self.context.clone();
         tokio::spawn(async move {
             loop {

@@ -30,7 +30,6 @@ use crate::node::{
 #[async_trait]
 impl NodeEventHandlerExt for FuturesOrderNodeContext {
     type EngineEvent = Event;
-    type Error = FuturesOrderNodeError;
 
     async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), Self::Error> {
         Ok(())

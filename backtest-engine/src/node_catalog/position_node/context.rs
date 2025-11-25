@@ -5,7 +5,6 @@ mod node_handles;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::custom_type::{NodeId, NodeName};
@@ -20,7 +19,7 @@ use tokio::sync::Mutex;
 
 use super::{position_node_types::PositionNodeBacktestConfig, state_machine::PositionNodeStateMachine};
 use crate::{
-    node::{node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
+    node::{node_command::BacktestNodeCommand, node_error::PositionNodeError, node_event::BacktestNodeEvent},
     strategy::strategy_command::BacktestStrategyCommand,
     virtual_trading_system::BacktestVts,
 };
@@ -65,6 +64,7 @@ impl NodeMetaDataExt for PositionNodeContext {
     type NodeEvent = BacktestNodeEvent;
     type NodeCommand = BacktestNodeCommand;
     type StrategyCommand = BacktestStrategyCommand;
+    type Error = PositionNodeError;
 
     fn metadata(&self) -> &NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &self.metadata
@@ -77,8 +77,6 @@ impl NodeMetaDataExt for PositionNodeContext {
 
 #[async_trait]
 impl NodeBenchmarkExt for PositionNodeContext {
-    type Error = crate::node::node_error::BacktestNodeError;
-
     async fn mount_node_cycle_tracker(
         &self,
         node_id: NodeId,

@@ -81,10 +81,20 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
             }
 
             BacktestStrategyCommand::GetIndicatorData(cmd) => {
-                let result_data = self.get_indicator_slice(&cmd.indicator_key, cmd.play_index, cmd.limit).await;
-                let payload = GetIndicatorDataRespPayload::new(result_data);
-                let response = GetIndicatorDataResponse::success(payload);
-                cmd.respond(response);
+                let result_data = self
+                    .get_indicator_slice(cmd.datetime, cmd.index, &cmd.indicator_key, cmd.limit)
+                    .await;
+                match result_data {
+                    Ok(data) => {
+                        let payload = GetIndicatorDataRespPayload::new(data.0, data.1);
+                        let response = GetIndicatorDataResponse::success(payload);
+                        cmd.respond(response);
+                    }
+                    Err(error) => {
+                        let response = GetIndicatorDataResponse::fail(Arc::new(error));
+                        cmd.respond(response);
+                    }
+                }
             }
 
             BacktestStrategyCommand::UpdateIndicatorData(cmd) => {
@@ -179,8 +189,8 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                     self.leaf_node_execution_completed(execute_over_event.node_id().clone());
                     let should_finalize = self.leaf_node_execution_tracker().is_all_completed();
 
-                    // tracing::debug!("{:#?}", self.leaf_node_execution_tracker());
-                    // tracing::debug!("should_finalize: {}", should_finalize);
+                    tracing::debug!("{:#?}", self.leaf_node_execution_tracker());
+                    tracing::debug!("should_finalize: {}", should_finalize);
 
                     // 第二步：如果所有叶子节点都完成，先执行清理和通知，再记录 benchmark
                     if should_finalize {

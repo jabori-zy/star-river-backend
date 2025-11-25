@@ -12,8 +12,7 @@ mod utils;
 use std::{collections::HashMap, fmt::Debug};
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
-use key::{KeyTrait, KlineKey};
+use key::KlineKey;
 use star_river_core::{
     custom_type::{NodeId, NodeName},
     kline::KlineInterval,
@@ -21,7 +20,7 @@ use star_river_core::{
 use strategy_core::{
     benchmark::node_benchmark::CompletedCycle,
     node::{
-        context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeInfoExt, NodeMetaDataExt},
+        context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeMetaDataExt},
         metadata::NodeMetadata,
     },
 };
@@ -45,11 +44,12 @@ pub struct KlineNodeContext {
 
 impl KlineNodeContext {
     pub fn new(metadata: KlineNodeMetadata, node_config: KlineNodeBacktestConfig) -> Result<Self, KlineNodeError> {
-        let exchange = node_config.account()?.exchange.clone();
-        let time_range = node_config.time_range()?.clone();
+        let exchange = node_config.exchange_mode()?.selected_account.exchange.clone();
+        let time_range = node_config.exchange_mode()?.time_range.clone();
 
         let selected_symbol_keys = node_config
-            .symbols()
+            .exchange_mode()?
+            .selected_symbols
             .iter()
             .map(|symbol| {
                 let kline_key = KlineKey::new(
@@ -86,6 +86,7 @@ impl NodeMetaDataExt for KlineNodeContext {
     type NodeEvent = BacktestNodeEvent;
     type NodeCommand = BacktestNodeCommand;
     type StrategyCommand = BacktestStrategyCommand;
+    type Error = KlineNodeError;
 
     fn metadata(&self) -> &NodeMetadata<Self::StateMachine, Self::NodeEvent, Self::NodeCommand, Self::StrategyCommand> {
         &self.metadata
@@ -98,8 +99,6 @@ impl NodeMetaDataExt for KlineNodeContext {
 
 #[async_trait]
 impl NodeBenchmarkExt for KlineNodeContext {
-    type Error = KlineNodeError;
-
     async fn mount_node_cycle_tracker(
         &self,
         node_id: NodeId,

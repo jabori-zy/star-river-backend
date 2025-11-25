@@ -6,12 +6,9 @@ use strategy_core::{
 };
 
 use super::VariableNodeContext;
-use crate::node::node_error::BacktestNodeError;
 
 #[async_trait]
 impl NodeBenchmarkExt for VariableNodeContext {
-    type Error = BacktestNodeError;
-
     async fn mount_node_cycle_tracker(
         &self,
         node_id: NodeId,

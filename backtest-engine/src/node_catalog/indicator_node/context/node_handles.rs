@@ -8,9 +8,9 @@ use super::IndicatorNodeContext;
 use crate::node::node_event::BacktestNodeEvent;
 
 impl NodeHandleExt for IndicatorNodeContext {
-    fn set_output_handles(&mut self) {
+    fn set_output_handles(&mut self) -> Result<(), Self::Error> {
         let node_id = self.node_id().clone();
-        let selected_indicators = self.node_config.exchange_mode_config.as_ref().unwrap().selected_indicators.clone();
+        let selected_indicators = self.node_config.exchange_mode()?.selected_indicators.clone();
 
         // 添加默认出口
         let default_output_handle = generate_default_output_handle::<Self::NodeEvent>(&node_id);
@@ -23,5 +23,6 @@ impl NodeHandleExt for IndicatorNodeContext {
             let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             self.add_output_handle(false, config_id, indicator_output_handle_id, tx);
         }
+        Ok(())
     }
 }
