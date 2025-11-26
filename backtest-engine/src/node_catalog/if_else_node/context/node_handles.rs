@@ -1,6 +1,5 @@
-use snafu::OptionExt;
 use strategy_core::{
-    error::{NodeError, node_error::OutputHandleNotFoundSnafu},
+    error::NodeError,
     node::{
         context_trait::{NodeHandleExt, NodeInfoExt},
         node_handles::NodeOutputHandle,
@@ -39,8 +38,6 @@ impl NodeHandleExt for IfElseNodeContext {
 
     fn default_output_handle(&self) -> Result<&NodeOutputHandle<BacktestNodeEvent>, NodeError> {
         let default_handle_id = format!("{}_else_output", self.node_id());
-        self.output_handles().get(&default_handle_id).context(OutputHandleNotFoundSnafu {
-            handle_id: default_handle_id.to_string(),
-        })
+        self.output_handle(&default_handle_id)
     }
 }

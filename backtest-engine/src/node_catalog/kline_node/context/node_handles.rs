@@ -14,7 +14,7 @@ impl NodeHandleExt for KlineNodeContext {
         let selected_symbols = self.node_config.exchange_mode()?.selected_symbols.clone();
 
         // 添加默认出口
-        let default_output_handle = generate_default_output_handle::<Self::NodeEvent>(&node_id);
+        let default_output_handle = generate_default_output_handle::<Self::NodeEvent>(&node_id, &node_name);
         self.add_default_output_handle(default_output_handle);
 
         // 添加每一个symbol的出口

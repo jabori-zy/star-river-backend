@@ -20,7 +20,7 @@ impl NodeHandleExt for VariableNodeContext {
         // self.add_output_handle(false, strategy_output_handle_id, tx);
 
         // 添加默认出口
-        let default_output_handle = generate_default_output_handle::<Self::NodeEvent>(&node_id);
+        let default_output_handle = generate_default_output_handle::<Self::NodeEvent>(&node_id, &node_name);
         self.add_default_output_handle(default_output_handle);
 
         for variable in variable_configs {

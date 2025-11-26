@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use snafu::{Backtrace, Snafu};
 use star_river_core::{
-    custom_type::NodeName,
+    custom_type::{HandleId, NodeName},
     error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain},
 };
 
@@ -51,12 +51,17 @@ pub enum NodeError {
     #[snafu(display("@[{node_name}] mount node cycle tracker failed"))]
     NodeCycleTrackerMountFailed { node_name: String, backtrace: Backtrace },
 
-    #[snafu(display("output handle not found: {handle_id}"))]
-    OutputHandleNotFound { handle_id: String, backtrace: Backtrace },
+    #[snafu(display("@[{node_name}] output handle not found: {handle_id}"))]
+    OutputHandleNotFound {
+        node_name: NodeName,
+        handle_id: HandleId,
+        backtrace: Backtrace,
+    },
 
-    #[snafu(display("node event send failed: {handle_id}, reason: {source}"))]
+    #[snafu(display("@[{node_name}] node event send failed: {handle_id}, reason: {source}"))]
     NodeEventSendFailed {
-        handle_id: String,
+        node_name: NodeName,
+        handle_id: HandleId,
         #[snafu(source(true))]
         source: Arc<dyn std::error::Error + Send + Sync + 'static>,
         backtrace: Backtrace,

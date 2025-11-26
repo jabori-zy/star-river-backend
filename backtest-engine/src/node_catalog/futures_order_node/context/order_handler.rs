@@ -26,7 +26,11 @@ impl FuturesOrderNodeContext {
     pub(super) async fn create_order(&mut self, order_config: &FuturesOrderConfig) -> Result<(), FuturesOrderNodeError> {
         // 如果当前是正在处理订单的状态，或者未成交的订单列表不为空，则不创建订单
         if !self.can_create_order(&order_config.input_handle_id).await {
-            tracing::warn!("{}: 当前正在处理订单, 跳过", self.node_name());
+            tracing::warn!(
+                "@[{}] config {:?} is processing order, skip",
+                self.node_name(),
+                order_config.order_config_id
+            );
             let message = ProcessingOrderMsg::new(order_config.order_config_id);
             let current_time = self.strategy_time();
             let log_event: CommonEvent = StrategyRunningLogEvent::warn_with_time(
@@ -41,21 +45,14 @@ impl FuturesOrderNodeContext {
                 current_time,
             )
             .into();
-            let _ = self.strategy_bound_handle_send(log_event.into());
+            self.strategy_bound_handle_send(log_event.into())?;
             return Err(CannotCreateOrderSnafu.build());
         }
         // 将input_handle_id的is_processing_order设置为true
         self.set_is_processing_order(&order_config.input_handle_id, true).await;
 
         // let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
-        let exchange = self
-            .node_config
-            .exchange_mode_config
-            .as_ref()
-            .unwrap()
-            .selected_account
-            .exchange
-            .clone();
+        let exchange = self.node_config.exchange_mode()?.selected_account.exchange.clone();
         // 创建订单
         // 获取symbol的point
         let point = self

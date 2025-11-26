@@ -68,11 +68,11 @@ impl BacktestStrategyContext {
         );
 
         // 先获取源节点的output_handle
-        let receiver = self
+        let (config_id, receiver) = self
             .node(source)
             .unwrap()
             .subscribe_output_handle(source_handle_id.to_string(), target_handle_id.to_string())
-            .await;
+            .await?;
 
         if let Some(target_node) = self.node(target) {
             // let receiver = from_node_output_handle.subscribe(target_handle_id.to_string());
@@ -81,6 +81,7 @@ impl BacktestStrategyContext {
                 source_node_id.to_string(),
                 source_handle_id.to_string(),
                 target_handle_id.to_string(),
+                config_id,
                 receiver,
             );
             target_node.add_input_handle(input_handle).await;

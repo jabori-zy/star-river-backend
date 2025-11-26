@@ -70,7 +70,7 @@ impl IndicatorNode {
     ) -> Result<Self, IndicatorNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_indicator_node_config(node_config)?;
 
-        let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
+        let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id, &node_name);
 
         let state_machine = IndicatorNodeStateMachine::new(node_name.clone(), NodeRunState::Created, indicator_node_transition);
 

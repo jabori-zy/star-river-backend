@@ -14,7 +14,7 @@ use crate::{
         node_error::BacktestNodeError,
         node_message::{
             common_log_message::{
-                ListenExternalEventsMsg, ListenNodeEventsMsg, ListenStrategyCommandMsg, ListenVirtualTradingSystemEventMsg, NodeStateLogMsg,
+                ListenNodeEventsMsg, ListenStrategyCommandMsg, ListenVirtualTradingSystemEventMsg, NodeStateLogMsg,
             },
             futures_order_node_log_message::{GetSymbolInfoMsg, GetSymbolInfoSuccessMsg},
         },

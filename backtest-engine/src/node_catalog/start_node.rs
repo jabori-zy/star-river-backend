@@ -77,7 +77,7 @@ impl StartNode {
         strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, backtest_strategy_config) = Self::check_start_node_config(node_config)?;
-        let strategy_output_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
+        let strategy_output_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id, &node_name);
 
         let state_machine = StartNodeStateMachine::new(node_name.clone(), NodeRunState::Created, start_node_transition);
 

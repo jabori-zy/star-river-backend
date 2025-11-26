@@ -64,7 +64,7 @@ impl KlineNode {
     ) -> Result<Self, KlineNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_kline_node_config(node_config)?;
 
-        let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
+        let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id, &node_name);
 
         let state_machine_metadata = match serde_json::to_string(&node_config.data_source) {
             Ok(json_str) => Metadata::from_json(&json_str).ok(),

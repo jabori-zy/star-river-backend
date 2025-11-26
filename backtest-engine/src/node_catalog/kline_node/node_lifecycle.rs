@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use star_river_core::exchange::Exchange;
+use star_river_core::{exchange::Exchange, kline::KlineInterval};
 use strategy_core::{
     NodeType,
     node::{
@@ -111,12 +111,17 @@ impl NodeLifecycle for KlineNode {
                 KlineNodeAction::InitMinInterval => {
                     tracing::info!("[{node_name}] start to init min interval symbols");
                     let result = self
-                        .with_ctx_write_async(|ctx| Box::pin(async move { ctx.init_min_interval().await }))
+                        .with_ctx_write_async(|ctx| {
+                            Box::pin(async move {
+                                ctx.init_min_interval().await?;
+                                Ok::<KlineInterval, KlineNodeError>(ctx.min_interval().clone())
+                            })
+                        })
                         .await;
 
                     match result {
-                        Ok(()) => {
-                            let log_message = InitMinIntervalSuccessMsg::new(node_name.clone());
+                        Ok(min_interval) => {
+                            let log_message = InitMinIntervalSuccessMsg::new(node_name.clone(), min_interval.to_string());
                             NodeUtils::send_run_state_info(
                                 strategy_id,
                                 node_id.clone(),

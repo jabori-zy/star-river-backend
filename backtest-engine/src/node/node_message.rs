@@ -153,16 +153,6 @@ pub mod common_log_message {
         en: "@[{node_name}] virtual trading system event monitoring terminated",
         zh: "{node_name}  虚拟交易系统事件监听已终止"
     );
-
-    log_message!(
-        InitMinIntervalSuccessMsg,
-        params: (
-            node_name: String,
-            min_interval: String,
-        ),
-        en: "@[{node_name}] min interval initialization successful. set to {min_interval}",
-        zh: "@[{node_name}] 最小周期初始化成功. 设置为 {min_interval}"
-    );
 }
 
 // StartNode 独特的日志消息
@@ -357,6 +347,16 @@ pub mod indicator_node_log_message {
         en: "@[{node_name}] indicator lookback initialization successful",
         zh: "@[{node_name}] 指标lookback初始化成功"
     );
+
+    log_message!(
+        InitMinIntervalSuccessMsg,
+        params: (
+            node_name: String,
+            min_interval: String,
+        ),
+        en: "@[{node_name}] min interval initialization successful. set to {min_interval}",
+        zh: "@[{node_name}] 最小周期初始化成功. 设置为 {min_interval}"
+    );
 }
 
 // KlineNode 独特的日志消息
@@ -464,6 +464,16 @@ pub mod kline_node_log_message {
         ),
         en: "@[{node_name}] kline event sending failed - Symbol: {symbol}, Error: {error}",
         zh: "@[{node_name}] K线事件发送失败 - 交易对: {symbol}, 错误: {error}"
+    );
+
+    log_message!(
+        InitMinIntervalSuccessMsg,
+        params: (
+            node_name: String,
+            min_interval: String,
+        ),
+        en: "@[{node_name}] min interval initialization successful. set to {min_interval}",
+        zh: "@[{node_name}] 最小周期初始化成功. 设置为 {min_interval}"
     );
 }
 

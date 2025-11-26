@@ -10,10 +10,11 @@ use crate::node::node_event::BacktestNodeEvent;
 impl NodeHandleExt for IndicatorNodeContext {
     fn set_output_handles(&mut self) -> Result<(), Self::Error> {
         let node_id = self.node_id().clone();
+        let node_name = self.node_name().clone();
         let selected_indicators = self.node_config.exchange_mode()?.selected_indicators.clone();
 
         // 添加默认出口
-        let default_output_handle = generate_default_output_handle::<Self::NodeEvent>(&node_id);
+        let default_output_handle = generate_default_output_handle::<Self::NodeEvent>(&node_id, &node_name);
         self.add_default_output_handle(default_output_handle);
 
         // 添加每一个indicator的出口

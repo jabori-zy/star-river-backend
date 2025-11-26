@@ -166,37 +166,37 @@ impl BacktestNode {
         }
     }
 
-    pub async fn subscribe_output_handle(&self, handle_id: String, subscriber_id: String) -> broadcast::Receiver<BacktestNodeEvent> {
-        match self {
+    pub async fn subscribe_output_handle(&self, handle_id: String, subscriber_id: String) -> Result<(i32, broadcast::Receiver<BacktestNodeEvent>), BacktestNodeError> {
+        Ok(match self {
             BacktestNode::Start(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                    .await
+                    .await?
             }
             BacktestNode::Kline(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                    .await
+                    .await?
             }
             BacktestNode::Indicator(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                    .await
+                    .await?
             }
             BacktestNode::IfElse(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                    .await
+                    .await?
             }
             BacktestNode::FuturesOrder(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                    .await
+                    .await?
             }
             BacktestNode::Position(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                    .await
+                    .await?
             }
             BacktestNode::Variable(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))
-                    .await
+                    .await?
             }
-        }
+        })
     }
 
     pub async fn add_input_handle(&self, input_handle: NodeInputHandle<BacktestNodeEvent>) {

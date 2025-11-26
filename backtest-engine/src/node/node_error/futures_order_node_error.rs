@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain};
+use star_river_core::{
+    custom_type::NodeName,
+    error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain},
+};
 use strategy_core::error::NodeError;
 use virtual_trading::error::VirtualTradingSystemError;
 
@@ -32,6 +35,9 @@ pub enum FuturesOrderNodeError {
 
     #[snafu(display("symbol info not found for symbol: {symbol}"))]
     SymbolInfoNotFound { symbol: String, backtrace: Backtrace },
+
+    #[snafu(display("@[{node_name}] exchange mode not configured"))]
+    ExchangeModeNotConfigured { node_name: NodeName, backtrace: Backtrace },
 }
 
 // Implement the StarRiverErrorTrait for FuturesOrderNodeError
@@ -43,12 +49,13 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            FuturesOrderNodeError::NodeError { .. } => 1000,            // node error
-            FuturesOrderNodeError::VirtualTradingSystem { .. } => 1001, //虚拟交易系统错误
-            FuturesOrderNodeError::CannotCreateOrder { .. } => 1002,    //无法创建订单
-            FuturesOrderNodeError::OrderConfigNotFound { .. } => 1003,  //订单配置未找到
-            FuturesOrderNodeError::GetSymbolInfoFailed { .. } => 1004,  //获取交易对信息失败
-            FuturesOrderNodeError::SymbolInfoNotFound { .. } => 1005,   //交易对信息未找到
+            FuturesOrderNodeError::NodeError { .. } => 1000,                 // node error
+            FuturesOrderNodeError::VirtualTradingSystem { .. } => 1001,      //虚拟交易系统错误
+            FuturesOrderNodeError::CannotCreateOrder { .. } => 1002,         //无法创建订单
+            FuturesOrderNodeError::OrderConfigNotFound { .. } => 1003,       //订单配置未找到
+            FuturesOrderNodeError::GetSymbolInfoFailed { .. } => 1004,       //获取交易对信息失败
+            FuturesOrderNodeError::SymbolInfoNotFound { .. } => 1005,        //交易对信息未找到
+            FuturesOrderNodeError::ExchangeModeNotConfigured { .. } => 1006, //交易所模式未配置
         };
 
         format!("{}_{:04}", prefix, code)
@@ -66,6 +73,7 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
                 chain
             }
             FuturesOrderNodeError::SymbolInfoNotFound { .. } => vec![self.error_code()],
+            FuturesOrderNodeError::ExchangeModeNotConfigured { .. } => vec![self.error_code()],
         }
     }
 
@@ -86,6 +94,9 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
                 }
                 FuturesOrderNodeError::SymbolInfoNotFound { symbol, .. } => {
                     format!("交易对信息未找到: {}", symbol)
+                }
+                FuturesOrderNodeError::ExchangeModeNotConfigured { node_name, .. } => {
+                    format!("@[{node_name}] 交易所模式未配置")
                 }
             },
         }

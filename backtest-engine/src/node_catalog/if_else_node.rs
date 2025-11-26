@@ -59,7 +59,7 @@ impl IfElseNode {
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, backtest_config) = Self::check_if_else_node_config(node_config)?;
 
-        let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id);
+        let strategy_bound_handle = generate_strategy_output_handle::<BacktestNodeEvent>(&node_id, &node_name);
 
         let state_machine = IfElseNodeStateMachine::new(node_name.clone(), NodeRunState::Created, if_else_node_transition);
         let metadata = NodeMetadata::new(

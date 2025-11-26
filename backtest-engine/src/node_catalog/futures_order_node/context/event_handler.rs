@@ -80,139 +80,137 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
 impl FuturesOrderNodeContext {
     /// 使用第一个有连接的output_handle发送trigger事件
 
-    pub async fn handle_node_event_for_independent_order(&mut self, node_event: BacktestNodeEvent, order_config_id: i32) {
+    pub async fn handle_node_event_for_independent_order(
+        &mut self,
+        node_event: BacktestNodeEvent,
+        order_config_id: i32,
+    ) -> Result<(), FuturesOrderNodeError> {
         match node_event {
-            BacktestNodeEvent::Common(common_evt) => match common_evt {
-                CommonEvent::Trigger(_trigger_evt) => {
-                    let mut cycle_tracker = CycleTracker::new(self.cycle_id());
-                    let phase_name = format!("handle trigger event for specific order");
-                    cycle_tracker.start_phase(&phase_name);
-
-                    if self.is_leaf_node() {
-                        self.send_execute_over_event(None, Some(self.strategy_time())).unwrap();
-                        return;
-                    } else {
-                        self.independent_order_send_trigger_event(order_config_id).await;
-                    }
-
-                    cycle_tracker.end_phase(&phase_name);
-                    let completed_tracker = cycle_tracker.end();
-                    self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
-                        .await
-                        .unwrap();
+            BacktestNodeEvent::Common(common_evt) => {
+                if let CommonEvent::Trigger(_trigger_evt) = common_evt {
+                    self.handle_trigger_event_for_independent_order(order_config_id).await?;
                 }
-
-                _ => {}
-            },
-            BacktestNodeEvent::IfElseNode(ifelse_node_event) => {
-                match ifelse_node_event {
-                    IfElseNodeEvent::CaseTrue(_) | IfElseNodeEvent::ElseTrue(_) => {
-                        let mut cycle_tracker = CycleTracker::new(self.cycle_id());
-
-                        let phase_name = format!("handle condition match event for order {}", order_config_id);
-                        cycle_tracker.start_phase(&phase_name);
-
-                        // 根据input_handle_id获取订单配置
-                        let order_config = {
-                            self.node_config
-                                .futures_order_configs
-                                .iter()
-                                .find(|config| config.order_config_id == order_config_id)
-                                .ok_or(
-                                    OrderConfigNotFoundSnafu {
-                                        order_config_id: order_config_id,
-                                    }
-                                    .build(),
-                                )
-                                .unwrap()
-                                .clone()
-                        };
-
-                        // 创建订单
-                        let create_order_result = self.create_order(&order_config).await;
-                        if let Err(_) = create_order_result {
-                            // 发送trigger事件
-                            self.independent_order_send_trigger_event(order_config_id).await;
-                            cycle_tracker.end_phase(&phase_name);
-                            let completed_tracker = cycle_tracker.end();
-                            self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
-                                .await
-                                .unwrap();
-                            return;
-                        }
-                        cycle_tracker.end_phase(&phase_name);
-                        let completed_tracker = cycle_tracker.end();
-                        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
-                            .await
-                            .unwrap();
-                    }
-                    IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
-                        tracing::debug!("@[{}] receive event {}", self.node_name(), order_config_id);
-                        if self.is_leaf_node() {
-                            self.send_execute_over_event(Some(order_config_id), Some(self.strategy_time()))
-                                .unwrap();
-                        }
-                    }
-                }
+                Ok(())
             }
-            _ => {}
+            BacktestNodeEvent::IfElseNode(ifelse_node_event) => {
+                self.handle_ifelse_node_event_for_independent_order(ifelse_node_event, order_config_id)
+                    .await?;
+                Ok(())
+            }
+            _ => Ok(()),
         }
     }
 
-    pub(super) async fn send_order_status_event(&mut self, virtual_order: VirtualOrder, event_type: &VtsEvent) {
+    async fn handle_trigger_event_for_independent_order(&mut self, order_config_id: i32) -> Result<(), FuturesOrderNodeError> {
+        let mut cycle_tracker = CycleTracker::new(self.cycle_id());
+        let phase_name = format!("handle trigger event for specific order");
+        cycle_tracker.start_phase(&phase_name);
+
+        if self.is_leaf_node() {
+            self.send_execute_over_event(Some(order_config_id), Some(self.strategy_time()))?;
+        } else {
+            self.independent_order_send_trigger_event(order_config_id).await?;
+        }
+
+        cycle_tracker.end_phase(&phase_name);
+        let completed_tracker = cycle_tracker.end();
+        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+            .await?;
+        Ok(())
+    }
+
+    async fn handle_ifelse_node_event_for_independent_order(
+        &mut self,
+        ifelse_node_event: IfElseNodeEvent,
+        order_config_id: i32,
+    ) -> Result<(), FuturesOrderNodeError> {
+        match ifelse_node_event {
+            IfElseNodeEvent::CaseTrue(_) | IfElseNodeEvent::ElseTrue(_) => {
+                let mut cycle_tracker = CycleTracker::new(self.cycle_id());
+
+                let phase_name = format!("handle condition match event for order {}", order_config_id);
+                cycle_tracker.start_phase(&phase_name);
+
+                // 根据input_handle_id获取订单配置
+                let order_config = self
+                    .node_config
+                    .futures_order_configs
+                    .iter()
+                    .find(|config| config.order_config_id == order_config_id)
+                    .ok_or(OrderConfigNotFoundSnafu { order_config_id }.build())?
+                    .clone();
+
+                // if create order failed, send trigger event, no block strategy loop
+                if self.create_order(&order_config).await.is_err() {
+                    self.independent_order_send_trigger_event(order_config_id).await?;
+                }
+
+                cycle_tracker.end_phase(&phase_name);
+                let completed_tracker = cycle_tracker.end();
+                self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                    .await?;
+                Ok(())
+            }
+            IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
+                if self.is_leaf_node() {
+                    self.send_execute_over_event(Some(order_config_id), Some(self.strategy_time()))?;
+                } else {
+                    self.independent_order_send_trigger_event(order_config_id).await?;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    pub(super) async fn send_order_status_event(
+        &self,
+        virtual_order: VirtualOrder,
+        event_type: &VtsEvent,
+    ) -> Result<(), FuturesOrderNodeError> {
         let order_status = &virtual_order.order_status;
         let node_id = self.node_id().clone();
-        let order_status_output_handle_id = format!("{}_{}_output_{}", node_id, order_status.to_string(), virtual_order.order_config_id);
-        // 订单配置id对应的all_output_handle_id
-        let config_all_status_output_handle_id = format!("{}_all_status_output_{}", node_id, virtual_order.order_config_id);
-        tracing::debug!("output_handle_id: {}", order_status_output_handle_id);
 
-        let order_status_output_handle = self.output_handle(&order_status_output_handle_id).unwrap();
-        let config_all_status_output_handle = self.output_handle(&config_all_status_output_handle_id).unwrap();
-
-        // 先发送到strategy_output_handle，确保事件一定会被发送
-        let order_event = self.genarate_order_node_event(config_all_status_output_handle_id.clone(), virtual_order.clone(), event_type);
         let strategy_output_handle = self.strategy_bound_handle();
+        // 先发送到strategy_output_handle，确保事件一定会被发送
+        let order_event =
+            self.generate_order_node_event(strategy_output_handle.output_handle_id().clone(), virtual_order.clone(), event_type);
         if let Some(order_event) = order_event {
-            tracing::debug!(
-                "send order event through strategy_output_handle: {}",
-                config_all_status_output_handle_id
+            self.strategy_bound_handle_send(order_event.into())?;
+        }
+
+        if self.is_leaf_node() {
+            self.send_execute_over_event(Some(virtual_order.order_config_id), Some(self.strategy_time()))?;
+            Ok(())
+        } else {
+            let order_status_output_handle_id =
+                format!("{}_{}_output_{}", node_id, order_status.to_string(), virtual_order.order_config_id);
+            let order_status_output_handle = self.output_handle(&order_status_output_handle_id)?;
+
+            let order_event = self.generate_order_node_event(
+                order_status_output_handle.output_handle_id().clone(),
+                virtual_order.clone(),
+                event_type,
             );
-            let _ = strategy_output_handle.send(order_event.into());
-        }
-
-        // 如果总输出与订单状态输出都没有连接，则发送trigger事件
-        if !config_all_status_output_handle.is_connected() && !order_status_output_handle.is_connected() {
-            tracing::debug!("all_status_output_handle and order_status_output_handle connect_count are 0, send trigger event");
-            self.independent_order_send_trigger_event(virtual_order.order_config_id).await;
-            return;
-        }
-
-        // 如果all_status_output_handle的connect_count大于0，则发送事件
-        if config_all_status_output_handle.is_connected() {
-            let order_event = self.genarate_order_node_event(config_all_status_output_handle_id.clone(), virtual_order.clone(), event_type);
             if let Some(order_event) = order_event {
-                tracing::debug!(
-                    "send order event through all_status_output_handle: {}",
-                    config_all_status_output_handle_id
-                );
-                let _ = config_all_status_output_handle.send(order_event.into());
+                order_status_output_handle.send(order_event.into())?;
             }
-        }
-        if order_status_output_handle.is_connected() {
-            let order_event = self.genarate_order_node_event(order_status_output_handle_id.clone(), virtual_order.clone(), event_type);
+            // 订单配置id对应的all_output_handle_id
+            let order_all_status_output_handle_id = format!("{}_all_status_output_{}", node_id, virtual_order.order_config_id);
+            let order_all_status_output_handle = self.output_handle(&order_all_status_output_handle_id)?;
+            let order_event = self.generate_order_node_event(
+                order_all_status_output_handle.output_handle_id().clone(),
+                virtual_order.clone(),
+                event_type,
+            );
             if let Some(order_event) = order_event {
-                tracing::debug!(
-                    "send order event through order_status_output_handle: {}",
-                    order_status_output_handle_id
-                );
-                let _ = order_status_output_handle.send(order_event.into());
+                order_all_status_output_handle.send(order_event.into())?;
             }
+            Ok(())
         }
     }
 
     // 处理虚拟交易系统事件
-    pub(crate) async fn handle_vts_event(&mut self, virtual_trading_system_event: VtsEvent) -> Result<(), String> {
+    pub(crate) async fn handle_vts_event(&mut self, virtual_trading_system_event: VtsEvent) -> Result<(), FuturesOrderNodeError> {
         let order: Option<&VirtualOrder> = match &virtual_trading_system_event {
             VtsEvent::FuturesOrderCreated(order)
             | VtsEvent::FuturesOrderFilled(order)
@@ -233,7 +231,7 @@ impl FuturesOrderNodeContext {
                     VtsEvent::FuturesOrderCreated(_) => {
                         tracing::debug!("[{}] receive futures order created event", self.node_name());
                         self.add_unfilled_virtual_order(&input_handle_id, order.clone()).await;
-                        self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
+                        self.send_order_status_event(order.clone(), &virtual_trading_system_event).await?;
                         let message = OrderCreatedMsg::new(
                             order.order_id,
                             order.order_config_id,
@@ -252,14 +250,14 @@ impl FuturesOrderNodeContext {
                             order.create_time,
                         )
                         .into();
-                        let _ = self.strategy_bound_handle_send(log_event.into());
+                        self.strategy_bound_handle_send(log_event.into())?;
                     }
 
                     VtsEvent::FuturesOrderFilled(_) => {
                         self.remove_unfilled_virtual_order(&input_handle_id, order.order_id).await;
                         self.add_virtual_order_history(&input_handle_id, order.clone()).await;
                         self.set_is_processing_order(&input_handle_id, false).await;
-                        self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
+                        self.send_order_status_event(order.clone(), &virtual_trading_system_event).await?;
                         let message = OrderFilledMsg::new(self.node_name().clone(), order.order_id, order.quantity, order.open_price);
                         let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
                             self.cycle_id(),
@@ -273,14 +271,14 @@ impl FuturesOrderNodeContext {
                             order.update_time,
                         )
                         .into();
-                        let _ = self.strategy_bound_handle_send(log_event.into());
+                        self.strategy_bound_handle_send(log_event.into())?;
                     }
 
                     VtsEvent::FuturesOrderCanceled(_) => {
                         self.remove_unfilled_virtual_order(&input_handle_id, order.order_id).await;
                         self.add_virtual_order_history(&input_handle_id, order.clone()).await;
                         self.set_is_processing_order(&input_handle_id, false).await;
-                        self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
+                        self.send_order_status_event(order.clone(), &virtual_trading_system_event).await?;
                         let message = OrderCanceledMsg::new(self.node_name().clone(), order.order_id);
                         let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
                             self.cycle_id(),
@@ -294,7 +292,7 @@ impl FuturesOrderNodeContext {
                             order.update_time,
                         )
                         .into();
-                        let _ = self.strategy_bound_handle_send(log_event.into());
+                        self.strategy_bound_handle_send(log_event.into())?;
                     }
 
                     // 只是发送事件
@@ -304,7 +302,7 @@ impl FuturesOrderNodeContext {
                     | VtsEvent::StopLossOrderCreated(_)
                     | VtsEvent::StopLossOrderFilled(_)
                     | VtsEvent::StopLossOrderCanceled(_) => {
-                        self.send_order_status_event(order.clone(), &virtual_trading_system_event).await;
+                        self.send_order_status_event(order.clone(), &virtual_trading_system_event).await?;
                     }
 
                     _ => {}

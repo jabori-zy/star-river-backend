@@ -62,8 +62,8 @@ impl IndicatorNodeContext {
         }
     }
 
-    pub fn min_interval(&self) -> KlineInterval {
-        self.min_interval
+    pub fn min_interval(&self) -> &KlineInterval {
+        &self.min_interval
     }
 
     pub fn set_min_interval(&mut self, interval: KlineInterval) {

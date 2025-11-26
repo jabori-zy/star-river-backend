@@ -55,7 +55,7 @@ impl VariableNode {
         strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_variable_node_config(node_config)?;
-        let strategy_output_handle = generate_strategy_output_handle(&node_id);
+        let strategy_output_handle = generate_strategy_output_handle(&node_id, &node_name);
         let state_machine = VariableNodeStateMachine::new(node_name.clone(), NodeRunState::Created, variable_node_transition);
         let metadata = NodeMetadata::new(
             cycle_rx,

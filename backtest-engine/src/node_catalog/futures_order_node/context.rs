@@ -7,7 +7,6 @@ mod status_handler;
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::{
@@ -32,7 +31,7 @@ use virtual_trading::{
 use super::{futures_order_node_types::FuturesOrderNodeConfig, state_machine::FuturesOrderNodeStateMachine};
 use crate::{
     node::{node_command::BacktestNodeCommand, node_error::FuturesOrderNodeError, node_event::BacktestNodeEvent},
-    strategy::{PlayIndex, strategy_command::BacktestStrategyCommand},
+    strategy::strategy_command::BacktestStrategyCommand,
 };
 
 pub type FuturesOrderNodeMetadata =

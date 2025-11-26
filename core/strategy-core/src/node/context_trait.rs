@@ -208,7 +208,8 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeInfoExt {
             .output_handles()
             .get(&default_handle_id)
             .context(OutputHandleNotFoundSnafu {
-                handle_id: default_handle_id.to_string(),
+                node_name: self.node_name().clone(),
+                handle_id: default_handle_id,
             })
     }
 
@@ -223,7 +224,8 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeInfoExt {
     #[inline]
     fn add_output_handle(&mut self, is_default: bool, config_id: i32, handle_id: HandleId, sender: broadcast::Sender<Self::NodeEvent>) {
         let node_id = self.node_id().clone();
-        let handle = NodeOutputHandle::new(node_id, is_default, config_id, handle_id, sender);
+        let node_name = self.node_name().clone();
+        let handle = NodeOutputHandle::new(node_id, node_name, is_default, config_id, handle_id, sender);
         self.metadata_mut().add_output_handle(handle);
     }
 
@@ -234,8 +236,11 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeInfoExt {
 
     /// 获取输出句柄
     #[inline]
-    fn output_handle(&self, handle_id: &str) -> Option<&NodeOutputHandle<Self::NodeEvent>> {
-        self.metadata().output_handles().get(handle_id)
+    fn output_handle(&self, handle_id: &str) -> Result<&NodeOutputHandle<Self::NodeEvent>, NodeError> {
+        self.metadata().output_handles().get(handle_id).context(OutputHandleNotFoundSnafu {
+            node_name: self.node_name().clone(),
+            handle_id: handle_id.to_string(),
+        })
     }
 
     /// 检查输出句柄是否存在
@@ -255,7 +260,7 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeInfoExt {
         self.metadata_mut().subscribe_strategy_bound_handle(subscriber_id)
     }
 
-    fn subscribe_output_handle(&mut self, handle_id: String, subscriber_id: String) -> broadcast::Receiver<Self::NodeEvent> {
+    fn subscribe_output_handle(&mut self, handle_id: String, subscriber_id: String) -> Result<(i32, broadcast::Receiver<Self::NodeEvent>), NodeError> {
         self.metadata_mut().subscribe_output_handle(handle_id, subscriber_id)
     }
 }
@@ -341,14 +346,16 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
     /// - `event` - 要发送的事件
     fn output_handle_send(&self, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
         let handle_id = event.output_handle_id().to_string();
-        let output_handle = self.output_handle(&handle_id).context(OutputHandleNotFoundSnafu {
-            handle_id: handle_id.clone(),
-        })?;
+        let output_handle = self.output_handle(&handle_id)?;
 
         if output_handle.is_connected() {
-            output_handle
-                .send(event)
-                .map_err(|e| NodeEventSendFailedSnafu { handle_id: handle_id }.into_error(Arc::new(e)))?;
+            output_handle.send(event).map_err(|e| {
+                NodeEventSendFailedSnafu {
+                    node_name: self.node_name().clone(),
+                    handle_id: handle_id,
+                }
+                .into_error(Arc::new(e))
+            })?;
         } else {
             // tracing::warn!(
             //     "@[{}] output handle {} is not connected, skip sending event",
@@ -447,9 +454,7 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
             .into()
         };
 
-        let output_handle = self.output_handle(handle_id).context(OutputHandleNotFoundSnafu {
-            handle_id: handle_id.to_string(),
-        })?;
+        let output_handle = self.output_handle(handle_id)?;
 
         if output_handle.is_connected() {
             output_handle.send(trigger_event.into())

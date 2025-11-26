@@ -1,12 +1,15 @@
 use serde::{Deserialize, Serialize};
 use star_river_core::{
-    custom_type::InputHandleId,
+    custom_type::{InputHandleId, NodeName},
     order::{FuturesOrderSide, OrderType, TpslType},
     system::{TimeRange, deserialize_time_range},
 };
 use strategy_core::strategy::SelectedAccount;
 
-use crate::strategy::strategy_config::BacktestDataSource;
+use crate::{
+    node::node_error::{FuturesOrderNodeError, futures_order_node_error::ExchangeModeNotConfiguredSnafu},
+    strategy::strategy_config::BacktestDataSource,
+};
 
 // 合约订单配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +45,9 @@ pub struct FuturesOrderConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FuturesOrderNodeConfig {
+    #[serde(skip)]
+    pub node_name: NodeName,
+
     #[serde(rename = "dataSource")]
     pub data_source: BacktestDataSource,
 
@@ -50,6 +56,19 @@ pub struct FuturesOrderNodeConfig {
 
     #[serde(rename = "futuresOrderConfigs")]
     pub futures_order_configs: Vec<FuturesOrderConfig>,
+}
+
+impl FuturesOrderNodeConfig {
+    pub fn exchange_mode(&self) -> Result<&FuturesOrderNodeExchangeModeConfig, FuturesOrderNodeError> {
+        if let Some(exchange_mode_config) = &self.exchange_mode_config {
+            Ok(exchange_mode_config)
+        } else {
+            Err(ExchangeModeNotConfiguredSnafu {
+                node_name: self.node_name.clone(),
+            }
+            .build())
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

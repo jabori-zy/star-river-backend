@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use chrono::{DateTime, Utc};
+use snafu::OptionExt;
 use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
 // third-party
 use tokio::sync::{Mutex, RwLock, broadcast, mpsc, watch};
@@ -8,13 +9,10 @@ use tokio_util::sync::CancellationToken;
 
 use super::{node_state_machine::StateMachine, utils::generate_default_output_handle_id};
 use crate::{
-    communication::{NodeCommandTrait, StrategyCommandTrait},
-    event::node::NodeEventTrait,
-    node::{
+    communication::{NodeCommandTrait, StrategyCommandTrait}, error::{NodeError, node_error::OutputHandleNotFoundSnafu}, event::node::NodeEventTrait, node::{
         NodeType,
         node_handles::{HandleId, NodeInputHandle, NodeOutputHandle},
-    },
-    strategy::cycle::Cycle,
+    }, strategy::cycle::Cycle
 };
 
 /// M: Node State Machine
@@ -219,12 +217,18 @@ where
 
     /// Subscribe strategy output handle
     pub fn subscribe_strategy_bound_handle(&mut self, subscriber_id: String) -> broadcast::Receiver<E> {
-        self.strategy_bound_handle.subscribe(subscriber_id)
+        self.strategy_bound_handle.subscribe(subscriber_id).1
     }
 
     /// Subscribe output handle
-    pub fn subscribe_output_handle(&mut self, handle_id: String, subscriber_id: String) -> broadcast::Receiver<E> {
-        self.output_handles.get_mut(&handle_id).unwrap().subscribe(subscriber_id)
+    pub fn subscribe_output_handle(&mut self, handle_id: String, subscriber_id: String) -> Result<(i32, broadcast::Receiver<E>), NodeError> {
+        Ok(self.output_handles
+        .get_mut(&handle_id)
+        .context(OutputHandleNotFoundSnafu {
+            node_name: self.node_name.clone(),
+            handle_id: handle_id.clone(),
+        })?
+        .subscribe(subscriber_id))
     }
 
     /// Get default output handle

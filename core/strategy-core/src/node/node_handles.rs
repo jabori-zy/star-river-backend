@@ -3,7 +3,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use snafu::IntoError;
 // workspace crate
-use star_river_core::custom_type::NodeId;
+use star_river_core::custom_type::{NodeId, NodeName};
 // third-party
 use tokio::sync::broadcast;
 
@@ -17,15 +17,17 @@ pub struct NodeInputHandle<E: Clone> {
     pub from_node_id: String,
     pub from_handle_id: String,
     pub input_handle_id: HandleId, // 对应的input_handle_id
+    pub config_id: i32,
     pub receiver: broadcast::Receiver<E>,
 }
 
 impl<E: Clone> NodeInputHandle<E> {
-    pub fn new(from_node_id: String, from_handle_id: String, input_handle_id: HandleId, receiver: broadcast::Receiver<E>) -> Self {
+    pub fn new(from_node_id: String, from_handle_id: String, input_handle_id: HandleId, config_id: i32, receiver: broadcast::Receiver<E>) -> Self {
         Self {
             from_node_id,
             from_handle_id,
             input_handle_id,
+            config_id,
             receiver,
         }
     }
@@ -41,6 +43,7 @@ impl<E: Clone> Clone for NodeInputHandle<E> {
             from_node_id: self.from_node_id.clone(),
             from_handle_id: self.from_handle_id.clone(),
             input_handle_id: self.input_handle_id.clone(),
+            config_id: self.config_id,
             receiver: self.receiver.resubscribe(),
         }
     }
@@ -56,6 +59,7 @@ impl<E: Clone> Clone for NodeInputHandle<E> {
 #[derive(Clone)]
 pub struct NodeOutputHandle<E> {
     node_id: NodeId,
+    node_name: NodeName,
     is_default: bool,
     config_id: i32,
     output_handle_id: HandleId,
@@ -66,6 +70,7 @@ pub struct NodeOutputHandle<E> {
 impl<E> NodeOutputHandle<E> {
     pub fn new(
         node_id: NodeId,
+        node_name: NodeName,
         is_default: bool,
         config_id: i32,
         output_handle_id: HandleId,
@@ -73,6 +78,7 @@ impl<E> NodeOutputHandle<E> {
     ) -> Self {
         Self {
             node_id,
+            node_name,
             is_default,
             config_id,
             output_handle_id,
@@ -81,8 +87,12 @@ impl<E> NodeOutputHandle<E> {
         }
     }
 
-    pub fn node_id(&self) -> String {
+    pub fn node_id(&self) -> NodeId {
         self.node_id.clone()
+    }
+
+    pub fn node_name(&self) -> NodeName {
+        self.node_name.clone()
     }
 
     pub fn is_default(&self) -> bool {
@@ -107,6 +117,7 @@ impl<E> NodeOutputHandle<E> {
     {
         let result = self.node_event_sender.send(event).map_err(|e| {
             NodeEventSendFailedSnafu {
+                node_name: self.node_name().clone(),
                 handle_id: self.output_handle_id.clone(),
             }
             .into_error(Arc::new(e))
@@ -117,10 +128,10 @@ impl<E> NodeOutputHandle<E> {
         }
     }
 
-    pub fn subscribe(&mut self, subscriber_id: String) -> broadcast::Receiver<E> {
+    pub fn subscribe(&mut self, subscriber_id: String) -> (i32, broadcast::Receiver<E>) {
         self.subscriber.push(subscriber_id);
         let receiver = self.node_event_sender.subscribe();
-        receiver
+        (self.config_id, receiver)
     }
 
     pub fn receiver_count(&self) -> usize {
