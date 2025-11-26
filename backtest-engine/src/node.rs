@@ -166,7 +166,11 @@ impl BacktestNode {
         }
     }
 
-    pub async fn subscribe_output_handle(&self, handle_id: String, subscriber_id: String) -> Result<(i32, broadcast::Receiver<BacktestNodeEvent>), BacktestNodeError> {
+    pub async fn subscribe_output_handle(
+        &self,
+        handle_id: String,
+        subscriber_id: String,
+    ) -> Result<(i32, broadcast::Receiver<BacktestNodeEvent>), BacktestNodeError> {
         Ok(match self {
             BacktestNode::Start(node) => {
                 node.with_ctx_write(|ctx| ctx.subscribe_output_handle(handle_id, subscriber_id))

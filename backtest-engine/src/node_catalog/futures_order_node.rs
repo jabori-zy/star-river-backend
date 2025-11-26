@@ -17,12 +17,7 @@ use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 use state_machine::{FuturesOrderNodeStateMachine, futures_order_node_transition};
 use strategy_core::{
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
-    node::{
-        NodeBase, NodeType,
-        metadata::NodeMetadata,
-        node_trait::NodeContextAccessor,
-        utils::generate_strategy_output_handle,
-    },
+    node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
     strategy::cycle::Cycle,
 };
 use tokio::sync::{Mutex, RwLock, broadcast, mpsc, watch};

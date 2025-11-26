@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use context::VariableNodeContext;
 use serde_json;
 use snafu::ResultExt;
-use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
+use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 use state_machine::{VariableNodeStateMachine, variable_node_transition};
 use strategy_core::{
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},
@@ -118,7 +118,7 @@ impl VariableNode {
             })?
             .to_owned() as StrategyId;
 
-        let backtest_config_json = node_data
+        let mut backtest_config_json = node_data
             .get("backtestConfig")
             .ok_or_else(|| {
                 ConfigFieldValueNullSnafu {
@@ -127,6 +127,10 @@ impl VariableNode {
                 .build()
             })?
             .to_owned();
+
+        if let Some(obj) = backtest_config_json.as_object_mut() {
+            obj.insert("nodeName".to_string(), serde_json::Value::String(node_name.clone()));
+        }
 
         let backtest_config =
             serde_json::from_value::<VariableNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {

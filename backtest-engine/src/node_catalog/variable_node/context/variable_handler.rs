@@ -1,6 +1,7 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use rust_decimal::Decimal;
+use snafu::{IntoError, ResultExt};
 use star_river_core::custom_type::NodeId;
 use star_river_event::backtest_strategy::node_event::{
     VariableNodeEvent,
@@ -8,6 +9,7 @@ use star_river_event::backtest_strategy::node_event::{
 };
 use strategy_core::{
     communication::strategy::StrategyResponse,
+    error::node_error::{StrategyCmdRespRecvFailedSnafu, StrategyCommandSendFailedSnafu},
     event::node_common_event::{CommonEvent, ExecuteOverEvent, ExecuteOverPayload, TriggerEvent, TriggerPayload},
     node::context_trait::{NodeCommunicationExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
     node_infra::variable_node::{
@@ -24,14 +26,17 @@ use tokio::sync::oneshot;
 
 use super::VariableNodeContext;
 use crate::{
-    node::node_error::{BacktestNodeError, VariableNodeError},
+    node::node_error::VariableNodeError,
     strategy::strategy_command::{
         ResetCustomVarCmdPayload, ResetCustomVarValueCommand, UpdateCustomVarValueCmdPayload, UpdateCustomVarValueCommand,
     },
 };
 
 impl VariableNodeContext {
-    pub(super) async fn handle_condition_trigger(&mut self, condition_trigger_configs: &Vec<VariableConfig>) {
+    pub(super) async fn handle_condition_trigger(
+        &mut self,
+        condition_trigger_configs: &Vec<VariableConfig>,
+    ) -> Result<(), VariableNodeError> {
         // 分成get, update, reset三批
         let get_var_configs = condition_trigger_configs
             .iter()
@@ -58,23 +63,25 @@ impl VariableNodeContext {
             .collect::<Vec<_>>();
 
         if !get_var_configs.is_empty() {
-            self.get_variable(&get_var_configs).await.unwrap();
+            self.get_variable(&get_var_configs).await?;
         }
 
         if !update_var_configs.is_empty() {
-            self.update_variable(&update_var_configs).await;
+            self.update_variable(&update_var_configs).await?;
         }
 
         if !reset_var_configs.is_empty() {
             self.reset_variable(&reset_var_configs).await;
         }
+
+        Ok(())
     }
 
     pub(super) async fn handle_dataflow_trigger(
         &mut self,
         dataflow_trigger_configs: &Vec<VariableConfig>,
         dataflow: DataFlow,
-    ) -> Result<(), BacktestNodeError> {
+    ) -> Result<(), VariableNodeError> {
         let mut update_var_configs = Vec::new();
 
         for config in dataflow_trigger_configs {
@@ -135,7 +142,7 @@ impl VariableNodeContext {
         }
 
         if !update_var_configs.is_empty() {
-            self.update_variable(&update_var_configs).await;
+            self.update_variable(&update_var_configs).await?;
             return Ok(());
         }
 
@@ -147,8 +154,8 @@ impl VariableNodeContext {
         let mut get_var_handles = Vec::with_capacity(get_var_configs.len());
 
         // 在循环外提前克隆共享数据，避免重复克隆
-        let node_id = self.node_id();
-        let node_name = self.node_name();
+        let node_id = self.node_id().clone();
+        let node_name = self.node_name().clone();
         let cycle_id = self.cycle_id();
         let current_time = self.strategy_time();
         let strategy_command_sender = self.strategy_command_sender().clone();
@@ -178,11 +185,11 @@ impl VariableNodeContext {
                     let system_var = SysVariableType::from_str(system_config.var_name()).unwrap();
                     match system_var {
                         SysVariableType::TotalPositionNumber => {
-                            let handle = self.create_total_position_number_handle(system_config.clone()).await;
+                            let handle = self.create_total_position_number_handle(system_config.clone()).await?;
                             get_var_handles.push(handle);
                         }
                         SysVariableType::TotalFilledOrderNumber => {
-                            let handle = self.create_total_filled_order_number_handle(system_config.clone()).await;
+                            let handle = self.create_total_filled_order_number_handle(system_config.clone()).await?;
                             get_var_handles.push(handle);
                         }
 
@@ -191,7 +198,7 @@ impl VariableNodeContext {
                             get_var_handles.push(handle);
                         }
                         SysVariableType::CurrentTime => {
-                            let handle = self.create_current_time_handle(system_config.clone()).await;
+                            let handle = self.create_current_time_handle(system_config.clone()).await?;
                             get_var_handles.push(handle);
                         }
                         _ => {}
@@ -205,13 +212,13 @@ impl VariableNodeContext {
         Ok(())
     }
 
-    async fn update_variable(&self, update_var_configs: &Vec<UpdateVariableConfig>) {
+    async fn update_variable(&self, update_var_configs: &Vec<UpdateVariableConfig>) -> Result<(), VariableNodeError> {
         // 先生成Handler,然后同时执行
         let mut update_handles = Vec::with_capacity(update_var_configs.len());
 
         // 在循环外提前克隆共享数据，避免重复克隆
-        let node_id = self.node_id();
-        let node_name = self.node_name();
+        let node_id = self.node_id().clone();
+        let node_name = self.node_name().clone();
         let cycle_id = self.cycle_id();
         let current_time = self.strategy_time();
         let strategy_command_sender = self.strategy_command_sender().clone();
@@ -226,7 +233,7 @@ impl VariableNodeContext {
 
             let config_id = config.config_id();
             let output_handle_id = config.output_handle_id.clone();
-            let output_handle = self.output_handle(&output_handle_id).unwrap().clone();
+            let output_handle = self.output_handle(&output_handle_id)?.clone();
             let update_var_config_clone = config.clone();
 
             // 为 tokio::spawn 闭包准备克隆的数据
@@ -236,11 +243,16 @@ impl VariableNodeContext {
             let sender_clone = strategy_command_sender.clone();
             let strategy_output_handle_clone = strategy_output_handle.clone();
 
-            let handle = tokio::spawn(async move {
+            let handle: tokio::task::JoinHandle<Result<(), VariableNodeError>> = tokio::spawn(async move {
                 let (resp_tx, resp_rx) = oneshot::channel();
                 let update_var_event = UpdateCustomVarValueCmdPayload::new(update_var_config_clone);
                 let cmd = UpdateCustomVarValueCommand::new(node_id_clone.clone(), resp_tx, update_var_event);
-                let _ = sender_clone.send(cmd.into()).await;
+                sender_clone.send(cmd.into()).await.map_err(|e| {
+                    StrategyCommandSendFailedSnafu {
+                        node_name: node_name_clone.clone(),
+                    }
+                    .into_error(Arc::new(e))
+                })?;
                 let response = resp_rx.await.unwrap();
                 match response {
                     StrategyResponse::Success { payload, .. } => {
@@ -260,7 +272,7 @@ impl VariableNodeContext {
                             payload,
                         )
                         .into();
-                        let _ = strategy_output_handle_clone.send(var_event.clone().into());
+                        strategy_output_handle_clone.send(var_event.clone().into())?;
                         if is_leaf_node {
                             let payload = ExecuteOverPayload::new(None);
                             let execute_over_event: CommonEvent = ExecuteOverEvent::new_with_time(
@@ -272,9 +284,9 @@ impl VariableNodeContext {
                                 payload,
                             )
                             .into();
-                            let _ = strategy_output_handle_clone.send(execute_over_event.into());
+                            strategy_output_handle_clone.send(execute_over_event.into())?;
                         } else {
-                            let _ = output_handle.send(var_event.into());
+                            output_handle.send(var_event.into())?;
                         }
                     }
                     StrategyResponse::Fail { error, .. } => {
@@ -289,15 +301,17 @@ impl VariableNodeContext {
                             payload,
                         )
                         .into();
-                        let _ = output_handle.send(trigger_event.into());
+                        output_handle.send(trigger_event.into())?;
                     }
                 }
+                Ok(())
             });
             update_handles.push(handle);
         }
 
         // 等待所有任务完成
         futures::future::join_all(update_handles).await;
+        Ok(())
     }
 
     async fn reset_variable(&self, reset_var_configs: &Vec<ResetVariableConfig>) {
@@ -305,8 +319,8 @@ impl VariableNodeContext {
         let mut reset_handles = Vec::with_capacity(reset_var_configs.len());
 
         // 在循环外提前克隆共享数据，避免重复克隆
-        let node_id = self.node_id();
-        let node_name = self.node_name();
+        let node_id = self.node_id().clone();
+        let node_name = self.node_name().clone();
         let cycle_id = self.cycle_id();
         let current_time = self.strategy_time();
         let strategy_command_sender = self.strategy_command_sender().clone();
@@ -329,12 +343,19 @@ impl VariableNodeContext {
             let sender_clone = strategy_command_sender.clone();
             let strategy_output_handle_clone = strategy_output_handle.clone();
 
-            let handle = tokio::spawn(async move {
+            let handle: tokio::task::JoinHandle<Result<(), VariableNodeError>> = tokio::spawn(async move {
                 let (resp_tx, resp_rx) = oneshot::channel();
                 let reset_var_event = ResetCustomVarCmdPayload::new(var_name.clone());
                 let cmd = ResetCustomVarValueCommand::new(node_id_clone.clone(), resp_tx, reset_var_event);
-                let _ = sender_clone.send(cmd.into()).await;
-                let response = resp_rx.await.unwrap();
+                sender_clone.send(cmd.into()).await.map_err(|e| {
+                    StrategyCommandSendFailedSnafu {
+                        node_name: node_name_clone.clone(),
+                    }
+                    .into_error(Arc::new(e))
+                })?;
+                let response = resp_rx.await.context(StrategyCmdRespRecvFailedSnafu {
+                    node_name: node_name_clone.clone(),
+                })?;
                 match response {
                     StrategyResponse::Success { payload, .. } => {
                         let payload = CustomVarUpdatePayload::new(cycle_id, config_id, var_op, None, None, payload.custom_variable.clone());
@@ -347,7 +368,7 @@ impl VariableNodeContext {
                             payload,
                         )
                         .into();
-                        let _ = strategy_output_handle_clone.send(var_event.clone().into());
+                        strategy_output_handle_clone.send(var_event.clone().into())?;
                         if is_leaf_node {
                             let payload = ExecuteOverPayload::new(None);
                             let execute_over_event: CommonEvent = ExecuteOverEvent::new_with_time(
@@ -359,9 +380,9 @@ impl VariableNodeContext {
                                 payload,
                             )
                             .into();
-                            let _ = strategy_output_handle_clone.send(execute_over_event.into());
+                            strategy_output_handle_clone.send(execute_over_event.into())?;
                         } else {
-                            let _ = output_handle.send(var_event.into());
+                            output_handle.send(var_event.into())?;
                         }
                     }
                     StrategyResponse::Fail { error, .. } => {
@@ -376,9 +397,10 @@ impl VariableNodeContext {
                             payload,
                         )
                         .into();
-                        let _ = output_handle.send(trigger_event.into());
+                        output_handle.send(trigger_event.into())?;
                     }
                 }
+                Ok(())
             });
             reset_handles.push(handle);
         }

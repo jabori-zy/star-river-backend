@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use event_center::Event;
-use futures::stream::{self, StreamExt};
+use futures::{TryStreamExt, stream};
 use star_river_event::backtest_strategy::node_event::{IfElseNodeEvent, IndicatorNodeEvent, KlineNodeEvent};
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
@@ -39,12 +39,11 @@ impl NodeEventHandlerExt for VariableNodeContext {
                             match_event.case_id,
                             match_event.node_id(),
                         );
-                        self.handle_condition_trigger(&configs).await;
+                        self.handle_condition_trigger(&configs).await?;
                         node_cycle_tracker.end_phase("handle_condition_trigger");
                         let completed_tracker = node_cycle_tracker.end();
                         self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
-                            .await
-                            .unwrap();
+                            .await?;
                         Ok(())
                     }
                     IfElseNodeEvent::CaseFalse(case_false_event) => {
@@ -60,20 +59,19 @@ impl NodeEventHandlerExt for VariableNodeContext {
                         );
 
                         if self.is_leaf_node() {
-                            configs.iter().for_each(|config| {
+                            configs.iter().try_for_each(|config| {
                                 self.send_execute_over_event(Some(config.confing_id()), Some(self.strategy_time()))
-                                    .unwrap()
-                            });
+                            })?;
                             return Ok(());
                         }
 
-                        stream::iter(configs.iter())
-                            .for_each_concurrent(None, |config| async {
+                        stream::iter(configs.iter().map(|config| Ok::<_, VariableNodeError>(config)))
+                            .try_for_each_concurrent(None, |config| async {
                                 self.send_trigger_event(&config.output_handle_id(), Some(self.strategy_time()))
-                                    .await
-                                    .unwrap();
+                                    .await?;
+                                Ok(())
                             })
-                            .await;
+                            .await?;
                         Ok(())
                     }
                     IfElseNodeEvent::ElseTrue(else_true) => {
@@ -81,12 +79,11 @@ impl NodeEventHandlerExt for VariableNodeContext {
                         node_cycle_tracker.start_phase("handle_condition_trigger");
                         // 过滤出condition trigger caseid相同的变量配置
                         let configs = filter_else_trigger_configs(self.node_config.variable_configs.iter(), else_true.node_id());
-                        self.handle_condition_trigger(&configs).await;
+                        self.handle_condition_trigger(&configs).await?;
                         node_cycle_tracker.end_phase("handle_condition_trigger");
                         let completed_tracker = node_cycle_tracker.end();
                         self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
-                            .await
-                            .unwrap();
+                            .await?;
                         Ok(())
                     }
                     _ => Ok(()),
@@ -103,12 +100,11 @@ impl NodeEventHandlerExt for VariableNodeContext {
                     kline_update_event.config_id,
                 );
                 let dataflow = DataFlow::from(kline_update_event.kline.clone());
-                self.handle_dataflow_trigger(&dataflow_trigger_configs, dataflow).await.unwrap();
+                self.handle_dataflow_trigger(&dataflow_trigger_configs, dataflow).await?;
                 node_cycle_tracker.end_phase("handle_dataflow_trigger");
                 let completed_tracker = node_cycle_tracker.end();
                 self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
-                    .await
-                    .unwrap();
+                    .await?;
                 Ok(())
             }
             BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
@@ -120,12 +116,11 @@ impl NodeEventHandlerExt for VariableNodeContext {
                     indicator_update_event.config_id,
                 );
                 let dataflow = DataFlow::from(indicator_update_event.indicator_value.clone());
-                self.handle_dataflow_trigger(&dataflow_trigger_configs, dataflow).await.unwrap();
+                self.handle_dataflow_trigger(&dataflow_trigger_configs, dataflow).await?;
                 node_cycle_tracker.end_phase("handle_dataflow_trigger");
                 let completed_tracker = node_cycle_tracker.end();
                 self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
-                    .await
-                    .unwrap();
+                    .await?;
                 Ok(())
             }
             _ => Ok(()),

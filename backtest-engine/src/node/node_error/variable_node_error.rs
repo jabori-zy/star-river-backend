@@ -1,5 +1,8 @@
 use snafu::{Backtrace, Snafu};
-use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain};
+use star_river_core::{
+    custom_type::NodeName,
+    error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain},
+};
 use strategy_core::error::NodeError;
 
 #[derive(Debug, Snafu)]
@@ -10,6 +13,9 @@ pub enum VariableNodeError {
 
     #[snafu(display("the symbol of system variable is null: {sys_var_name}"))]
     SysVariableSymbolIsNull { sys_var_name: String, backtrace: Backtrace },
+
+    #[snafu(display("@[{node_name}] exchange mode not configured"))]
+    ExchangeModeNotConfigured { node_name: NodeName, backtrace: Backtrace },
 }
 
 impl StarRiverErrorTrait for VariableNodeError {
@@ -20,8 +26,9 @@ impl StarRiverErrorTrait for VariableNodeError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            VariableNodeError::NodeError { .. } => 1001,               // node error
-            VariableNodeError::SysVariableSymbolIsNull { .. } => 1002, //系统变量交易对为空
+            VariableNodeError::NodeError { .. } => 1001,                 // node error
+            VariableNodeError::SysVariableSymbolIsNull { .. } => 1002,   //系统变量交易对为空
+            VariableNodeError::ExchangeModeNotConfigured { .. } => 1003, //交易所模式未配置
         };
 
         format!("{}_{:04}", prefix, code)
@@ -31,6 +38,7 @@ impl StarRiverErrorTrait for VariableNodeError {
         match self {
             VariableNodeError::NodeError { source, .. } => source.http_status_code(),
             VariableNodeError::SysVariableSymbolIsNull { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            VariableNodeError::ExchangeModeNotConfigured { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -40,6 +48,7 @@ impl StarRiverErrorTrait for VariableNodeError {
         match self {
             VariableNodeError::NodeError { source, .. } => generate_error_code_chain(source),
             VariableNodeError::SysVariableSymbolIsNull { .. } => vec![self.error_code()],
+            VariableNodeError::ExchangeModeNotConfigured { .. } => vec![self.error_code()],
         }
     }
 
@@ -50,6 +59,9 @@ impl StarRiverErrorTrait for VariableNodeError {
                 VariableNodeError::NodeError { source, .. } => source.error_message(language),
                 VariableNodeError::SysVariableSymbolIsNull { sys_var_name, .. } => {
                     format!("系统变量 [{}] 的交易对为空", sys_var_name)
+                }
+                VariableNodeError::ExchangeModeNotConfigured { node_name, .. } => {
+                    format!("@{} 交易所模式未配置", node_name)
                 }
             },
         }

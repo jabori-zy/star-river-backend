@@ -12,9 +12,8 @@ use strategy_core::{
 };
 use tokio_stream::wrappers::BroadcastStream;
 
-use crate::node::node_error::FuturesOrderNodeError;
-
 use super::FuturesOrderNode;
+use crate::node::node_error::FuturesOrderNodeError;
 
 impl FuturesOrderNode {
     pub(super) async fn listen_vts_events(&self) {
@@ -46,7 +45,19 @@ impl FuturesOrderNode {
                             Some(Ok(event)) => {
                                 let mut context_guard = context.write().await;
                                 if let Err(e) = context_guard.handle_vts_event(event).await {
-                                    tracing::error!("[{}] failed to handle virtual trading system event: {}", node_name, e);
+                                    let current_time = context_guard.strategy_time();
+                                    let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
+                                        context_guard.cycle_id().clone(),
+                                        context_guard.strategy_id().clone(),
+                                        context_guard.node_id().clone(),
+                                        context_guard.node_name().clone(),
+                                        StrategyRunningLogSource::Node,
+                                        &e,
+                                        current_time,
+                                    ).into();
+                                    if let Err(e) = context_guard.strategy_bound_handle_send(running_error_log.into()) {
+                                        e.report();
+                                    }
                                 }
                             }
                             Some(Err(e)) => {

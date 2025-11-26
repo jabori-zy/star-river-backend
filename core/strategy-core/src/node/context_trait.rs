@@ -260,7 +260,11 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeInfoExt {
         self.metadata_mut().subscribe_strategy_bound_handle(subscriber_id)
     }
 
-    fn subscribe_output_handle(&mut self, handle_id: String, subscriber_id: String) -> Result<(i32, broadcast::Receiver<Self::NodeEvent>), NodeError> {
+    fn subscribe_output_handle(
+        &mut self,
+        handle_id: String,
+        subscriber_id: String,
+    ) -> Result<(i32, broadcast::Receiver<Self::NodeEvent>), NodeError> {
         self.metadata_mut().subscribe_output_handle(handle_id, subscriber_id)
     }
 }

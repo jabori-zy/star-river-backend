@@ -1,4 +1,3 @@
-// use star_river_core::order::OrderType;
 use strategy_core::node::{
     context_trait::{NodeHandleExt, NodeInfoExt},
     utils::generate_default_output_handle,
@@ -13,11 +12,6 @@ impl NodeHandleExt for VariableNodeContext {
         let node_id = self.node_id().clone();
         let node_name = self.node_name().clone();
         let variable_configs = self.node_config.variable_configs.clone();
-
-        // let (tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
-        // let strategy_output_handle_id = format!("{}_strategy_output", node_id);
-        // tracing::debug!("[{node_name}] setting strategy output handle: {}", strategy_output_handle_id);
-        // self.add_output_handle(false, strategy_output_handle_id, tx);
 
         // 添加默认出口
         let default_output_handle = generate_default_output_handle::<Self::NodeEvent>(&node_id, &node_name);

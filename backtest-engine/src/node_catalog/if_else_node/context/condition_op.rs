@@ -217,7 +217,7 @@ impl IfElseNodeContext {
             self.node_name().clone(),
             else_output_handle.output_handle_id().clone(),
             self.strategy_time(),
-            payload
+            payload,
         )
         .into();
         if else_output_handle.is_connected() {

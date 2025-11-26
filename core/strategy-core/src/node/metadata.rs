@@ -9,10 +9,14 @@ use tokio_util::sync::CancellationToken;
 
 use super::{node_state_machine::StateMachine, utils::generate_default_output_handle_id};
 use crate::{
-    communication::{NodeCommandTrait, StrategyCommandTrait}, error::{NodeError, node_error::OutputHandleNotFoundSnafu}, event::node::NodeEventTrait, node::{
+    communication::{NodeCommandTrait, StrategyCommandTrait},
+    error::{NodeError, node_error::OutputHandleNotFoundSnafu},
+    event::node::NodeEventTrait,
+    node::{
         NodeType,
         node_handles::{HandleId, NodeInputHandle, NodeOutputHandle},
-    }, strategy::cycle::Cycle
+    },
+    strategy::cycle::Cycle,
 };
 
 /// M: Node State Machine
@@ -221,14 +225,19 @@ where
     }
 
     /// Subscribe output handle
-    pub fn subscribe_output_handle(&mut self, handle_id: String, subscriber_id: String) -> Result<(i32, broadcast::Receiver<E>), NodeError> {
-        Ok(self.output_handles
-        .get_mut(&handle_id)
-        .context(OutputHandleNotFoundSnafu {
-            node_name: self.node_name.clone(),
-            handle_id: handle_id.clone(),
-        })?
-        .subscribe(subscriber_id))
+    pub fn subscribe_output_handle(
+        &mut self,
+        handle_id: String,
+        subscriber_id: String,
+    ) -> Result<(i32, broadcast::Receiver<E>), NodeError> {
+        Ok(self
+            .output_handles
+            .get_mut(&handle_id)
+            .context(OutputHandleNotFoundSnafu {
+                node_name: self.node_name.clone(),
+                handle_id: handle_id.clone(),
+            })?
+            .subscribe(subscriber_id))
     }
 
     /// Get default output handle
