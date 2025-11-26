@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use star_river_core::custom_type::NodeName;
 use strategy_core::node_infra::variable_node::{VariableConfig, VariableNodeExchangeModeConfig};
+
 use crate::{
     node::node_error::{VariableNodeError, variable_node_error::ExchangeModeNotConfiguredSnafu},
     strategy::strategy_config::BacktestDataSource,

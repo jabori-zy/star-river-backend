@@ -16,7 +16,7 @@ use key::{IndicatorKey, KlineKey};
 use serde::de::IntoDeserializer;
 use snafu::ResultExt;
 use star_river_core::{
-    custom_type::{CycleId, NodeId, NodeName, StrategyId},
+    custom_type::{NodeId, NodeName, StrategyId},
     system::deserialize_time_range,
 };
 use state_machine::{IndicatorNodeStateMachine, indicator_node_transition};
@@ -33,7 +33,7 @@ use tokio::sync::{Mutex, RwLock, mpsc, watch};
 use crate::{
     node::{
         node_command::BacktestNodeCommand,
-        node_error::{BacktestNodeError, IndicatorNodeError, indicator_node_error::DataSourceParseFailedSnafu},
+        node_error::{IndicatorNodeError, indicator_node_error::DataSourceParseFailedSnafu},
         node_event::BacktestNodeEvent,
         node_state_machine::NodeRunState,
     },

@@ -4,7 +4,6 @@ mod node_handles;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use snafu::ResultExt;
 use star_river_core::custom_type::{NodeId, NodeName};
 use star_river_event::backtest_strategy::node_event::{

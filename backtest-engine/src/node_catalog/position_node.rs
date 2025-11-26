@@ -13,7 +13,7 @@ use position_node_types::PositionNodeBacktestConfig;
 use sea_orm::DatabaseConnection;
 use serde_json;
 use snafu::ResultExt;
-use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
+use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 use state_machine::{PositionNodeStateMachine, position_node_transition};
 use strategy_core::{
     error::node_error::{ConfigDeserializationFailedSnafu, ConfigFieldValueNullSnafu},

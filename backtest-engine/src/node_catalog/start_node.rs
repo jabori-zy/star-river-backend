@@ -15,7 +15,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 pub use context::StartNodeContext;
 use snafu::{OptionExt, ResultExt};
-use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
+use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 pub use state_machine::{StartNodeStateMachine, start_node_transition};
 use strategy_core::{
     error::node_error::{

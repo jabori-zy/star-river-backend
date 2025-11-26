@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use context::IfElseNodeContext;
 use if_else_node_type::IfElseNodeBacktestConfig;
 use snafu::ResultExt;
-use star_river_core::custom_type::{CycleId, NodeId, NodeName, StrategyId};
+use star_river_core::custom_type::{NodeId, NodeName, StrategyId};
 use state_machine::{IfElseNodeStateMachine, if_else_node_transition};
 use strategy_core::{
     NodeType,

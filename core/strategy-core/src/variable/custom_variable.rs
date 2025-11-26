@@ -75,7 +75,7 @@ impl VariableValue {
                     .map_err(|e| format!("failed to convert to Decimal: {}", e))
             }
             _ => {
-                return Err(format!("unsupported variable value type: {}", value_type.to_string()));
+                Err(format!("unsupported variable value type: {}", value_type.to_string()))
             }
         }
     }

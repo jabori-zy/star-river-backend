@@ -1,7 +1,14 @@
 use futures::StreamExt;
-use strategy_core::node::{
-    context_trait::{NodeHandleExt, NodeInfoExt, NodeTaskControlExt},
-    node_trait::NodeContextAccessor,
+use star_river_core::error::StarRiverErrorTrait;
+use strategy_core::{
+    event::{
+        node_common_event::CommonEvent,
+        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource},
+    },
+    node::{
+        context_trait::{NodeCommunicationExt, NodeHandleExt, NodeInfoExt, NodeTaskControlExt},
+        node_trait::NodeContextAccessor,
+    },
 };
 use tokio_stream::wrappers::BroadcastStream;
 
@@ -28,8 +35,7 @@ impl PositionNode {
             let cancel_token = cancel_token.clone();
             let node_name = node_name.clone();
             let input_handle_id = input_handle.input_handle_id.clone();
-            let position_operation_id = input_handle_id.split("_").last().unwrap();
-            let position_operation_id = position_operation_id.parse::<i32>().unwrap();
+            let position_operation_id = input_handle.config_id;
 
             // 为每个接收器创建独立的监听流
             let mut stream = BroadcastStream::new(input_handle.receiver());
@@ -53,7 +59,22 @@ impl PositionNode {
                                 Some(Ok(node_event)) => {
                                     // 根据仓位操作处理特定仓位操作的事件
                                     let mut context_guard = context.write().await;
-                                    context_guard.handle_node_event_for_independent_position_op(node_event, position_operation_id).await;
+                                    let result = context_guard.handle_node_event_for_independent_position_op(node_event, position_operation_id).await;
+                                    if let Err(e) = result {
+                                        let current_time = context_guard.strategy_time();
+                                        let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
+                                            context_guard.cycle_id().clone(),
+                                            context_guard.strategy_id().clone(),
+                                            context_guard.node_id().clone(),
+                                            context_guard.node_name().clone(),
+                                            StrategyRunningLogSource::Node,
+                                            &e,
+                                            current_time,
+                                        ).into();
+                                        if let Err(e) = context_guard.strategy_bound_handle_send(running_error_log.into()) {
+                                            e.report();
+                                        }
+                                    }
                                 }
                                 Some(Err(e)) => {
                                     tracing::error!("@[{}] input handle {} receive message error: {}", node_name, input_handle_id, e);
