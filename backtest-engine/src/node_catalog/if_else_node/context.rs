@@ -5,7 +5,6 @@ mod node_handles;
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use star_river_core::custom_type::{NodeId, NodeName};
 use strategy_core::{
     benchmark::node_benchmark::CompletedCycle,
@@ -32,7 +31,7 @@ pub struct IfElseNodeContext {
     received_flag: HashMap<(NodeId, ConfigId), bool>, // 用于记录每个variable的数据是否接收
     received_message: HashMap<(NodeId, ConfigId), Option<BacktestNodeEvent>>, // 用于记录每个variable的数据(node_id + variable_id)为key
     is_nested: bool,
-    superior_case_is_true: bool,
+    superior_case_status: bool,
 }
 
 impl IfElseNodeContext {
@@ -43,7 +42,7 @@ impl IfElseNodeContext {
             received_flag: HashMap::new(),
             received_message: HashMap::new(),
             is_nested,
-            superior_case_is_true: false,
+            superior_case_status: false,
         }
     }
 }
@@ -53,12 +52,12 @@ impl IfElseNodeContext {
         self.is_nested
     }
 
-    pub fn superior_case_is_true(&self) -> bool {
-        self.superior_case_is_true
+    pub fn superior_case_status(&self) -> bool {
+        self.superior_case_status
     }
 
-    pub fn set_superior_case_is_true(&mut self, superior_case_is_true: bool) {
-        self.superior_case_is_true = superior_case_is_true;
+    pub fn set_superior_case_status(&mut self, superior_case_status: bool) {
+        self.superior_case_status = superior_case_status;
     }
 }
 

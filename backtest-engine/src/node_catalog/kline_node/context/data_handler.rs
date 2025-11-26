@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use key::{KeyTrait, KlineKey};
-use snafu::{IntoError, OptionExt, ResultExt};
+use key::KlineKey;
+use snafu::{IntoError, ResultExt};
 use star_river_core::kline::Kline;
 use strategy_core::{
     communication::strategy::StrategyResponse,

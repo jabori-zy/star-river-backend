@@ -6,14 +6,17 @@ use async_trait::async_trait;
 use star_river_core::{custom_type::NodeId, error::StarRiverErrorTrait};
 use tokio::sync::RwLock;
 
-// workspace crate
-
 // current crate
 use super::{
     context_trait::{
         NodeCommunicationExt, NodeContextExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeMetaDataExt, NodeTaskControlExt,
     },
     node_state_machine::StateTransTrigger,
+};
+// workspace crate
+use crate::event::{
+    node_common_event::CommonEvent,
+    strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource},
 };
 
 #[async_trait]
@@ -218,7 +221,22 @@ where
                             Some(Ok(message)) => {
                                 // tracing::debug!("{} 收到消息: {:?}", node_id, message);
                                 let mut context_guard = context.write().await;
-                                context_guard.handle_source_node_event(message).await;
+                                let handle_result = context_guard.handle_source_node_event(message).await;
+                                if let Err(e) = handle_result {
+                                    let current_time = context_guard.strategy_time();
+                                    let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
+                                        context_guard.cycle_id().clone(),
+                                        context_guard.strategy_id().clone(),
+                                        context_guard.node_id().clone(),
+                                        context_guard.node_name().clone(),
+                                        StrategyRunningLogSource::Node,
+                                        &e,
+                                        current_time,
+                                    ).into();
+                                    if let Err(e) = context_guard.strategy_bound_handle_send(running_error_log.into()) {
+                                        e.report();
+                                    }
+                                }
                             }
                             Some(Err(e)) => {
                                 tracing::error!("@[{}] receive source node event error: {}", node_name, e);

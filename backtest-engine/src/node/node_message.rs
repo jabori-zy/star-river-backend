@@ -157,10 +157,11 @@ pub mod common_log_message {
     log_message!(
         InitMinIntervalSuccessMsg,
         params: (
-            node_name: String
+            node_name: String,
+            min_interval: String,
         ),
-        en: "@[{node_name}] min interval initialization successful",
-        zh: "@[{node_name}] 最小周期初始化成功"
+        en: "@[{node_name}] min interval initialization successful. set to {min_interval}",
+        zh: "@[{node_name}] 最小周期初始化成功. 设置为 {min_interval}"
     );
 }
 
@@ -331,16 +332,6 @@ pub mod indicator_node_log_message {
     );
 
     log_message!(
-        RegisterIndicatorCacheKeyFailedMsg,
-        params: (
-            node_name: String,
-            error: String
-        ),
-        en: "@[{node_name}] indicator cache keys registration failed: {error}",
-        zh: "@[{node_name}] 指标缓存键注册失败: {error}"
-    );
-
-    log_message!(
         CalculateIndicatorMsg,
         params: (
             node_name: String
@@ -359,69 +350,12 @@ pub mod indicator_node_log_message {
     );
 
     log_message!(
-        CalculateIndicatorFailedMsg,
+        InitLookbackSuccessMsg,
         params: (
-            node_name: String,
-            error: String
+            node_name: String
         ),
-        en: "@[{node_name}] indicator calculation failed: {error}",
-        zh: "@[{node_name}] 指标计算失败: {error}"
-    );
-
-    log_message!(
-        IndicatorCacheKeyRegisteredMsg,
-        params: (
-            node_name: String,
-            indicator_type: String,
-            cache_key: String
-        ),
-        en: "@[{node_name}] indicator cache key registered - Type: {indicator_type}, Key: {cache_key}",
-        zh: "@[{node_name}] 指标缓存键已注册 - 类型: {indicator_type}, 键: {cache_key}"
-    );
-
-    log_message!(
-        IndicatorCalculatedMsg,
-        params: (
-            node_name: String,
-            indicator_type: String,
-            data_points: usize
-        ),
-        en: "@[{node_name}] indicator calculated successfully - Type: {indicator_type}, Data points: {data_points}",
-        zh: "@[{node_name}] 指标计算成功 - 类型: {indicator_type}, 数据点: {data_points}"
-    );
-
-    log_message!(
-        IndicatorCalculationErrorMsg,
-        params: (
-            node_name: String,
-            indicator_type: String,
-            error: String
-        ),
-        en: "@[{node_name}] indicator calculation error - Type: {indicator_type}, Error: {error}",
-        zh: "@[{node_name}] 指标计算错误 - 类型: {indicator_type}, 错误: {error}"
-    );
-
-    log_message!(
-        SendIndicatorEventSuccessMsg,
-        params: (
-            node_name: String,
-            indicator_type: String,
-            output_handle_id: String
-        ),
-        en: "@[{node_name}] indicator event sent successfully - Type: {indicator_type}, Output: {output_handle_id}",
-        zh: "@[{node_name}] 指标事件发送成功 - 类型: {indicator_type}, 输出: {output_handle_id}"
-    );
-
-    log_message!(
-        SendIndicatorEventFailedMsg,
-        params: (
-            node_name: String,
-            indicator_type: String,
-            output_handle_id: String,
-            error: String
-        ),
-        en: "@[{node_name}] indicator event sending failed - Type: {indicator_type}, Output: {output_handle_id}, Error: {error}",
-        zh: "@[{node_name}] 指标事件发送失败 - 类型: {indicator_type}, 输出: {output_handle_id}, 错误: {error}"
+        en: "@[{node_name}] indicator lookback initialization successful",
+        zh: "@[{node_name}] 指标lookback初始化成功"
     );
 }
 

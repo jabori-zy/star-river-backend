@@ -3,10 +3,7 @@ use event_center::{CmdRespRecvFailedSnafu, Event, EventCenterSingleton};
 use event_center_core::communication::Response;
 use key::{IndicatorKey, KeyTrait, KlineKey};
 use snafu::{IntoError, ResultExt};
-use star_river_core::{
-    error::StarRiverErrorTrait,
-    kline::{Kline, KlineInterval},
-};
+use star_river_core::kline::Kline;
 use star_river_event::{
     backtest_strategy::node_event::{
         IndicatorNodeEvent, KlineNodeEvent,

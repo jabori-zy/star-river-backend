@@ -57,9 +57,13 @@ impl IndicatorNodeContext {
             indicator_keys,
             cache_kline_slice: HashMap::new(),
             indicator_lookback: HashMap::new(),
-            min_interval: KlineInterval::Minutes1,
+            min_interval: KlineInterval::Months1,
             correct_index: 0,
         }
+    }
+
+    pub fn min_interval(&self) -> KlineInterval {
+        self.min_interval
     }
 
     pub fn set_min_interval(&mut self, interval: KlineInterval) {

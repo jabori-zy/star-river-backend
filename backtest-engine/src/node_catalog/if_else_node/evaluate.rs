@@ -1,6 +1,13 @@
-use strategy_core::node::{
-    context_trait::{NodeInfoExt, NodeTaskControlExt},
-    node_trait::NodeContextAccessor,
+use star_river_core::error::StarRiverErrorTrait;
+use strategy_core::{
+    event::{
+        node_common_event::CommonEvent,
+        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource},
+    },
+    node::{
+        context_trait::{NodeCommunicationExt, NodeInfoExt, NodeTaskControlExt},
+        node_trait::NodeContextAccessor,
+    },
 };
 
 use super::IfElseNode;
@@ -8,11 +15,11 @@ use crate::node::node_error::IfElseNodeError;
 
 impl IfElseNode {
     pub async fn evaluate(&self) -> Result<(), IfElseNodeError> {
-        let (node_id, cancel_token) = self
+        let (node_name, cancel_token) = self
             .with_ctx_read(|ctx| {
-                let node_id = ctx.node_id().clone();
+                let node_name = ctx.node_name().clone();
                 let cancel_token = ctx.cancel_token().clone();
-                (node_id, cancel_token)
+                (node_name, cancel_token)
             })
             .await;
 
@@ -20,21 +27,34 @@ impl IfElseNode {
         tokio::spawn(async move {
             loop {
                 if cancel_token.is_cancelled() {
-                    tracing::info!("{} 节点条件判断进程已中止", node_id);
+                    tracing::info!("[{}] condition evaluation task cancelled", node_name);
                     break;
                 }
 
                 let should_evaluate = {
                     let ctx_guard = context.read().await;
                     // if node is nested, and superior case is true, then should evaluate
-                    ctx_guard.is_all_value_received() && (!ctx_guard.is_nested() || ctx_guard.superior_case_is_true())
+                    ctx_guard.is_all_value_received() && (!ctx_guard.is_nested() || ctx_guard.superior_case_status())
                 };
-                // tracing::info!("[{}] should evaluate: {:?}", node_id, should_evaluate);
+                // tracing::info!("[{}] should evaluate: {:?}", node_name, should_evaluate);
 
                 if should_evaluate {
                     let mut ctx_guard = context.write().await;
                     if let Err(e) = ctx_guard.evaluate().await {
-                        tracing::error!("[{}] Evaluation failed: {:?}", node_id, e);
+                        let current_time = ctx_guard.strategy_time();
+                        let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
+                            ctx_guard.cycle_id().clone(),
+                            ctx_guard.strategy_id().clone(),
+                            ctx_guard.node_id().clone(),
+                            ctx_guard.node_name().clone(),
+                            StrategyRunningLogSource::Node,
+                            &e,
+                            current_time,
+                        )
+                        .into();
+                        if let Err(e) = ctx_guard.strategy_bound_handle_send(running_error_log.into()) {
+                            e.report();
+                        }
                     }
                     ctx_guard.reset_received_flag();
                 }

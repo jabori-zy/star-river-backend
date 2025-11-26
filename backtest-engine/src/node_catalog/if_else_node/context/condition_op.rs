@@ -99,12 +99,12 @@ impl IfElseNodeContext {
                 // condition is false
                 else {
                     // tracing::debug!("@[{}] condition not matched, send case false event", self.node_name());
-                    self.handle_case_false(case).await;
+                    self.handle_case_false(case).await?;
                 }
             } else {
                 // A case has already matched, treat all subsequent cases as false
                 // Skip condition evaluation and directly handle as not matched
-                self.handle_case_false(case).await;
+                self.handle_case_false(case).await?;
                 cycle_tracker.end_phase(&phase_name);
             }
         }
@@ -114,18 +114,17 @@ impl IfElseNodeContext {
             // tracing::debug!("[{}] no case matched, handle else branch", self.node_name());
             let phase_name = format!("handle else branch");
             cycle_tracker.start_phase(&phase_name);
-            self.handle_else_true().await;
+            self.handle_else_true().await?;
             cycle_tracker.end_phase(&phase_name);
         } else {
             let phase_name = format!("handle else false");
             cycle_tracker.start_phase(&phase_name);
-            self.handle_else_false().await;
+            self.handle_else_false().await?;
             cycle_tracker.end_phase(&phase_name);
         }
         let completed_tracker = cycle_tracker.end();
         self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
-            .await
-            .unwrap();
+            .await?;
         Ok(())
     }
 
@@ -172,27 +171,25 @@ impl IfElseNodeContext {
         )
         .into();
         // let _ = strategy_output_handle.send(log_event.into());
-        self.strategy_bound_handle_send(log_event.into()).unwrap();
+        self.strategy_bound_handle_send(log_event.into())?;
 
         // 根据节点类型处理事件发送
         if self.is_leaf_node() {
             // 叶子节点：发送执行结束事件
-            self.send_execute_over_event(Some(case.case_id), Some(self.strategy_time()))
-                .unwrap();
+            self.send_execute_over_event(Some(case.case_id), Some(self.strategy_time()))?;
         } else {
             // 非叶子节点：将事件传递给下游节点
-            self.output_handle_send(condition_match_event.into()).unwrap();
+            self.output_handle_send(condition_match_event.into())?;
             // let _ = case_output_handle.send(condition_match_event.into());
         }
 
         Ok(())
     }
 
-    async fn handle_case_false(&self, case: &Case) {
+    async fn handle_case_false(&self, case: &Case) -> Result<(), IfElseNodeError> {
         if self.is_leaf_node() {
-            self.send_execute_over_event(Some(case.case_id), Some(self.strategy_time()))
-                .unwrap();
-            return;
+            self.send_execute_over_event(Some(case.case_id), Some(self.strategy_time()))?;
+            return Ok(());
         }
 
         let case_output_handle_id = case.output_handle_id.clone();
@@ -206,16 +203,13 @@ impl IfElseNodeContext {
             payload,
         )
         .into();
-        self.output_handle_send(case_false_event.into()).unwrap();
+        self.output_handle_send(case_false_event.into())?;
+        Ok(())
     }
 
     // 处理else分支
-    async fn handle_else_true(&self) {
-        let else_output_handle = self.default_output_handle().unwrap();
-        tracing::debug!(
-            "handle_else_branch, else_output_handle: {:?}",
-            else_output_handle.output_handle_id()
-        );
+    async fn handle_else_true(&self) -> Result<(), IfElseNodeError> {
+        let else_output_handle = self.default_output_handle()?;
         let payload = ElseTruePayload;
         let else_event: IfElseNodeEvent = ElseTrueEvent::new_with_time(
             self.cycle_id(),
@@ -226,13 +220,14 @@ impl IfElseNodeContext {
             payload,
         )
         .into();
-        let _ = else_output_handle.send(else_event.into());
+        else_output_handle.send(else_event.into())?;
+        Ok(())
     }
 
     // 处理else分支
-    async fn handle_else_false(&self) {
-        let else_output_handle = self.default_output_handle().unwrap();
-        tracing::debug!("handle_else_false, else_output_handle: {:?}", else_output_handle.output_handle_id());
+    async fn handle_else_false(&self) -> Result<(), IfElseNodeError> {
+        let else_output_handle = self.default_output_handle()?;
+        // tracing::debug!("handle_else_false, else_output_handle: {:?}", else_output_handle.output_handle_id());
         let payload = ElseFalsePayload;
         let else_event: IfElseNodeEvent = ElseFalseEvent::new_with_time(
             self.cycle_id(),
@@ -243,8 +238,10 @@ impl IfElseNodeContext {
             payload,
         )
         .into();
-        let _ = else_output_handle.send(else_event.into()).unwrap();
+        else_output_handle.send(else_event.into())?;
+        Ok(())
     }
+
     pub async fn evaluate_case(&self, case: &Case) -> (bool, Vec<ConditionResult>) {
         match case.logical_symbol {
             LogicalSymbol::And => self.evaluate_and_conditions(&case.conditions).await,

@@ -36,18 +36,15 @@ pub fn parse_variable_value(
         }
 
         BacktestNodeEvent::KlineNode(kline_node_event) => {
-            if let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_node_event {
-                use rust_decimal::Decimal;
-                kline_update_event
-                    .kline
-                    .get_value(variable_name)
-                    .filter(|&v| v != 0.0)
-                    .and_then(|v| Decimal::try_from(v).ok())
-                    .map(VariableValue::Number)
-                    .unwrap_or(VariableValue::Null)
-            } else {
-                VariableValue::Null
-            }
+            let KlineNodeEvent::KlineUpdate(kline_update_event) = kline_node_event;
+
+            kline_update_event
+                .kline
+                .get_value(variable_name)
+                .filter(|&v| v != 0.0)
+                .and_then(|v| Decimal::try_from(v).ok())
+                .map(VariableValue::Number)
+                .unwrap_or(VariableValue::Null)
         }
         BacktestNodeEvent::VariableNode(variable_node_event) => match variable_node_event {
             VariableNodeEvent::SysVarUpdate(sys_variable_updated_event) => sys_variable_updated_event.sys_variable.var_value.clone(),

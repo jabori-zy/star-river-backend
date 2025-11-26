@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use star_river_core::kline::KlineInterval;
 use strategy_core::{
     NodeType,
     node::{
@@ -11,12 +12,12 @@ use strategy_core::{
 use super::IndicatorNode;
 use crate::{
     node::{
-        node_error::BacktestNodeError,
+        node_error::{BacktestNodeError, IndicatorNodeError},
         node_message::{
             common_log_message::{
                 InitMinIntervalSuccessMsg, ListenExternalEventsMsg, ListenNodeEventsMsg, ListenStrategyCommandMsg, NodeStateLogMsg,
             },
-            indicator_node_log_message::{CalculateIndicatorMsg, CalculateIndicatorSuccessMsg},
+            indicator_node_log_message::{CalculateIndicatorMsg, CalculateIndicatorSuccessMsg, InitLookbackSuccessMsg},
         },
         node_state_machine::NodeStateTransTrigger,
         node_utils::NodeUtils,
@@ -39,7 +40,7 @@ impl NodeLifecycle for IndicatorNode {
     }
 
     async fn update_node_state(&self, trans_trigger: Self::Trigger) -> Result<(), Self::Error> {
-        let (node_name, node_id, strategy_id, strategy_output_handle, mut state_machine) = self
+        let (node_name, node_id, strategy_id, strategy_output_handle, state_machine) = self
             .with_ctx_read(|ctx| {
                 let node_name = ctx.node_name().to_string();
                 let node_id = ctx.node_id().clone();
@@ -135,23 +136,16 @@ impl NodeLifecycle for IndicatorNode {
 
                 IndicatorNodeAction::InitIndicatorLookback => {
                     tracing::info!("@[{node_name}] starting to init indicator lookback");
-                    self.with_ctx_write_async(|ctx| {
+                    let result = self.with_ctx_write_async(|ctx| {
                         Box::pin(async move {
-                            ctx.init_indicator_lookback().await;
+                            ctx.init_indicator_lookback().await?;
+                            Ok::<(), IndicatorNodeError>(())
                         })
                     })
                     .await;
-                    tracing::info!("[{node_name})] init indicator lookback complete");
-                }
-
-                IndicatorNodeAction::GetMinInterval => {
-                    let init_result = self
-                        .with_ctx_write_async(|ctx| Box::pin(async move { ctx.init_min_interval_from_strategy().await }))
-                        .await;
-
-                    match init_result {
+                    match result {
                         Ok(()) => {
-                            let log_message = InitMinIntervalSuccessMsg::new(node_name.clone());
+                            let log_message = InitLookbackSuccessMsg::new(node_name.clone());
                             NodeUtils::send_run_state_info(
                                 strategy_id,
                                 node_id.clone(),
@@ -159,7 +153,7 @@ impl NodeLifecycle for IndicatorNode {
                                 NodeType::IndicatorNode,
                                 log_message.to_string(),
                                 current_state,
-                                IndicatorNodeAction::GetMinInterval,
+                                IndicatorNodeAction::InitIndicatorLookback,
                                 &strategy_output_handle,
                             )
                             .await;
@@ -170,7 +164,47 @@ impl NodeLifecycle for IndicatorNode {
                                 node_id.clone(),
                                 node_name.clone(),
                                 NodeType::IndicatorNode,
-                                IndicatorNodeAction::GetMinInterval,
+                                IndicatorNodeAction::InitIndicatorLookback,
+                                &e,
+                                &strategy_output_handle,
+                            )
+                            .await;
+                            return Err(e.into());
+                        }
+                    }
+                }
+
+                IndicatorNodeAction::InitMinInterval => {
+                    tracing::info!("[{node_name}] starting to init min interval");
+                    let result = self.with_ctx_write_async(|ctx| {
+                        Box::pin(async move {
+                            ctx.init_min_interval_from_strategy().await?;
+                            Ok::<KlineInterval, IndicatorNodeError>(ctx.min_interval())
+                        })
+                    })
+                    .await;
+                    match result {
+                        Ok(min_interval) => {
+                            let log_message = InitMinIntervalSuccessMsg::new(node_name.clone(), min_interval.to_string());
+                            NodeUtils::send_run_state_info(
+                                strategy_id,
+                                node_id.clone(),
+                                node_name.clone(),
+                                NodeType::IndicatorNode,
+                                log_message.to_string(),
+                                current_state,
+                                IndicatorNodeAction::InitMinInterval,
+                                &strategy_output_handle,
+                            )
+                            .await;
+                        }
+                        Err(e) => {
+                            NodeUtils::send_run_state_error(
+                                strategy_id,
+                                node_id.clone(),
+                                node_name.clone(),
+                                NodeType::IndicatorNode,
+                                IndicatorNodeAction::InitMinInterval,
                                 &e,
                                 &strategy_output_handle,
                             )
@@ -238,7 +272,10 @@ impl NodeLifecycle for IndicatorNode {
                     })
                     .await;
                 }
-                _ => {}
+                IndicatorNodeAction::LogError(error) => {
+                    tracing::error!("[{node_name}] error occurred: {}", error);
+                }
+                
             }
 
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;

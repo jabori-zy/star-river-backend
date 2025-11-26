@@ -42,13 +42,13 @@ impl NodeEventHandlerExt for IfElseNodeContext {
         | BacktestNodeEvent::VariableNode(VariableNodeEvent::SysVarUpdate(_))
         | BacktestNodeEvent::VariableNode(VariableNodeEvent::CustomVarUpdate(_)) = node_event
         {
-            self.update_received_event(node_event.clone());
+            self.update_received_event(node_event.clone())?;
             return Ok(());
         }
 
         if let BacktestNodeEvent::Common(signal_event) = node_event.clone() {
             if let CommonEvent::Trigger(_) = signal_event {
-                self.handle_trigger_event().await;
+                self.all_handle_send_trigger_event().await?;
                 return Ok(());
             } else {
                 return Ok(());
@@ -58,19 +58,19 @@ impl NodeEventHandlerExt for IfElseNodeContext {
         if let BacktestNodeEvent::IfElseNode(ifelse_event) = node_event {
             match ifelse_event {
                 IfElseNodeEvent::CaseTrue(_) | IfElseNodeEvent::ElseTrue(_) => {
-                    self.set_superior_case_is_true(true);
+                    self.set_superior_case_status(true);
                     return Ok(());
                 }
                 IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
-                    self.set_superior_case_is_true(false);
+                    self.set_superior_case_status(false);
                     self.clear_received_event();
                     if self.is_leaf_node() {
                         let config_ids = self.output_handles().values().map(|handle| handle.config_id()).collect::<Vec<_>>();
                         for id in config_ids {
-                            self.send_execute_over_event(Some(id), Some(self.strategy_time())).unwrap();
+                            self.send_execute_over_event(Some(id), Some(self.strategy_time()))?;
                         }
                     } else {
-                        self.send_all_case_false_event();
+                        self.send_all_case_false_event()?;
                         return Ok(());
                     }
                 }
@@ -121,18 +121,20 @@ impl IfElseNodeContext {
         self.received_message.clear();
     }
 
-    pub(super) async fn handle_trigger_event(&mut self) {
+    pub(super) async fn all_handle_send_trigger_event(&mut self) -> Result<(), IfElseNodeError> {
         if self.is_leaf_node() {
             let config_ids = self.output_handles().values().map(|handle| handle.config_id()).collect::<Vec<_>>();
             for id in config_ids {
-                self.send_execute_over_event(Some(id), Some(self.strategy_time())).unwrap();
+                self.send_execute_over_event(Some(id), Some(self.strategy_time()))?;
             }
+            Ok(())
         } else {
-            self.send_all_case_false_event();
+            self.send_all_case_false_event()?;
+            Ok(())
         }
     }
 
-    fn send_all_case_false_event(&mut self) {
+    fn send_all_case_false_event(&mut self) -> Result<(), IfElseNodeError> {
         let ids = self
             .output_handles()
             .values()
@@ -149,7 +151,7 @@ impl IfElseNodeContext {
                 payload,
             )
             .into();
-            self.output_handle_send(case_false_event.into()).unwrap();
+            self.output_handle_send(case_false_event.into())?;
         }
 
         let payload = ElseFalsePayload;
@@ -157,12 +159,13 @@ impl IfElseNodeContext {
             self.cycle_id(),
             self.node_id().clone(),
             self.node_name().clone(),
-            self.default_output_handle().unwrap().output_handle_id().clone(),
+            self.default_output_handle()?.output_handle_id().clone(),
             self.strategy_time(),
             payload,
         )
         .into();
-        let default_output_handle = self.default_output_handle().unwrap();
-        let _ = default_output_handle.send(else_false_event.into());
+        let default_output_handle = self.default_output_handle()?;
+        default_output_handle.send(else_false_event.into())?;
+        Ok(())
     }
 }

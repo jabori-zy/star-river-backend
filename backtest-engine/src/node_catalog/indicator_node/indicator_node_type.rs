@@ -3,10 +3,7 @@ use star_river_core::{custom_type::NodeName, system::TimeRange};
 use strategy_core::strategy::{SelectedAccount, SelectedIndicator, SelectedSymbol};
 
 use crate::{
-    node::node_error::{
-        IndicatorNodeError,
-        indicator_node_error::{ExchangeModeNotConfiguredSnafu, FileModeNotConfiguredSnafu},
-    },
+    node::node_error::{IndicatorNodeError, indicator_node_error::ExchangeModeNotConfiguredSnafu},
     strategy::strategy_config::BacktestDataSource,
 };
 
