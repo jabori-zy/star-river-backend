@@ -1,7 +1,6 @@
 // External crate imports
 use chrono::{DateTime, Utc};
 use key::KlineKey;
-use snafu::Report;
 use star_river_core::kline::Kline;
 // Current crate imports
 use star_river_core::{
@@ -14,7 +13,7 @@ use star_river_core::{
 // Local module imports
 use super::VirtualTradingSystemContext;
 use crate::{
-    error::{KlineKeyNotFoundSnafu, UnsupportedOrderTypeSnafu, VirtualTradingSystemError},
+    error::{OrderNotFoundSnafu, UnsupportedOrderTypeSnafu, VirtualTradingSystemError},
     event::VtsEvent,
     types::{VirtualOrder, VirtualPosition},
 };
@@ -48,100 +47,82 @@ where
         point: Option<f64>,
     ) -> Result<(), VirtualTradingSystemError> {
         let order_id = self.generate_order_id();
-        let kline_key = self.get_kline_key(&exchange, &symbol);
-        // let current_datetime = self.current_datetime;
-        if let Ok(kline_key) = kline_key {
-            // 根据订单类型判断是否需要立即成交
-            match &order_type {
-                // 市价单
-                OrderType::Market => {
-                    // 市价单立即成交
-                    // 获取当前价格
-                    let current_kline = self.kline_price.get(&kline_key).unwrap();
-                    let current_price = current_kline.close;
-                    let current_datetime = current_kline.datetime;
-                    // 市价单忽略创建订单时的价格，而是使用最新的价格
-                    let market_order = VirtualOrder::new(
-                        None,
-                        strategy_id,
-                        order_id,
-                        node_id,
-                        node_name,
-                        order_config_id,
-                        exchange.clone(),
-                        symbol.clone(),
-                        order_side,
-                        order_type,
-                        quantity,
-                        current_price,
-                        tp,
-                        sl,
-                        tp_type,
-                        sl_type,
-                        point,
-                        current_datetime,
-                    );
-                    tracing::debug!("market order created: {:?}", market_order);
+        let kline_key = self.get_kline_key(&exchange, &symbol)?;
+        let current_datetime = self.current_datetime();
+        let kline = self.get_kline_price(&kline_key)?;
+        let current_price = kline.close;
+        // order create closure
+        let create_order = |price| -> Result<VirtualOrder, VirtualTradingSystemError> {
+            let order = VirtualOrder::create_order(
+                strategy_id,
+                order_id,
+                node_id,
+                node_name,
+                order_config_id,
+                exchange,
+                symbol,
+                order_side.clone(),
+                order_type.clone(),
+                quantity,
+                price,
+                tp,
+                sl,
+                tp_type,
+                sl_type,
+                point,
+                current_datetime,
+            );
+            tracing::debug!("order created: {:?}", order);
+            let order_create_event = VtsEvent::FuturesOrderCreated(order.clone());
+            self.send_event(order_create_event)?;
+            // 插入订单
+            self.orders.push(order.clone());
+            Ok(order)
+        };
+        // 根据订单类型判断是否需要立即成交
+        match &order_type {
+            // 市价单
+            OrderType::Market => {
+                let market_order = create_order(current_price)?;
 
-                    let order_create_event = VtsEvent::FuturesOrderCreated(market_order.clone());
-                    let _ = self.event_transceiver.0.send(order_create_event);
-
-                    // 插入订单
-                    self.orders.push(market_order.clone());
-
-                    // 创建完成后，直接成交订单
-                    self.execute_order(&market_order, current_price, current_datetime).unwrap();
-                }
-                // 限价单
-                OrderType::Limit => {
-                    // 限价单不立即成交
-                    let current_datetime = self.get_kline_price(&kline_key)?.datetime;
-                    let limit_order = VirtualOrder::new(
-                        None,
-                        strategy_id,
-                        order_id,
-                        node_id,
-                        node_name,
-                        order_config_id,
-                        exchange,
-                        symbol,
-                        order_side,
-                        order_type,
-                        quantity,
-                        price,
-                        tp,
-                        sl,
-                        tp_type,
-                        sl_type,
-                        point,
-                        current_datetime,
-                    );
-                    tracing::debug!("limit order created: {:?}", limit_order);
-                    let order_create_event = VtsEvent::FuturesOrderCreated(limit_order.clone());
-                    self.send_event(order_create_event)?;
-                    // 插入订单
-                    self.orders.push(limit_order.clone());
-                }
-                _ => {
-                    let error = UnsupportedOrderTypeSnafu {
-                        order_type: order_type.to_string(),
+                // 创建完成后，直接成交订单
+                self.execute_order(&market_order, current_price, current_datetime)?;
+            }
+            // 限价单
+            OrderType::Limit => {
+                // if limit price >= close price, execute order immidetely
+                match order_side {
+                    FuturesOrderSide::OpenLong | FuturesOrderSide::CloseShort => {
+                        // if configered price is higher than current price, execute order immidetely
+                        if price >= current_price {
+                            let limit_order = create_order(current_price)?;
+                            self.execute_order(&limit_order, current_price, current_datetime)?;
+                            let directly_execute_event = VtsEvent::LimitOrderExecutedDirectly { limit_price: price, order: limit_order };
+                            self.send_event(directly_execute_event)?;
+                        } else {
+                            let limit_order = create_order(price)?;
+                            self.orders.push(limit_order);
+                        }
                     }
-                    .build();
-                    let report = Report::from_error(&error);
-                    tracing::error!("{}", report);
-                    return Err(error);
+                    FuturesOrderSide::OpenShort | FuturesOrderSide::CloseLong => {
+                        if price <= current_price {
+                            let limit_order = create_order(current_price)?;
+                            self.execute_order(&limit_order, current_price, current_datetime)?;
+                            let directly_execute_event = VtsEvent::LimitOrderExecutedDirectly { limit_price: price, order: limit_order };
+                            self.send_event(directly_execute_event)?;
+                        } else {
+                            let limit_order = create_order(price)?;
+                            self.orders.push(limit_order);
+                        }
+                    }
                 }
             }
-        } else {
-            // 如果k线缓存key不存在，则不成交
-            let error = KlineKeyNotFoundSnafu {
-                exchange: exchange.to_string(),
-                symbol: symbol.to_string(),
+            _ => {
+                return Err(UnsupportedOrderTypeSnafu {
+                    order_type: order_type.to_string(),
+                }
+                .build());
             }
-            .build();
-            let report = Report::from_error(&error);
-            tracing::error!("{}", report);
-            return Err(error);
         }
         Ok(())
     }
@@ -160,13 +141,18 @@ where
         Ok(order.clone())
     }
 
-    pub fn update_order_position_id(&mut self, order_id: OrderId, position_id: PositionId, datetime: DateTime<Utc>) -> Result<(), String> {
+    pub fn update_order_position_id(
+        &mut self,
+        order_id: OrderId,
+        position_id: PositionId,
+        datetime: DateTime<Utc>,
+    ) -> Result<(), VirtualTradingSystemError> {
         if let Some(order) = self.orders.iter_mut().find(|o| o.order_id == order_id) {
             order.position_id = Some(position_id);
             order.update_time = datetime;
             Ok(())
         } else {
-            Err(format!("订单不存在: {:?}", order_id))
+            Err(OrderNotFoundSnafu { order_id }.build())
         }
     }
 
@@ -275,8 +261,8 @@ where
                 PositionSide::Short => FuturesOrderSide::CloseShort,
             };
 
-            let tp_order = VirtualOrder::new(
-                Some(position.position_id),
+            let tp_order = VirtualOrder::create_take_profit_order(
+                position.position_id,
                 order_id,
                 position.strategy_id,
                 position.node_id.clone(),
@@ -285,14 +271,8 @@ where
                 position.exchange.clone(),
                 position.symbol.clone(),
                 order_side,
-                OrderType::TakeProfitMarket, // 虚拟交易系统，只使用市价止盈
-                position.quantity,           // 全部止盈
-                tp,                          // 止盈订单的开仓价格，就是主订单中的止盈价格
-                None,
-                None,
-                None,
-                None,
-                None,
+                position.quantity,
+                tp,
                 execute_datetime,
             );
             return Some(tp_order);
@@ -310,24 +290,18 @@ where
                 PositionSide::Short => FuturesOrderSide::CloseShort,
             };
 
-            let sl_order = VirtualOrder::new(
-                Some(position.position_id),
-                order_id,
+            let sl_order = VirtualOrder::create_stop_loss_order(
+                position.position_id,
                 position.strategy_id,
+                order_id,
                 position.node_id.clone(),
                 position.node_name.clone(),
                 position.order_config_id,
                 position.exchange.clone(),
                 position.symbol.clone(),
                 order_side,
-                OrderType::StopMarket, // 虚拟交易系统，只使用市价止损
-                position.quantity,     // 全部止盈
-                sl,                    // 止损订单的开仓价格，就是主订单中的止损价格
-                None,
-                None,
-                None,
-                None,
-                None,
+                position.quantity, // 全部止盈
+                sl,                // 止损订单的开仓价格，就是主订单中的止损价格
                 current_datetime,
             );
             return Some(sl_order);

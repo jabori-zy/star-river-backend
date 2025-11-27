@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use database::error::DatabaseError;
+use event_center::EventCenterError;
 use snafu::{Backtrace, Snafu};
 use star_river_core::{
     custom_type::NodeName,
@@ -25,6 +26,10 @@ pub enum BacktestStrategyError {
 
     #[snafu(transparent)]
     BacktestNodeError { source: BacktestNodeError, backtrace: Backtrace },
+
+    #[snafu(transparent)]
+    EventCenterError { source: EventCenterError, backtrace: Backtrace },
+
 
     #[snafu(display("[{strategy_name}] update status failed: {source}"))]
     UpdateStrategyStatusFailed {
@@ -130,23 +135,24 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::StrategyError { .. } => 1001,              // 策略错误.
             BacktestStrategyError::StrategyStateMachineError { .. } => 1002,  // 策略状态机错误
             BacktestStrategyError::BacktestNodeError { .. } => 1003,          // 节点错误
-            BacktestStrategyError::UpdateStrategyStatusFailed { .. } => 1004, // 更新策略状态失败
-            BacktestStrategyError::PlayFinished { .. } => 1005,               // 所有回测数据播放完毕
-            BacktestStrategyError::AlreadyPlaying { .. } => 1006,             // 策略正在播放，无法再次播放
-            BacktestStrategyError::AlreadyPausing { .. } => 1007,             // 策略正在暂停，无法再次暂停
-            BacktestStrategyError::IntervalNotSame { .. } => 1008,            // 不同symbol的最小周期不相同
-            BacktestStrategyError::GetDataFailed { .. } => 1009,              // 获取数据失败
-            BacktestStrategyError::GetDataByDatetimeFailed { .. } => 1010,    // 获取数据失败
-            BacktestStrategyError::GetStartNodeConfigFailed { .. } => 1011,   // 获取开始节点配置失败
-            BacktestStrategyError::KlineDataLengthNotSame { .. } => 1012,     // kline数据长度不相同
-            BacktestStrategyError::KeyNotFound { .. } => 1013,                // kline key未找到
-            BacktestStrategyError::PlayIndexOutOfRange { .. } => 1014,        // 播放索引超出范围
-            BacktestStrategyError::GetNodeConfigFailed { .. } => 1015,        // 获取节点配置失败
-            BacktestStrategyError::MissingDataSource { .. } => 1016,          // 缺少数据源
-            BacktestStrategyError::MissingStartNode { .. } => 1017,           // 缺少开始节点
-            BacktestStrategyError::SymbolIsNotMinInterval { .. } => 1018,     // kline key 不是最小周期symbol
-            BacktestStrategyError::NoSymbolConfigured { .. } => 1019,         // 没有symbol配置
-            BacktestStrategyError::TimeRangeNotConfigured { .. } => 1020,     // 时间范围未配置
+            BacktestStrategyError::EventCenterError { .. } => 1004,          // 事件中心错误
+            BacktestStrategyError::UpdateStrategyStatusFailed { .. } => 1005, // 更新策略状态失败
+            BacktestStrategyError::PlayFinished { .. } => 1006,               // 所有回测数据播放完毕
+            BacktestStrategyError::AlreadyPlaying { .. } => 1007,             // 策略正在播放，无法再次播放
+            BacktestStrategyError::AlreadyPausing { .. } => 1008,             // 策略正在暂停，无法再次暂停
+            BacktestStrategyError::IntervalNotSame { .. } => 1009,            // 不同symbol的最小周期不相同
+            BacktestStrategyError::GetDataFailed { .. } => 1010,              // 获取数据失败
+            BacktestStrategyError::GetDataByDatetimeFailed { .. } => 1011,    // 获取数据失败
+            BacktestStrategyError::GetStartNodeConfigFailed { .. } => 1012,   // 获取开始节点配置失败
+            BacktestStrategyError::KlineDataLengthNotSame { .. } => 1013,     // kline数据长度不相同
+            BacktestStrategyError::KeyNotFound { .. } => 1014,                // kline key未找到
+            BacktestStrategyError::PlayIndexOutOfRange { .. } => 1015,        // 播放索引超出范围
+            BacktestStrategyError::GetNodeConfigFailed { .. } => 1016,        // 获取节点配置失败
+            BacktestStrategyError::MissingDataSource { .. } => 1017,          // 缺少数据源
+            BacktestStrategyError::MissingStartNode { .. } => 1018,           // 缺少开始节点
+            BacktestStrategyError::SymbolIsNotMinInterval { .. } => 1019,     // kline key 不是最小周期symbol
+            BacktestStrategyError::NoSymbolConfigured { .. } => 1020,         // 没有symbol配置
+            BacktestStrategyError::TimeRangeNotConfigured { .. } => 1021,     // 时间范围未配置
         };
         format!("{prefix}_{code:04}")
     }
@@ -157,7 +163,7 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::StrategyError { source, .. } => source.http_status_code(),
             BacktestStrategyError::StrategyStateMachineError { source, .. } => source.http_status_code(),
             BacktestStrategyError::BacktestNodeError { source, .. } => source.http_status_code(),
-
+            BacktestStrategyError::EventCenterError { source, .. } => source.http_status_code(),
             // 服务器内部错误 (500)
             BacktestStrategyError::GetDataFailed { .. }
             | BacktestStrategyError::GetDataByDatetimeFailed { .. }
@@ -199,7 +205,7 @@ impl StarRiverErrorTrait for BacktestStrategyError {
                 BacktestStrategyError::StrategyError { source, .. } => source.error_message(language),
                 BacktestStrategyError::StrategyStateMachineError { source, .. } => source.error_message(language),
                 BacktestStrategyError::BacktestNodeError { source, .. } => source.error_message(language),
-
+                BacktestStrategyError::EventCenterError { source, .. } => source.error_message(language),
                 BacktestStrategyError::UpdateStrategyStatusFailed { strategy_name, source, .. } => {
                     format!("策略 [{strategy_name}] 更新状态失败: {source}")
                 }
@@ -287,7 +293,7 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::StrategyError { source, .. } => generate_error_code_chain(source),
             BacktestStrategyError::StrategyStateMachineError { source, .. } => generate_error_code_chain(source),
             BacktestStrategyError::BacktestNodeError { source, .. } => generate_error_code_chain(source),
-
+            BacktestStrategyError::EventCenterError { source, .. } => generate_error_code_chain(source),
             // Non-transparent errors - return own error code
             _ => vec![self.error_code()],
         }

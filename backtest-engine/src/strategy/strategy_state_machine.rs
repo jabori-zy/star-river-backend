@@ -133,6 +133,10 @@ pub enum BacktestStrategyStateAction {
     #[strum(serialize = "ListenAndHandleStrategyStatsEvent")]
     ListenAndHandleStrategyStatsEvent,
 
+    /// Listen and handle vts events
+    #[strum(serialize = "ListenAndHandleVtsEvents")]
+    ListenAndHandleVtsEvents,
+
     /// Store strategy status
     #[strum(serialize = "StoreStrategyStatus")]
     StoreStrategyStatus,
@@ -201,6 +205,7 @@ pub fn backtest_strategy_transition(
                 BacktestStrategyStateAction::ListenAndHandleNodeEvent,
                 BacktestStrategyStateAction::ListenAndHandleStrategyCommand,
                 BacktestStrategyStateAction::ListenAndHandleStrategyStatsEvent,
+                BacktestStrategyStateAction::ListenAndHandleVtsEvents,
                 BacktestStrategyStateAction::InitNode,
                 BacktestStrategyStateAction::InitInitialPlaySpeed,
                 BacktestStrategyStateAction::InitVirtualTradingSystem,

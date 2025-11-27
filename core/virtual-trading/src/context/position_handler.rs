@@ -70,14 +70,7 @@ where
             margin_ratio,
             execute_datetime,
         );
-        tracing::info!(
-            "position created successfully: position id: {:?}, open price: {:?}, open quantity: {:?}, take profit: {:?}, stop loss: {:?}",
-            position_id,
-            virtual_position.open_price,
-            virtual_position.quantity,
-            virtual_position.tp,
-            virtual_position.sl
-        );
+        tracing::info!("position created successfully: {:#?}", virtual_position);
         self.current_positions.push(virtual_position.clone());
         Ok(virtual_position)
     }
@@ -90,13 +83,12 @@ where
         current_price: f64,
         execute_datetime: DateTime<Utc>,
     ) -> Result<PositionId, VirtualTradingSystemError> {
-        tracing::info!("execute open order: {:?}, execute price: {:?}", order, current_price);
+        tracing::info!("execute open order: {:#?}, execute price: {:?}", order, current_price);
 
         let virtual_position = self.create_position(order, current_price, execute_datetime)?;
 
         // 更新订单的仓位id
-        self.update_order_position_id(order.order_id, virtual_position.position_id, execute_datetime)
-            .unwrap();
+        self.update_order_position_id(order.order_id, virtual_position.position_id, execute_datetime)?;
 
         // 发送仓位创建事件
         let position_created_event = VtsEvent::PositionCreated(virtual_position.clone());
@@ -136,7 +128,7 @@ where
         let position_id = virtual_position.position_id;
 
         // 在这里发送订单成交事件
-        let filled_order = self.get_order_by_id(&order.order_id).unwrap();
+        let filled_order = self.get_order_by_id(&order.order_id)?;
         let order_filled_event = VtsEvent::FuturesOrderFilled(filled_order.clone());
         self.send_event(order_filled_event)?;
 
@@ -151,11 +143,6 @@ where
         }
 
         for position in positions.iter() {
-            // 使用 get_kline_key 方法获取 kline_key
-            // let kline_key = self.get_kline_key(&position.exchange, &position.symbol)?;
-
-            // 使用 get_kline_price 方法获取当前 K线数据
-            // let kline = self.get_kline_price(kline_key)?;
             let current_price = kline.close;
             let current_datetime = kline.datetime;
             let quantity = position.quantity;

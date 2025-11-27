@@ -44,7 +44,7 @@ pub async fn backtest_strategy_running_log_sse_handler() -> Sse<impl Stream<Item
                 Ok(EventCenterEvent::Backtest(ref backtest_strategy_event)) => {
                     let event = result.as_ref().unwrap();
                     match backtest_strategy_event {
-                        BacktestStrategyEvent::RunningLog(_) => {
+                        BacktestStrategyEvent::NodeRunningLog(_) | BacktestStrategyEvent::StrategyRunningLog(_) => {
                             let json = serde_json::to_string(event).unwrap();
                             Some(Event::default().data(json))
                         }

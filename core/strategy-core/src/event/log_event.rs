@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::Serialize;
 use star_river_core::{
-    custom_type::{CycleId, HandleId, NodeId, NodeName},
+    custom_type::{HandleId, NodeId, NodeName},
     error::error_trait::{ErrorLanguage, StarRiverErrorTrait},
 };
 use utoipa::ToSchema;

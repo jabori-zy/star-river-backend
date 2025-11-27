@@ -8,7 +8,7 @@ use serde::Serialize;
 use star_river_core::custom_type::{CycleId, HandleId, NodeId, NodeName};
 pub use star_river_event::backtest_strategy::node_event::{
     futures_order_node_event::FuturesOrderNodeEvent, if_else_node_event::IfElseNodeEvent, indicator_node_event::IndicatorNodeEvent,
-    kline_node_event::KlineNodeEvent, position_node_event::PositionNodeEvent, start_node_event::StartNodeEvent,
+    kline_node_event::KlineNodeEvent, start_node_event::StartNodeEvent,
     variable_node_event::VariableNodeEvent,
 };
 use strategy_core::event::node::NodeEventTrait;
@@ -49,9 +49,9 @@ pub enum BacktestNodeEvent {
     #[serde(rename = "futures_order_node")]
     FuturesOrderNode(FuturesOrderNodeEvent),
 
-    #[strum(serialize = "position_management_node")]
-    #[serde(rename = "position_management_node")]
-    PositionManagementNode(PositionNodeEvent),
+    // #[strum(serialize = "position_node")]
+    // #[serde(rename = "position_node")]
+    // PositionNode(PositionNodeEvent),
 
     #[strum(serialize = "if_else_node")]
     #[serde(rename = "if_else_node")]
@@ -67,7 +67,7 @@ impl NodeEventTrait for BacktestNodeEvent {
             BacktestNodeEvent::VariableNode(event) => event.cycle_id(),
             BacktestNodeEvent::KlineNode(event) => event.cycle_id(),
             BacktestNodeEvent::FuturesOrderNode(event) => event.cycle_id(),
-            BacktestNodeEvent::PositionManagementNode(event) => event.cycle_id(),
+            // BacktestNodeEvent::PositionNode(event) => event.cycle_id(),
             BacktestNodeEvent::IfElseNode(event) => event.cycle_id(),
         }
     }
@@ -80,7 +80,7 @@ impl NodeEventTrait for BacktestNodeEvent {
             BacktestNodeEvent::VariableNode(event) => event.datetime(),
             BacktestNodeEvent::KlineNode(event) => event.datetime(),
             BacktestNodeEvent::FuturesOrderNode(event) => event.datetime(),
-            BacktestNodeEvent::PositionManagementNode(event) => event.datetime(),
+            // BacktestNodeEvent::PositionNode(event) => event.datetime(),
             BacktestNodeEvent::IfElseNode(event) => event.datetime(),
         }
     }
@@ -93,7 +93,7 @@ impl NodeEventTrait for BacktestNodeEvent {
             BacktestNodeEvent::VariableNode(event) => event.node_id(),
             BacktestNodeEvent::KlineNode(event) => event.node_id(),
             BacktestNodeEvent::FuturesOrderNode(event) => event.node_id(),
-            BacktestNodeEvent::PositionManagementNode(event) => event.node_id(),
+            // BacktestNodeEvent::PositionNode(event) => event.node_id(),
             BacktestNodeEvent::IfElseNode(event) => event.node_id(),
         }
     }
@@ -105,7 +105,7 @@ impl NodeEventTrait for BacktestNodeEvent {
             BacktestNodeEvent::VariableNode(event) => event.node_name(),
             BacktestNodeEvent::KlineNode(event) => event.node_name(),
             BacktestNodeEvent::FuturesOrderNode(event) => event.node_name(),
-            BacktestNodeEvent::PositionManagementNode(event) => event.node_name(),
+            // BacktestNodeEvent::PositionNode(event) => event.node_name(),
             BacktestNodeEvent::IfElseNode(event) => event.node_name(),
         }
     }
@@ -117,7 +117,7 @@ impl NodeEventTrait for BacktestNodeEvent {
             BacktestNodeEvent::VariableNode(event) => event.output_handle_id(),
             BacktestNodeEvent::KlineNode(event) => event.output_handle_id(),
             BacktestNodeEvent::FuturesOrderNode(event) => event.output_handle_id(),
-            BacktestNodeEvent::PositionManagementNode(event) => event.output_handle_id(),
+            // BacktestNodeEvent::PositionNode(event) => event.output_handle_id(),
             BacktestNodeEvent::IfElseNode(event) => event.output_handle_id(),
         }
     }

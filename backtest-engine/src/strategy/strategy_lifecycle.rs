@@ -272,6 +272,10 @@ impl StrategyLifecycle for BacktestStrategy {
                     tracing::info!("#[{}] listen strategy command", &strategy_name);
                     self.listen_strategy_command().await;
                 }
+                BacktestStrategyStateAction::ListenAndHandleVtsEvents => {
+                    tracing::info!("#[{}] listen vts events", &strategy_name);
+                    self.listen_vts_events().await;
+                }
                 BacktestStrategyStateAction::ListenAndHandleStrategyStatsEvent => {
                     tracing::info!("#[{}] listen strategy stats event", &strategy_name);
                     // self.listen_strategy_stats_event().await;

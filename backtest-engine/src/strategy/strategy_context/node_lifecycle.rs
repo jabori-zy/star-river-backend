@@ -19,8 +19,6 @@ const INIT_NODE_INTERVAL: u64 = 0;
 
 #[async_trait]
 impl StrategyWorkflowExt for BacktestStrategyContext {
-    type Error = BacktestStrategyError;
-
     async fn init_node(context: Arc<RwLock<Self>>) -> Result<(), Self::Error> {
         let (strategy_name, nodes) = {
             let ctx = context.read().await;

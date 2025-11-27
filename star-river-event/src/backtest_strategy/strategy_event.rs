@@ -1,14 +1,16 @@
 use chrono::Utc;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
-use star_river_core::{custom_type::StrategyId, system::DateTimeUtc};
+use star_river_core::system::DateTimeUtc;
 // use log_event::{NodeStateLogEvent, StrategyRunningLogEvent, LogLevel};
 use strategy_core::event::{
     log_event::NodeStateLogEvent,
+    node_common_event::NodeRunningLogEvent,
     strategy_event::{StrategyPerformanceUpdateEvent, StrategyRunningLogEvent, StrategyStateLogEvent},
 };
 use strategy_stats::event::StrategyStatsUpdatedEvent;
 use strum::Display;
+use virtual_trading::types::VirtualPosition;
 
 use super::node_event::{
     futures_order_node_event::{
@@ -18,7 +20,6 @@ use super::node_event::{
     },
     indicator_node_event::IndicatorUpdateEvent,
     kline_node_event::KlineUpdateEvent,
-    position_node_event::{PositionClosedEvent, PositionCreatedEvent, PositionUpdatedEvent},
     variable_node_event::{CustomVarUpdateEvent, SysVarUpdateEvent},
 };
 
@@ -83,15 +84,26 @@ pub enum BacktestStrategyEvent {
 
     #[strum(serialize = "position-created-event")]
     #[serde(rename = "position-created-event")]
-    PositionCreated(PositionCreatedEvent), // 仓位创建事件
+    PositionCreated { 
+        #[serde(rename = "virtualPosition")]
+        virtual_position: VirtualPosition 
+    }, // 仓位创建事件
 
     #[strum(serialize = "position-updated-event")]
     #[serde(rename = "position-updated-event")]
-    PositionUpdated(PositionUpdatedEvent), // 仓位更新事件
+    #[from(ignore)]
+    PositionUpdated { 
+        #[serde(rename = "virtualPosition")]
+        virtual_position: VirtualPosition 
+    }, // 仓位更新事件
 
     #[strum(serialize = "position-closed-event")]
     #[serde(rename = "position-closed-event")]
-    PositionClosed(PositionClosedEvent), // 仓位关闭事件
+    #[from(ignore)]
+    PositionClosed { 
+        #[serde(rename = "virtualPosition")]
+        virtual_position: VirtualPosition 
+    }, // 仓位关闭事件
 
     #[strum(serialize = "strategy-stats-updated-event")]
     #[serde(rename = "strategy-stats-updated-event")]
@@ -109,63 +121,19 @@ pub enum BacktestStrategyEvent {
     #[serde(rename = "strategy-state-log-update-event")]
     StrategyStateLog(StrategyStateLogEvent), // 策略状态日志事件
 
+    #[strum(serialize = "node-running-log-update-event")]
+    #[serde(rename = "node-running-log-update-event")]
+    NodeRunningLog(NodeRunningLogEvent), // 运行日志事件
+
     #[strum(serialize = "strategy-running-log-update-event")]
     #[serde(rename = "strategy-running-log-update-event")]
-    RunningLog(StrategyRunningLogEvent), // 运行日志事件
+    StrategyRunningLog(StrategyRunningLogEvent), // 运行日志事件
 
     #[strum(serialize = "strategy-performance-update-event")]
     #[serde(rename = "strategy-performance-update-event")]
     StrategyPerformanceUpdate(StrategyPerformanceUpdateEvent), // 策略性能更新事件
 }
 
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct StrategyStateLogEvent {
-//     pub strategy_id: i32,
-
-//     pub strategy_name: String,
-
-//     pub strategy_state: Option<String>,
-
-//     pub strategy_state_action: Option<String>,
-
-//     pub log_level: LogLevel,
-
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub error_code: Option<String>,
-
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub error_code_chain: Option<Vec<String>>,
-
-//     pub message: String,
-
-//     pub datetime: DateTimeUtc,
-// }
-
-// impl StrategyStateLogEvent {
-//     pub fn new(
-//         strategy_id: i32,
-//         strategy_name: String,
-//         strategy_state: Option<String>,
-//         strategy_state_action: Option<String>,
-//         log_level: LogLevel,
-//         error_code: Option<String>,
-//         error_code_chain: Option<Vec<String>>,
-//         message: String,
-//     ) -> Self {
-//         Self {
-//             strategy_id,
-//             strategy_name,
-//             strategy_state,
-//             strategy_state_action,
-//             log_level,
-//             error_code,
-//             error_code_chain,
-//             message,
-//             datetime: Utc::now(),
-//         }
-//     }
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -186,231 +154,3 @@ impl PlayFinishedEvent {
         }
     }
 }
-
-// // 策略性能更新时间
-// #[derive(Debug, Clone, Serialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct StrategyPerformanceUpdateEvent {
-//     pub strategy_id: StrategyId,
-//     pub report: StrategyPerformanceReport,
-// }
-
-// impl StrategyPerformanceUpdateEvent {
-//     pub fn new(strategy_id: StrategyId, report: StrategyPerformanceReport) -> Self {
-//         Self {
-//             strategy_id,
-//             report,
-//         }
-//     }
-// }
-
-// pub mod log_event {
-
-//     use derive_more::From;
-//     use serde::{Deserialize, Serialize};
-//     use strum::Display;
-//     use utoipa::ToSchema;
-//     use chrono::{DateTime, Utc};
-//     use star_river_core::error::error_trait::{ErrorLanguage, StarRiverErrorTrait};
-
-//     #[derive(Debug, Clone, Serialize, Deserialize, Display, ToSchema)]
-//     #[serde(rename_all = "lowercase")]
-//     pub enum LogLevel {
-//         Trace,
-//         Debug,
-//         Info,
-//         Warn,
-//         Error,
-//     }
-
-//     #[derive(Debug, Clone, Serialize, Deserialize, From)]
-//     #[serde(rename_all = "camelCase")]
-//     pub struct NodeStateLogEvent {
-//         pub strategy_id: i32,
-
-//         pub node_id: String,
-
-//         pub node_name: String,
-
-//         pub node_state: String,
-
-//         pub node_state_action: String,
-
-//         pub log_level: LogLevel,
-
-//         #[serde(skip_serializing_if = "Option::is_none")]
-//         pub error_code: Option<String>,
-
-//         #[serde(skip_serializing_if = "Option::is_none")]
-//         pub error_code_chain: Option<Vec<String>>,
-
-//         pub message: String,
-//         pub datetime: DateTime<Utc>,
-//     }
-
-//     impl NodeStateLogEvent {
-//         pub fn success(
-//             strategy_id: i32,
-//             node_id: String,
-//             node_name: String,
-//             node_state: String,
-//             node_state_action: String,
-//             message: String,
-//         ) -> Self {
-//             Self {
-//                 strategy_id,
-//                 node_id,
-//                 node_name,
-//                 node_state,
-//                 node_state_action,
-//                 log_level: LogLevel::Info,
-//                 message,
-//                 error_code: None,
-//                 error_code_chain: None,
-//                 datetime: Utc::now(),
-//             }
-//         }
-
-//         pub fn error(
-//             strategy_id: i32,
-//             node_id: String,
-//             node_name: String,
-//             node_state: String,
-//             node_state_action: String,
-//             error: &impl StarRiverErrorTrait,
-//         ) -> Self {
-//             Self {
-//                 strategy_id,
-//                 node_id,
-//                 node_name,
-//                 node_state,
-//                 node_state_action,
-//                 log_level: LogLevel::Error,
-//                 message: error.error_message(ErrorLanguage::Chinese),
-//                 error_code: Some(error.error_code().to_string()),
-//                 error_code_chain: Some(error.error_code_chain()),
-//                 datetime: Utc::now(),
-//             }
-//         }
-//     }
-
-//     #[derive(Debug, Clone, Serialize, Deserialize, Display, ToSchema)]
-//     pub enum StrategyRunningLogSource {
-//         #[strum(serialize = "node")]
-//         #[serde(rename = "Node")]
-//         Node,
-//         #[strum(serialize = "virtual_trading_system")]
-//         #[serde(rename = "VirtualTradingSystem")]
-//         VirtualTradingSystem,
-//     }
-
-//     #[derive(Debug, Clone, Serialize, Deserialize, Display, ToSchema)]
-//     pub enum StrategyRunningLogType {
-//         #[strum(serialize = "condition_match")]
-//         #[serde(rename = "ConditionMatch")]
-//         ConditionMatch,
-//         #[strum(serialize = "order_created")]
-//         #[serde(rename = "OrderCreated")]
-//         OrderCreated,
-//         #[strum(serialize = "order_filled")]
-//         #[serde(rename = "OrderFilled")]
-//         OrderFilled,
-//         #[strum(serialize = "order_canceled")]
-//         #[serde(rename = "OrderCanceled")]
-//         OrderCanceled,
-//         #[strum(serialize = "processing_order")]
-//         #[serde(rename = "ProcessingOrder")]
-//         ProcessingOrder,
-//     }
-
-//     // 策略运行日志
-//     #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, From)]
-//     pub struct StrategyRunningLogEvent {
-//         #[serde(rename = "strategyId")]
-//         pub strategy_id: i32,
-
-//         #[serde(rename = "nodeId")]
-//         pub node_id: String,
-
-//         #[serde(rename = "nodeName")]
-//         pub node_name: String,
-
-//         #[serde(rename = "source")]
-//         pub source: StrategyRunningLogSource,
-
-//         #[serde(rename = "logLevel")]
-//         pub log_level: LogLevel,
-
-//         #[serde(rename = "logType")]
-//         pub log_type: StrategyRunningLogType,
-
-//         #[serde(rename = "message")]
-//         pub message: String,
-
-//         #[serde(rename = "detail")]
-//         pub detail: serde_json::Value,
-
-//         #[serde(rename = "errorCode")]
-//         pub error_code: Option<String>,
-
-//         #[serde(rename = "errorCodeChain")]
-//         pub error_code_chain: Option<Vec<String>>,
-
-//         #[serde(rename = "datetime")]
-//         #[schema(value_type = String, example = "2024-01-01T12:00:00Z")]
-//         pub datetime: DateTime<Utc>,
-//     }
-
-//     impl StrategyRunningLogEvent {
-//         pub fn success(
-//             strategy_id: i32,
-//             node_id: String,
-//             node_name: String,
-//             source: StrategyRunningLogSource,
-//             log_type: StrategyRunningLogType,
-//             message: String,
-//             detail: serde_json::Value,
-//             datetime: DateTime<Utc>,
-//         ) -> Self {
-//             Self {
-//                 strategy_id,
-//                 node_id,
-//                 node_name,
-//                 source,
-//                 log_level: LogLevel::Info,
-//                 log_type,
-//                 message,
-//                 detail,
-//                 error_code: None,
-//                 error_code_chain: None,
-//                 datetime,
-//             }
-//         }
-
-//         pub fn warn(
-//             strategy_id: i32,
-//             node_id: String,
-//             node_name: String,
-//             source: StrategyRunningLogSource,
-//             log_type: StrategyRunningLogType,
-//             message: String,
-//             detail: serde_json::Value,
-//             datetime: DateTime<Utc>,
-//         ) -> Self {
-//             Self {
-//                 strategy_id,
-//                 node_id,
-//                 node_name,
-//                 source,
-//                 log_level: LogLevel::Warn,
-//                 log_type,
-//                 message,
-//                 detail,
-//                 error_code: None,
-//                 error_code_chain: None,
-//                 datetime,
-//             }
-//         }
-//     }
-
-// }

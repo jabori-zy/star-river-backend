@@ -38,13 +38,13 @@ pub type FuturesOrderNodeMetadata =
     NodeMetadata<FuturesOrderNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct FuturesOrderNodeContext {
     metadata: FuturesOrderNodeMetadata,
     node_config: FuturesOrderNodeConfig,
     is_processing_order: Arc<RwLock<HashMap<InputHandleId, bool>>>, // 是否正在处理订单 input_handle_id -> is_processing_order
     database: DatabaseConnection,                                   // 数据库连接
     heartbeat: Arc<Mutex<Heartbeat>>,                               // 心跳
-    // virtual_trading_system: Arc<Mutex<BacktestVts>>,                // 虚拟交易系统
     vts_command_sender: mpsc::Sender<VtsCommand>,
     pub vts_event_receiver: broadcast::Receiver<VtsEvent>,
     unfilled_virtual_order: Arc<RwLock<HashMap<InputHandleId, Vec<VirtualOrder>>>>, // 未成交的虚拟订单列表 input_handle_id -> unfilled_virtual_order

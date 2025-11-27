@@ -62,6 +62,7 @@ pub trait StrategyMetaDataExt: Debug + Send + Sync + 'static {
     type StrategyCommand: StrategyCommandTrait;
     type NodeCommand: NodeCommandTrait;
     type NodeEvent: NodeEventTrait;
+    type Error: StarRiverErrorTrait;
 
     /// Get immutable reference to base context
     fn metadata(&self) -> &StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent>;
@@ -140,8 +141,6 @@ impl<Ctx> StrategyInfoExt for Ctx where Ctx: StrategyMetaDataExt {}
 /// Provides workflow management capabilities such as topological sorting and node lifecycle management
 #[async_trait]
 pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt {
-    /// Error type
-    type Error: StarRiverErrorTrait;
 
     /// Perform topological sort on the workflow graph
     ///
@@ -308,7 +307,7 @@ pub trait StrategyEventHandlerExt: StrategyMetaDataExt {
     ///
     /// Process events from nodes in the workflow
     /// This is where all node events are aggregated and processed
-    async fn handle_node_event(&mut self, node_event: Self::NodeEvent);
+    async fn handle_node_event(&mut self, node_event: Self::NodeEvent) -> Result<(), Self::Error>;
 
     /// Handle strategy command
     ///

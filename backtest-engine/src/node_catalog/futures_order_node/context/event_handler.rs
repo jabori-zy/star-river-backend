@@ -8,7 +8,7 @@ use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
     event::{
         node_common_event::CommonEvent,
-        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
+        node_common_event::{NodeRunningLogEvent},
     },
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
 };
@@ -55,10 +55,9 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
                     let payload = NodeResetRespPayload;
                     let response = NodeResetResponse::success(self.node_id().clone(), payload);
                     cmd.respond(response);
-                    Ok(())
-                } else {
-                    Ok(())
                 }
+                Ok(())
+                
             }
             BacktestNodeCommand::GetFuturesOrderConfig(cmd) => {
                 tracing::debug!("@[{}] received get futures order config command", self.node_name());
@@ -141,8 +140,13 @@ impl FuturesOrderNodeContext {
                     .clone();
 
                 // if create order failed, send trigger event, no block strategy loop
-                if self.create_order(&order_config).await.is_err() {
+                if let Err(e) = self.create_order(&order_config).await {
                     self.independent_order_send_trigger_event(order_config_id).await?;
+                    cycle_tracker.end_phase(&phase_name);
+                    let completed_tracker = cycle_tracker.end();
+                    self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                        .await?;
+                    return Err(e);
                 }
 
                 cycle_tracker.end_phase(&phase_name);
@@ -238,13 +242,11 @@ impl FuturesOrderNodeContext {
                             order.open_price,
                             order.order_side.to_string(),
                         );
-                        let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
+                        let log_event: CommonEvent = NodeRunningLogEvent::info_with_time(
                             self.cycle_id(),
                             self.strategy_id().clone(),
                             self.node_id().clone(),
                             self.node_name().clone(),
-                            StrategyRunningLogSource::Node,
-                            StrategyRunningLogType::OrderCreated,
                             message.to_string(),
                             serde_json::to_value(order).unwrap(),
                             order.create_time,
@@ -259,13 +261,11 @@ impl FuturesOrderNodeContext {
                         self.set_is_processing_order(&input_handle_id, false).await;
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event).await?;
                         let message = OrderFilledMsg::new(self.node_name().clone(), order.order_id, order.quantity, order.open_price);
-                        let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
+                        let log_event: CommonEvent = NodeRunningLogEvent::info_with_time(
                             self.cycle_id(),
                             self.strategy_id().clone(),
                             self.node_id().clone(),
                             self.node_name().clone(),
-                            StrategyRunningLogSource::Node,
-                            StrategyRunningLogType::OrderFilled,
                             message.to_string(),
                             serde_json::to_value(order).unwrap(),
                             order.update_time,
@@ -280,13 +280,11 @@ impl FuturesOrderNodeContext {
                         self.set_is_processing_order(&input_handle_id, false).await;
                         self.send_order_status_event(order.clone(), &virtual_trading_system_event).await?;
                         let message = OrderCanceledMsg::new(self.node_name().clone(), order.order_id);
-                        let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
+                        let log_event: CommonEvent = NodeRunningLogEvent::info_with_time(
                             self.cycle_id(),
                             self.strategy_id().clone(),
                             self.node_id().clone(),
                             self.node_name().clone(),
-                            StrategyRunningLogSource::Node,
-                            StrategyRunningLogType::OrderCanceled,
                             message.to_string(),
                             serde_json::to_value(order).unwrap(),
                             order.update_time,
@@ -329,7 +327,7 @@ impl FuturesOrderNodeContext {
                     payload,
                 )
                 .into();
-                let _ = self.strategy_bound_handle_send(transaction_event.into());
+                self.strategy_bound_handle_send(transaction_event.into())?;
             }
         }
 

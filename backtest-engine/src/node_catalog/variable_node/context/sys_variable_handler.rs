@@ -43,9 +43,6 @@ impl VariableNodeContext {
     /// - `value_calculator`: 计算变量值的异步闭包，接收虚拟交易系统的引用
     async fn create_sys_variable_handle<F>(
         &self,
-        cycle_id: CycleId,
-        current_time: DateTime<Utc>,
-        node_id: NodeId,
         system_var_config: GetSystemVariableConfig,
         value_calculator: F,
     ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError>
@@ -54,12 +51,15 @@ impl VariableNodeContext {
             + Send
             + 'static,
     {
+        let cycle_id = self.cycle_id();
+        let node_id = self.node_id().clone();
         let output_handle = self.output_handle(&system_var_config.output_handle_id())?.clone();
         let strategy_output_handle = self.strategy_bound_handle().clone();
         let node_name = self.node_name().clone();
         let is_leaf_node = self.is_leaf_node();
         let virtual_trading_system = self.virtual_trading_system.clone();
         let strategy_command_sender = self.strategy_command_sender().clone();
+        let current_time = self.strategy_time();
         let handle = tokio::spawn(async move {
             // let var_name = SysVariableType::from_str(system_var_config.var_name()).unwrap();
 
@@ -83,11 +83,12 @@ impl VariableNodeContext {
             match response {
                 StrategyResponse::Success { .. } => {
                     let payload = SysVarUpdatePayload::new(cycle_id, system_var_config.config_id(), sys_variable);
-                    let var_event: VariableNodeEvent = SysVarUpdateEvent::new(
+                    let var_event: VariableNodeEvent = SysVarUpdateEvent::new_with_time(
                         cycle_id,
                         node_id.clone(),
                         node_name.clone(),
                         output_handle.output_handle_id().clone(),
+                        current_time,
                         payload,
                     )
                     .into();
@@ -134,12 +135,9 @@ impl VariableNodeContext {
         &self,
         system_var_config: GetSystemVariableConfig,
     ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
-        let cycle_id = self.cycle_id();
-        let current_time = self.strategy_time();
-        let node_id = self.node_id().clone();
         let var_display_name = system_var_config.var_display_name().clone();
         let handle = self
-            .create_sys_variable_handle(cycle_id, current_time, node_id, system_var_config, |vts| {
+            .create_sys_variable_handle(system_var_config, |vts| {
                 Box::pin(async move {
                     let current_positions = vts.with_ctx_read(|ctx| ctx.get_current_positions().clone()).await;
                     let var_name = SysVariableType::TotalPositionNumber;
@@ -156,12 +154,9 @@ impl VariableNodeContext {
         &self,
         system_var_config: GetSystemVariableConfig,
     ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
-        let cycle_id = self.cycle_id();
-        let current_time = self.strategy_time();
-        let node_id = self.node_id().clone();
         let var_display_name = system_var_config.var_display_name().clone();
         let handle = self
-            .create_sys_variable_handle(cycle_id, current_time, node_id, system_var_config, |vts| {
+            .create_sys_variable_handle(system_var_config, |vts| {
                 Box::pin(async move {
                     let orders = vts.with_ctx_read(|ctx| ctx.get_orders().clone()).await;
                     let filled_order_number = orders
@@ -182,10 +177,6 @@ impl VariableNodeContext {
         &self,
         system_var_config: GetSystemVariableConfig,
     ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
-        let cycle_id = self.cycle_id();
-        let current_time = self.strategy_time();
-        let node_id = self.node_id().clone();
-
         // 验证 symbol 不为空
         let symbol = system_var_config
             .symbol()
@@ -201,7 +192,7 @@ impl VariableNodeContext {
         let var_display_name = system_var_config.var_display_name().clone();
         // 调用通用方法，并在闭包中使用捕获的 symbol
         let handle = self
-            .create_sys_variable_handle(cycle_id, current_time, node_id, system_var_config, move |vts| {
+            .create_sys_variable_handle(system_var_config, move |vts| {
                 Box::pin(async move {
                     let orders = vts.with_ctx_read(|ctx| ctx.get_orders().clone()).await;
                     let filled_order_number = orders
@@ -222,16 +213,12 @@ impl VariableNodeContext {
         &self,
         system_var_config: GetSystemVariableConfig,
     ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
-        let cycle_id = self.cycle_id();
-        let current_time = self.strategy_time();
-        let node_id = self.node_id().clone();
-
         let var_display_name = system_var_config.var_display_name().clone();
         let handle = self
-            .create_sys_variable_handle(cycle_id, current_time, node_id, system_var_config, move |_vts| {
+            .create_sys_variable_handle(system_var_config, move |vts| {
                 Box::pin(async move {
                     // let current_time = vts.get_datetime();
-                    let current_time = Utc::now();
+                    let current_time = vts.with_ctx_read(|ctx| ctx.current_datetime()).await;
                     let var_name = SysVariableType::CurrentTime;
                     let var_value = VariableValue::Time(current_time);
                     SysVariable::new(var_name, var_display_name, None, var_value)

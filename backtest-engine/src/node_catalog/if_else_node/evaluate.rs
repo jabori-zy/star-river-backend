@@ -2,7 +2,7 @@ use star_river_core::error::StarRiverErrorTrait;
 use strategy_core::{
     event::{
         node_common_event::CommonEvent,
-        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource},
+        node_common_event::{NodeRunningLogEvent},
     },
     node::{
         context_trait::{NodeCommunicationExt, NodeInfoExt, NodeTaskControlExt},
@@ -42,12 +42,11 @@ impl IfElseNode {
                     let mut ctx_guard = context.write().await;
                     if let Err(e) = ctx_guard.evaluate().await {
                         let current_time = ctx_guard.strategy_time();
-                        let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
+                        let running_error_log: CommonEvent = NodeRunningLogEvent::error_with_time(
                             ctx_guard.cycle_id().clone(),
                             ctx_guard.strategy_id().clone(),
                             ctx_guard.node_id().clone(),
                             ctx_guard.node_name().clone(),
-                            StrategyRunningLogSource::Node,
                             &e,
                             current_time,
                         )

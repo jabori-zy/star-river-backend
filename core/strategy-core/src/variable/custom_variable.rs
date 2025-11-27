@@ -74,9 +74,7 @@ impl VariableValue {
                     .map(VariableValue::Percentage)
                     .map_err(|e| format!("failed to convert to Decimal: {}", e))
             }
-            _ => {
-                Err(format!("unsupported variable value type: {}", value_type.to_string()))
-            }
+            _ => Err(format!("unsupported variable value type: {}", value_type.to_string())),
         }
     }
 
@@ -90,6 +88,10 @@ impl VariableValue {
             VariableValue::Percentage(_) => VariableValueType::Percentage.to_string(),
             VariableValue::Null => VariableValueType::Null.to_string(),
         }
+    }
+
+    pub fn is_null(&self) -> bool {
+        matches!(self, VariableValue::Null)
     }
 }
 

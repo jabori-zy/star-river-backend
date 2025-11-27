@@ -13,8 +13,7 @@ use star_river_event::backtest_strategy::node_event::{
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
     event::{
-        node_common_event::CommonEvent,
-        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource, StrategyRunningLogType},
+        node_common_event::{CommonEvent, NodeRunningLogEvent},
     },
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
     node_infra::if_else_node::{Case, Condition, ConditionResult, FormulaRight, LogicalSymbol},
@@ -26,7 +25,9 @@ use super::{ConfigId, IfElseNodeContext};
 use crate::{
     node::{
         node_error::{IfElseNodeError, if_else_node_error::EvaluateResultSerializationFailedSnafu},
-        node_message::if_else_node_log_message::ConditionMatchedMsg,
+        node_message::if_else_node_log_message::{
+            ConditionLeftAndRightValueNullMsg, ConditionLeftValueNullMsg, ConditionMatchedMsg, ConditionRightValueNullMsg,
+        },
     },
     node_catalog::if_else_node::utils::{compare, parse_condition_left_value, parse_condition_right_value},
 };
@@ -86,25 +87,25 @@ impl IfElseNodeContext {
             // Only evaluate condition if no case has matched yet
             if !have_true_case {
                 // evaluate result (is true, result)
-                let case_result = self.evaluate_case(case).await;
+                let case_result = self.evaluate_case(case);
 
                 // If condition matches, handle the matched case
                 if case_result.0 {
                     // tracing::debug!("[{}] condition matched, handle matched case branch", self.node_name());
                     have_true_case = true;
                     cycle_tracker.end_phase(&phase_name);
-                    self.handle_case_true(case, case_result.1, current_time).await?;
+                    self.handle_case_true(case, case_result.1, current_time)?;
                     // Continue to process remaining cases as false (do not break)
                 }
                 // condition is false
                 else {
                     // tracing::debug!("@[{}] condition not matched, send case false event", self.node_name());
-                    self.handle_case_false(case).await?;
+                    self.handle_case_false(case, Some(case_result.1))?;
                 }
             } else {
                 // A case has already matched, treat all subsequent cases as false
                 // Skip condition evaluation and directly handle as not matched
-                self.handle_case_false(case).await?;
+                self.handle_case_false(case, None)?;
                 cycle_tracker.end_phase(&phase_name);
             }
         }
@@ -114,12 +115,12 @@ impl IfElseNodeContext {
             // tracing::debug!("[{}] no case matched, handle else branch", self.node_name());
             let phase_name = format!("handle else branch");
             cycle_tracker.start_phase(&phase_name);
-            self.handle_else_true().await?;
+            self.handle_else_true()?;
             cycle_tracker.end_phase(&phase_name);
         } else {
             let phase_name = format!("handle else false");
             cycle_tracker.start_phase(&phase_name);
-            self.handle_else_false().await?;
+            self.handle_else_false()?;
             cycle_tracker.end_phase(&phase_name);
         }
         let completed_tracker = cycle_tracker.end();
@@ -129,7 +130,7 @@ impl IfElseNodeContext {
     }
 
     // 处理匹配的case
-    async fn handle_case_true(
+    fn handle_case_true(
         &self,
         case: &Case,
         condition_results: Vec<ConditionResult>,
@@ -158,19 +159,16 @@ impl IfElseNodeContext {
             node_name: node_name.clone(),
         })?;
         let message = ConditionMatchedMsg::new(node_name.clone(), case.case_id);
-        let log_event: CommonEvent = StrategyRunningLogEvent::info_with_time(
+        let log_event: CommonEvent = NodeRunningLogEvent::info_with_time(
             self.cycle_id(),
             strategy_id,
             node_id.clone(),
             node_name.clone(),
-            StrategyRunningLogSource::Node,
-            StrategyRunningLogType::ConditionMatch,
             message.to_string(),
             condition_result_json,
             current_time,
         )
         .into();
-        // let _ = strategy_output_handle.send(log_event.into());
         self.strategy_bound_handle_send(log_event.into())?;
 
         // 根据节点类型处理事件发送
@@ -186,7 +184,40 @@ impl IfElseNodeContext {
         Ok(())
     }
 
-    async fn handle_case_false(&self, case: &Case) -> Result<(), IfElseNodeError> {
+    pub(super)fn handle_case_false(&self, case: &Case, case_result: Option<Vec<ConditionResult>>) -> Result<(), IfElseNodeError> {
+        if let Some(case_result) = case_result {
+            case_result
+                .iter()
+                .filter(|condition_result| !condition_result.condition_result)
+                .try_for_each(|false_result| {
+                    let message = if false_result.left_value.is_null() && false_result.right_value.is_null() {
+                        Some(ConditionLeftAndRightValueNullMsg::new(self.node_name().clone(), case.case_id, false_result.condition_id)
+                            .to_string())
+                    } else if false_result.left_value.is_null() {
+                        Some(ConditionLeftValueNullMsg::new(self.node_name().clone(), case.case_id, false_result.condition_id).to_string())
+                    } else if false_result.right_value.is_null() {
+                        Some(ConditionRightValueNullMsg::new(self.node_name().clone(), case.case_id, false_result.condition_id).to_string())
+                    } else {
+                        None
+                    };
+                    if let Some(msg) = message {
+                        let log_event: CommonEvent = NodeRunningLogEvent::warn_with_time(
+                            self.cycle_id(),
+                            self.strategy_id().clone(),
+                            self.node_id().clone(),
+                            self.node_name().clone(),
+                            msg,
+                            None,
+                            None,
+                            self.strategy_time(),
+                        )
+                        .into();
+                        self.strategy_bound_handle_send(log_event.into())?;
+                    }
+                    Ok::<_, IfElseNodeError>(())
+                })?;
+        }
+
         if self.is_leaf_node() {
             self.send_execute_over_event(Some(case.case_id), Some(self.strategy_time()))?;
             return Ok(());
@@ -208,7 +239,7 @@ impl IfElseNodeContext {
     }
 
     // 处理else分支
-    async fn handle_else_true(&self) -> Result<(), IfElseNodeError> {
+    fn handle_else_true(&self) -> Result<(), IfElseNodeError> {
         let else_output_handle = self.default_output_handle()?;
         let payload = ElseTruePayload;
         let else_event: IfElseNodeEvent = ElseTrueEvent::new_with_time(
@@ -227,7 +258,7 @@ impl IfElseNodeContext {
     }
 
     // 处理else分支
-    async fn handle_else_false(&self) -> Result<(), IfElseNodeError> {
+    pub(super) fn handle_else_false(&self) -> Result<(), IfElseNodeError> {
         let else_output_handle = self.default_output_handle()?;
         // tracing::debug!("handle_else_false, else_output_handle: {:?}", else_output_handle.output_handle_id());
         let payload = ElseFalsePayload;
@@ -246,10 +277,10 @@ impl IfElseNodeContext {
         Ok(())
     }
 
-    pub async fn evaluate_case(&self, case: &Case) -> (bool, Vec<ConditionResult>) {
+    pub fn evaluate_case(&self, case: &Case) -> (bool, Vec<ConditionResult>) {
         match case.logical_symbol {
-            LogicalSymbol::And => self.evaluate_and_conditions(&case.conditions).await,
-            LogicalSymbol::Or => self.evaluate_or_conditions(&case.conditions).await,
+            LogicalSymbol::And => self.evaluate_and_conditions(&case.conditions),
+            LogicalSymbol::Or => self.evaluate_or_conditions(&case.conditions),
         }
     }
 
@@ -267,31 +298,11 @@ impl IfElseNodeContext {
         let comparison_symbol = &condition.comparison_symbol;
 
         let compare_result = compare(&left_value, &right_value, comparison_symbol);
-        if compare_result {
-            // tracing::debug!(
-            //     "当前play_index: {}, 左变量名：{:?}, 左值={:?}, 比较符号:{:?}, 右变量名：{:?}, 右值={:?}, 结果={}",
-            //     self.play_index(),
-            //     condition.left.var_name,
-            //     left_value,
-            //     comparison_symbol.to_string(),
-            //     condition.right,
-            //     right_value,
-            //     compare_result
-            // );
-        } else {
-            tracing::warn!(
-                "条件评估失败: 左值={:?}, 右值={:?}, 存在空值, 当前cycle_id: {}",
-                left_value,
-                right_value,
-                self.cycle_id()
-            );
-        }
-
         ConditionResult::new(condition, left_value, right_value, compare_result)
     }
 
     // 评估and条件组
-    async fn evaluate_and_conditions(&self, conditions: &Vec<Condition>) -> (bool, Vec<ConditionResult>) {
+    fn evaluate_and_conditions(&self, conditions: &Vec<Condition>) -> (bool, Vec<ConditionResult>) {
         // tracing::debug!("{}: 开始评估and条件组: {:#?}", self.node_id(), conditions);
         if conditions.is_empty() {
             return (true, vec![]); // 空条件组默认为true
@@ -309,7 +320,7 @@ impl IfElseNodeContext {
     }
 
     // 评估or条件组
-    async fn evaluate_or_conditions(&self, conditions: &Vec<Condition>) -> (bool, Vec<ConditionResult>) {
+    fn evaluate_or_conditions(&self, conditions: &Vec<Condition>) -> (bool, Vec<ConditionResult>) {
         if conditions.is_empty() {
             return (false, vec![]); // 空条件组默认为false
         }

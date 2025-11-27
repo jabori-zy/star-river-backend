@@ -13,7 +13,7 @@ use snafu::IntoError;
 use star_river_core::{custom_type::NodeId, error::StarRiverErrorTrait};
 use strategy_core::{
     benchmark::strategy_benchmark::StrategyPerformanceReport,
-    event::strategy_event::StrategyRunningLogEvent,
+    event::node_common_event::NodeRunningLogEvent,
     strategy::context_trait::{StrategyBenchmarkExt, StrategyVariableExt},
     variable::StrategyVariable,
 };
@@ -274,19 +274,19 @@ pub async fn get_strategy_run_state(
         ("strategy_id" = i32, Path, description = "The ID of the strategy to get running log")
     ),
     responses(
-        (status = 200, description = "Get running log successfully", body = NewApiResponse<Vec<StrategyRunningLogEvent>>),
-        (status = 400, description = "Get running log failed", body = NewApiResponse<Vec<StrategyRunningLogEvent>>)
+        (status = 200, description = "Get running log successfully", body = NewApiResponse<Vec<NodeRunningLogEvent>>),
+        (status = 400, description = "Get running log failed", body = NewApiResponse<Vec<NodeRunningLogEvent>>)
     )
 )]
 pub async fn get_running_log(
     State(star_river): State<StarRiver>,
     Path(strategy_id): Path<i32>,
-) -> (StatusCode, Json<NewApiResponse<Vec<StrategyRunningLogEvent>>>) {
+) -> (StatusCode, Json<NewApiResponse<Vec<NodeRunningLogEvent>>>) {
     let engine_manager = star_river.engine_manager.lock().await;
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let result: Result<Vec<StrategyRunningLogEvent>, BacktestEngineError> = engine_guard
+    let result: Result<Vec<NodeRunningLogEvent>, BacktestEngineError> = engine_guard
         .with_ctx_read_async(|ctx| {
             Box::pin(async move {
                 ctx.with_strategy_ctx_read_async(strategy_id, |ctx| Box::pin(async move { ctx.running_log().await }))

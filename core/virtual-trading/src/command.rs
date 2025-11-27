@@ -1,10 +1,9 @@
-use std::{fmt::Debug, ops::Deref, sync::Arc};
+use std::{fmt::Debug, ops::Deref};
 
 use chrono::{DateTime, Utc};
 use derive_more::From;
 use star_river_core::{
     custom_type::{NodeId, NodeName, OrderId, StrategyId},
-    error::error_trait::StarRiverErrorTrait,
     exchange::Exchange,
     order::{FuturesOrderSide, OrderType, TpslType},
 };

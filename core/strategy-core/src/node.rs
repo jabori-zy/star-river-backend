@@ -44,7 +44,6 @@ impl FromStr for NodeType {
             "if_else_node" => Ok(NodeType::IfElseNode),
             "futures_order_node" => Ok(NodeType::FuturesOrderNode),
             "position_node" => Ok(NodeType::PositionNode),
-            "position_management_node" => Ok(NodeType::PositionNode),
             "variable_node" => Ok(NodeType::VariableNode),
             // 驼峰格式
             "startNode" => Ok(NodeType::StartNode),
@@ -53,7 +52,6 @@ impl FromStr for NodeType {
             "ifElseNode" => Ok(NodeType::IfElseNode),
             "futuresOrderNode" => Ok(NodeType::FuturesOrderNode),
             "positionNode" => Ok(NodeType::PositionNode),
-            "positionManagementNode" => Ok(NodeType::PositionNode),
             "variableNode" => Ok(NodeType::VariableNode),
             _ => Err(format!("Unknown node type: {}", s)),
         }

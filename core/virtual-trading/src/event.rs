@@ -15,6 +15,8 @@ pub enum VtsEvent {
     // 所有数据已更新
     UpdateFinished,
 
+    LimitOrderExecutedDirectly { limit_price: f64, order: VirtualOrder }, // 限价单直接成交(挂单价格, 订单)
+
     // 订单事件
     FuturesOrderCreated(VirtualOrder),  // 订单已创建
     FuturesOrderFilled(VirtualOrder),   // 订单已成交

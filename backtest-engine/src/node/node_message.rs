@@ -528,10 +528,43 @@ pub mod if_else_node_log_message {
         en: "@[{node_name}] Case [{case_index}] matched",
         zh: "@[{node_name}] 分支 [{case_index}] 已匹配"
     );
+
+    log_message!(
+        ConditionLeftValueNullMsg,
+        params: (
+            node_name: String,
+            case_id: i32,
+            condition_id: i32,
+        ),
+        en: "@[{node_name}] case [{case_id}] condition [{condition_id}] evaluation failed, left value is null",
+        zh: "@[{node_name}] 分支 [{case_id}] 条件 [{condition_id}] 评估失败, 左值为空"
+    );
+
+    log_message!(
+        ConditionRightValueNullMsg,
+        params: (
+            node_name: String,
+            case_id: i32,
+            condition_id: i32,
+        ),
+        en: "@[{node_name}] case {case_id} condition [{condition_id}] evaluation failed, right value is null",
+        zh: "@[{node_name}] 分支 {case_id} 条件 [{condition_id}] 评估失败, 右值为空"
+    );
+
+    log_message!(
+        ConditionLeftAndRightValueNullMsg,
+        params: (
+            node_name: String,
+            case_id: i32,
+            condition_id: i32,
+        ),
+        en: "@[{node_name}] case [{case_id}] condition [{condition_id}] evaluation failed, left and right value are null",
+        zh: "@[{node_name}] 分支 [{case_id}] 条件 [{condition_id}] 评估失败, 左值和右值都为空"
+    );
 }
 
-// PositionManagementNode 特有的日志消息
-pub mod position_management_node_log_message {
+// PositionNode 特有的日志消息
+pub mod position_node_log_message {
     use serde::{Deserialize, Serialize};
     use strategy_core::{log_message, log_message::*};
 

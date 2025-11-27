@@ -2,19 +2,22 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use event_center::{EventCenterSingleton, event::Event};
+use star_river_core::order::FuturesOrderSide;
 use star_river_event::backtest_strategy::{
-    node_event::{FuturesOrderNodeEvent, IndicatorNodeEvent, KlineNodeEvent, PositionNodeEvent, VariableNodeEvent},
+    node_event::{FuturesOrderNodeEvent, IndicatorNodeEvent, KlineNodeEvent, VariableNodeEvent},
     strategy_event::BacktestStrategyEvent,
 };
 use strategy_core::{
-    event::{node_common_event::CommonEvent, strategy_event::StrategyPerformanceUpdateEvent},
+    event::{node_common_event::CommonEvent, strategy_event::{StrategyPerformanceUpdateEvent, StrategyRunningLogEvent}},
     strategy::context_trait::{
         StrategyBenchmarkExt, StrategyEventHandlerExt, StrategyIdentityExt, StrategyVariableExt, StrategyWorkflowExt,
     },
 };
+use virtual_trading::event::VtsEvent;
+use strategy_core::strategy::context_trait::StrategyInfoExt;
 
 use super::BacktestStrategyContext;
-use crate::{node::node_event::BacktestNodeEvent, strategy::strategy_command::*};
+use crate::{node::node_event::BacktestNodeEvent, strategy::{strategy_command::*, strategy_error::BacktestStrategyError, strategy_log_message::{LongLimitOrderExecutedDirectlyMsg, ShortLimitOrderExecutedDirectlyMsg}}};
 
 #[async_trait]
 impl StrategyEventHandlerExt for BacktestStrategyContext {
@@ -179,7 +182,7 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
     async fn handle_engine_event(&mut self, _event: Event) {}
 
     // 所有节点发送的事件都会汇集到这里
-    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) {
+    async fn handle_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), BacktestStrategyError> {
         // 执行完毕
         if let BacktestNodeEvent::Common(signal_event) = &node_event {
             match signal_event {
@@ -240,13 +243,13 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                         }
                     }
                 }
-                CommonEvent::RunningLog(running_log_event) => {
+                CommonEvent::NodeRunningLog(running_log_event) => {
                     self.add_running_log(running_log_event.clone()).await;
                     let backtest_strategy_event: BacktestStrategyEvent = running_log_event.clone().into();
                     let event: Event = backtest_strategy_event.into();
                     EventCenterSingleton::publish(event).await.unwrap();
                 }
-                CommonEvent::StateLog(state_log_event) => {
+                CommonEvent::RunStateLog(state_log_event) => {
                     let backtest_strategy_event: BacktestStrategyEvent = state_log_event.clone().into();
                     let event: Event = backtest_strategy_event.into();
                     EventCenterSingleton::publish(event).await.unwrap();
@@ -335,33 +338,45 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                 }
             }
         }
-
-        if let BacktestNodeEvent::PositionManagementNode(position_management_node_event) = &node_event {
-            match position_management_node_event {
-                PositionNodeEvent::PositionCreated(position_created_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::PositionCreated(position_created_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
-                }
-                PositionNodeEvent::PositionUpdated(position_updated_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::PositionUpdated(position_updated_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
-                }
-                PositionNodeEvent::PositionClosed(position_closed_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::PositionClosed(position_closed_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
-                }
-            }
-        }
+        Ok(())
     }
+}
 
-    // pub async fn handle_strategy_stats_event(&mut self, event: StrategyStatsEvent) -> Result<(), String> {
-    //     match event {
-    //         StrategyStatsEvent::StrategyStatsUpdated(strategy_stats_updated_event) => {
-    //             // tracing::debug!("{}: 收到策略统计更新事件: {:?}", self.strategy_name, strategy_stats_updated_event);
-    //             let backtest_strategy_event = BacktestStrategyEvent::StrategyStatsUpdated(strategy_stats_updated_event);
-    //             EventCenterSingleton::publish(backtest_strategy_event.into()).await.unwrap();
-    //         }
-    //     }
-    //     Ok(())
-    // }
+impl BacktestStrategyContext {
+    pub async fn handle_vts_event(&mut self, event: VtsEvent) -> Result<(), BacktestStrategyError> {
+        match event {
+            VtsEvent::LimitOrderExecutedDirectly { limit_price, order } => {
+                let log_message = if order.order_side == FuturesOrderSide::OpenLong {
+                    LongLimitOrderExecutedDirectlyMsg::new(self.strategy_name().clone(), limit_price, order.open_price, order.order_id).to_string()
+                } else {
+                    ShortLimitOrderExecutedDirectlyMsg::new(self.strategy_name().clone(), limit_price, order.open_price, order.order_id).to_string()
+                };
+
+                let log_event: BacktestStrategyEvent = StrategyRunningLogEvent::warn_with_time(
+                    self.cycle_id(),
+                    self.strategy_id().clone(),
+                    log_message,
+                    None,
+                    None,
+                    self.strategy_time(),
+                )
+                .into();
+            EventCenterSingleton::publish(log_event.into()).await?;
+            }
+            VtsEvent::PositionCreated(position) => {
+                let event = BacktestStrategyEvent::PositionCreated { virtual_position: position };
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::PositionUpdated(position) => {
+                let event = BacktestStrategyEvent::PositionUpdated { virtual_position: position };
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::PositionClosed(position) => {
+                let event = BacktestStrategyEvent::PositionClosed { virtual_position: position };
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
 }

@@ -92,13 +92,14 @@ impl NodeLifecycle for StartNode {
                 }
                 StartNodeAction::InitCustomVariables => {
                     tracing::info!("[{node_name}] start to init custom variables");
-                    let init_result = self.with_ctx_read_async(|ctx| {
-                        Box::pin(async move {
-                            ctx.init_custom_variables().await?;
-                            Ok::<(), StartNodeError>(())
+                    let init_result = self
+                        .with_ctx_read_async(|ctx| {
+                            Box::pin(async move {
+                                ctx.init_custom_variables().await?;
+                                Ok::<(), StartNodeError>(())
+                            })
                         })
-                    })
-                    .await;
+                        .await;
                     match init_result {
                         Ok(()) => {
                             let log_message = InitCustomVariableMsg::new(node_name.clone());

@@ -14,10 +14,7 @@ use super::{
     node_state_machine::StateTransTrigger,
 };
 // workspace crate
-use crate::event::{
-    node_common_event::CommonEvent,
-    strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource},
-};
+use crate::event::node_common_event::{CommonEvent, NodeRunningLogEvent};
 
 #[async_trait]
 pub trait NodeTrait: Clone + Send + Sync + 'static {
@@ -224,12 +221,11 @@ where
                                 let handle_result = context_guard.handle_source_node_event(message).await;
                                 if let Err(e) = handle_result {
                                     let current_time = context_guard.strategy_time();
-                                    let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
+                                    let running_error_log: CommonEvent = NodeRunningLogEvent::error_with_time(
                                         context_guard.cycle_id().clone(),
                                         context_guard.strategy_id().clone(),
                                         context_guard.node_id().clone(),
                                         context_guard.node_name().clone(),
-                                        StrategyRunningLogSource::Node,
                                         &e,
                                         current_time,
                                     ).into();

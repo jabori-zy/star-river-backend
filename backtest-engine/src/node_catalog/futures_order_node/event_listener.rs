@@ -2,8 +2,7 @@ use futures::StreamExt;
 use star_river_core::error::StarRiverErrorTrait;
 use strategy_core::{
     event::{
-        node_common_event::CommonEvent,
-        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource},
+        node_common_event::{CommonEvent, NodeRunningLogEvent},
     },
     node::{
         context_trait::{NodeCommunicationExt, NodeHandleExt, NodeInfoExt, NodeTaskControlExt},
@@ -13,7 +12,6 @@ use strategy_core::{
 use tokio_stream::wrappers::BroadcastStream;
 
 use super::FuturesOrderNode;
-use crate::node::node_error::FuturesOrderNodeError;
 
 impl FuturesOrderNode {
     pub(super) async fn listen_vts_events(&self) {
@@ -46,12 +44,11 @@ impl FuturesOrderNode {
                                 let mut context_guard = context.write().await;
                                 if let Err(e) = context_guard.handle_vts_event(event).await {
                                     let current_time = context_guard.strategy_time();
-                                    let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
+                                    let running_error_log: CommonEvent = NodeRunningLogEvent::error_with_time(
                                         context_guard.cycle_id().clone(),
                                         context_guard.strategy_id().clone(),
                                         context_guard.node_id().clone(),
                                         context_guard.node_name().clone(),
-                                        StrategyRunningLogSource::Node,
                                         &e,
                                         current_time,
                                     ).into();
@@ -75,7 +72,7 @@ impl FuturesOrderNode {
     }
 
     // specific for futures order node
-    pub async fn listen_source_node_events_for_independent_order(&self) -> Result<(), FuturesOrderNodeError> {
+    pub async fn listen_source_node_events_for_independent_order(&self) {
         let (input_handles, cancel_token, node_name) = self
             .with_ctx_read(|ctx| {
                 let input_handles = ctx.input_handles().to_vec();
@@ -87,7 +84,7 @@ impl FuturesOrderNode {
 
         if input_handles.is_empty() {
             tracing::warn!("@[{}] have no input handles", node_name);
-            return Ok(());
+            return;
         }
 
         // 为每个接收器独立创建监听任务
@@ -123,12 +120,11 @@ impl FuturesOrderNode {
                                     ).await;
                                     if let Err(e) = handle_result {
                                         let current_time = context_guard.strategy_time();
-                                        let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
+                                        let running_error_log: CommonEvent = NodeRunningLogEvent::error_with_time(
                                             context_guard.cycle_id().clone(),
                                             context_guard.strategy_id().clone(),
                                             context_guard.node_id().clone(),
                                             context_guard.node_name().clone(),
-                                            StrategyRunningLogSource::Node,
                                             &e,
                                             current_time,
                                         ).into();
@@ -150,6 +146,5 @@ impl FuturesOrderNode {
                 }
             });
         }
-        Ok(())
     }
 }

@@ -19,6 +19,7 @@ use strategy_core::{
 use tokio::sync::{Mutex, Notify, RwLock, oneshot, watch};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
+use virtual_trading::vts_trait::VtsCtxAccessor;
 
 // current crate
 use super::BacktestStrategyContext;
@@ -294,6 +295,9 @@ impl BacktestStrategyContext {
 
         let mut signal_generator_guard = self.signal_generator.lock().await;
         signal_generator_guard.reset();
+
+        let vts_guard = self.virtual_trading_system.lock().await;
+        vts_guard.with_ctx_write(|ctx| ctx.reset()).await;
 
         // 替换已经取消的令牌
         self.cancel_play_token = CancellationToken::new();

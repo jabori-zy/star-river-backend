@@ -176,18 +176,18 @@ fn clean_mt5_server() -> Result<(), Box<dyn std::error::Error>> {
 
 /// 清理 MetaTrader5 的临时文件夹
 fn clean_mei_temp_dirs() {
-    if let Ok(temp_dir) = std::env::var("TEMP").or_else(|_| std::env::var("TMP")) {
-        if let Ok(entries) = std::fs::read_dir(&temp_dir) {
-            for entry in entries.flatten() {
-                if let Ok(file_name) = entry.file_name().into_string() {
-                    if file_name.starts_with("_MEI") {
-                        let path = entry.path();
-                        if path.is_dir() {
-                            match std::fs::remove_dir_all(&path) {
-                                Ok(_) => tracing::info!("已删除_MEI临时文件夹: {}", path.display()),
-                                Err(e) => tracing::warn!("删除_MEI临时文件夹失败: {}, 错误: {}", path.display(), e),
-                            }
-                        }
+    if let Ok(temp_dir) = std::env::var("TEMP").or_else(|_| std::env::var("TMP"))
+        && let Ok(entries) = std::fs::read_dir(&temp_dir)
+    {
+        for entry in entries.flatten() {
+            if let Ok(file_name) = entry.file_name().into_string()
+                && file_name.starts_with("_MEI")
+            {
+                let path = entry.path();
+                if path.is_dir() {
+                    match std::fs::remove_dir_all(&path) {
+                        Ok(_) => tracing::info!("已删除_MEI临时文件夹: {}", path.display()),
+                        Err(e) => tracing::warn!("删除_MEI临时文件夹失败: {}, 错误: {}", path.display(), e),
                     }
                 }
             }

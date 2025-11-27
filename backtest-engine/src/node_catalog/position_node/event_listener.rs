@@ -2,8 +2,7 @@ use futures::StreamExt;
 use star_river_core::error::StarRiverErrorTrait;
 use strategy_core::{
     event::{
-        node_common_event::CommonEvent,
-        strategy_event::{StrategyRunningLogEvent, StrategyRunningLogSource},
+        node_common_event::{CommonEvent, NodeRunningLogEvent},
     },
     node::{
         context_trait::{NodeCommunicationExt, NodeHandleExt, NodeInfoExt, NodeTaskControlExt},
@@ -62,12 +61,11 @@ impl PositionNode {
                                     let result = context_guard.handle_node_event_for_independent_position_op(node_event, position_operation_id).await;
                                     if let Err(e) = result {
                                         let current_time = context_guard.strategy_time();
-                                        let running_error_log: CommonEvent = StrategyRunningLogEvent::error_with_time(
+                                        let running_error_log: CommonEvent = NodeRunningLogEvent::error_with_time(
                                             context_guard.cycle_id().clone(),
                                             context_guard.strategy_id().clone(),
                                             context_guard.node_id().clone(),
                                             context_guard.node_name().clone(),
-                                            StrategyRunningLogSource::Node,
                                             &e,
                                             current_time,
                                         ).into();

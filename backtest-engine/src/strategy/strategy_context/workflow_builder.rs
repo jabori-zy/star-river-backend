@@ -152,7 +152,7 @@ impl BacktestStrategyContext {
                         .virtual_trading_system()
                         .lock()
                         .await
-                        .with_ctx_read(|ctx| (ctx.get_command_sender().clone(), ctx.get_vts_event_receiver().resubscribe()))
+                        .with_ctx_read(|ctx| (ctx.get_command_sender().clone(), ctx.vts_event_receiver()))
                         .await;
                     let futures_order_node = self
                         .build_futures_order_node(

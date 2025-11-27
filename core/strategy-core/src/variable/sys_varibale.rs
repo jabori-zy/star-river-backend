@@ -5,37 +5,23 @@ use utoipa::ToSchema;
 use super::custom_variable::VariableValue;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Display, EnumString, ToSchema)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum SysVariableType {
-    #[serde(rename = "current_time")]
-    #[strum(serialize = "current_time")]
     CurrentTime,
 
-    #[serde(rename = "is_market_open")]
-    #[strum(serialize = "is_market_open")]
     IsMarketOpen,
 
-    #[serde(rename = "is_market_closed")]
-    #[strum(serialize = "is_market_closed")]
     IsMarketClosed,
 
-    #[serde(rename = "is_tradable")]
-    #[strum(serialize = "is_tradable")]
     IsTradable,
 
-    #[serde(rename = "total_position_number")]
-    #[strum(serialize = "total_position_number")]
     TotalPositionNumber,
 
-    #[serde(rename = "position_number")]
-    #[strum(serialize = "position_number")]
     PositionNumber, //持仓数量
 
-    #[serde(rename = "total_filled_order_number")]
-    #[strum(serialize = "total_filled_order_number")]
     TotalFilledOrderNumber, // 总成交订单数量
 
-    #[serde(rename = "filled_order_number")]
-    #[strum(serialize = "filled_order_number")]
     FilledOrderNumber, // 已成交订单数量
 }
 

@@ -5,6 +5,7 @@ use strategy_core::strategy::{
     strategy_trait::{StrategyContextAccessor, StrategyEventListener},
 };
 use tokio_stream::wrappers::BroadcastStream;
+use virtual_trading::vts_trait::VtsCtxAccessor;
 
 use super::BacktestStrategy;
 
@@ -80,6 +81,7 @@ impl StrategyEventListener for BacktestStrategy {
                 })
             })
             .await;
+        tracing::info!("{}: strategy command listener started", strategy_name);
 
         let context = self.context.clone();
         tokio::spawn(async move {
@@ -142,4 +144,50 @@ impl StrategyEventListener for BacktestStrategy {
     //         }
     //     });
     // }
+}
+
+impl BacktestStrategy {
+    pub async fn listen_vts_events(&self) {
+        let (strategy_name, cancel_token, vts_event_receiver) = self
+            .with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    let strategy_name = ctx.strategy_name();
+
+                    let cancel_token = ctx.cancel_token().clone();
+                    let vts = ctx
+                        .virtual_trading_system()
+                        .lock()
+                        .await
+                        .with_ctx_read(|vts_ctx| vts_ctx.vts_event_receiver())
+                        .await;
+
+                    (strategy_name.clone(), cancel_token, vts)
+                })
+            })
+            .await;
+
+        tracing::info!("{}: strategy vts event listener started", strategy_name);
+        let mut stream = BroadcastStream::new(vts_event_receiver);
+
+        let context = self.context.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("{}: strategy vts event listener stopped", strategy_name);
+                        break;
+                    }
+                    event = stream.next() => {
+                        if let Some(Ok(event)) = event {
+                            let mut context_guard = context.write().await;
+                            context_guard.handle_vts_event(event).await;
+                        } else {
+                            tracing::warn!("{}: strategy vts event listener closed", strategy_name);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+    }
 }

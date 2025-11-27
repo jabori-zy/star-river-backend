@@ -48,7 +48,7 @@ impl NodeEventHandlerExt for IfElseNodeContext {
 
         if let BacktestNodeEvent::Common(signal_event) = node_event.clone() {
             if let CommonEvent::Trigger(_) = signal_event {
-                self.all_handle_send_trigger_event().await?;
+                self.all_case_handle_false().await?;
                 return Ok(());
             } else {
                 return Ok(());
@@ -64,15 +64,8 @@ impl NodeEventHandlerExt for IfElseNodeContext {
                 IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
                     self.set_superior_case_status(false);
                     self.clear_received_event();
-                    if self.is_leaf_node() {
-                        let config_ids = self.output_handles().values().map(|handle| handle.config_id()).collect::<Vec<_>>();
-                        for id in config_ids {
-                            self.send_execute_over_event(Some(id), Some(self.strategy_time()))?;
-                        }
-                    } else {
-                        self.send_all_case_false_event()?;
-                        return Ok(());
-                    }
+                    self.all_case_handle_false().await?;
+                    return Ok(());
                 }
             }
         }
@@ -121,51 +114,12 @@ impl IfElseNodeContext {
         self.received_message.clear();
     }
 
-    pub(super) async fn all_handle_send_trigger_event(&mut self) -> Result<(), IfElseNodeError> {
-        if self.is_leaf_node() {
-            let config_ids = self.output_handles().values().map(|handle| handle.config_id()).collect::<Vec<_>>();
-            for id in config_ids {
-                self.send_execute_over_event(Some(id), Some(self.strategy_time()))?;
-            }
-            Ok(())
-        } else {
-            self.send_all_case_false_event()?;
-            Ok(())
-        }
-    }
+    pub(super) async fn all_case_handle_false(&mut self) -> Result<(), IfElseNodeError> {
 
-    fn send_all_case_false_event(&mut self) -> Result<(), IfElseNodeError> {
-        let ids = self
-            .output_handles()
-            .values()
-            .map(|handle| (handle.config_id(), handle.output_handle_id().clone()))
-            .collect::<Vec<(i32, String)>>();
-        for id in ids {
-            let payload = CaseFalsePayload::new(id.0);
-            let case_false_event: IfElseNodeEvent = CaseFalseEvent::new_with_time(
-                self.cycle_id(),
-                self.node_id().clone(),
-                self.node_name().clone(),
-                id.1.clone(),
-                self.strategy_time(),
-                payload,
-            )
-            .into();
-            self.output_handle_send(case_false_event.into())?;
+        for case in self.node_config.cases.iter() {
+            self.handle_case_false(case, None)?;
         }
-
-        let payload = ElseFalsePayload;
-        let else_false_event: IfElseNodeEvent = ElseFalseEvent::new_with_time(
-            self.cycle_id(),
-            self.node_id().clone(),
-            self.node_name().clone(),
-            self.default_output_handle()?.output_handle_id().clone(),
-            self.strategy_time(),
-            payload,
-        )
-        .into();
-        let default_output_handle = self.default_output_handle()?;
-        default_output_handle.send(else_false_event.into())?;
+        self.handle_else_false()?;
         Ok(())
     }
 }

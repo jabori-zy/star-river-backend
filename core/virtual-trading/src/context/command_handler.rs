@@ -20,8 +20,6 @@ where
     pub async fn handle_command(&mut self, command: VtsCommand) {
         match command {
             VtsCommand::CreateOrder(cmd) => {
-                tracing::debug!("handle create order command: {:?}", cmd);
-
                 let result = self.create_order(
                     cmd.strategy_id,
                     cmd.node_id.clone(),

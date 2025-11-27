@@ -1,14 +1,13 @@
 use std::ops::{Deref, DerefMut};
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use futures::{StreamExt, stream::select_all};
 use star_river_event::backtest_strategy::node_event::KlineNodeEvent;
-use tokio::sync::mpsc;
+use tokio::sync::watch;
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::{
     VirtualTradingSystem, VirtualTradingSystemContext,
-    command::GenericVtsCommand,
-    types::{VirtualOrder, VirtualPosition},
     vts_trait::{VTSEventHandler, VTSEventListener, VtsCtxAccessor},
 };
 
@@ -70,9 +69,9 @@ impl BacktestVts {
 }
 
 impl BacktestVtsContext {
-    pub fn new() -> Self {
+    pub fn new(strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>) -> Self {
         Self {
-            inner: VirtualTradingSystemContext::new(),
+            inner: VirtualTradingSystemContext::new(strategy_time_watch_rx),
         }
     }
 }
@@ -99,17 +98,11 @@ impl VTSEventHandler for BacktestVtsContext {
 
     async fn handle_kline_event(&mut self, event: BacktestNodeEvent) {
         match event {
-            BacktestNodeEvent::KlineNode(kline_event) => {
-                match kline_event {
-                    KlineNodeEvent::KlineUpdate(event) => {
-                        self.handle_kline_update(event.kline_key.clone(), event.kline.clone());
-                    }
-                    _ => {} // KlineNodeEvent::TimeUpdate(event) => {
-                            //     self.update_datetime(event.current_time);
-                            //     tracing::debug!("[BacktestVts] datetime: {:?}", self.current_datetime());
-                            // }
+            BacktestNodeEvent::KlineNode(kline_event) => match kline_event {
+                KlineNodeEvent::KlineUpdate(event) => {
+                    self.handle_kline_update(event.kline_key.clone(), event.kline.clone());
                 }
-            }
+            },
             _ => {}
         }
     }

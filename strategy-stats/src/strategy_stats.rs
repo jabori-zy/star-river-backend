@@ -68,7 +68,7 @@ where
         let (receiver, cancel_token) = {
             let guard = stats.read().await;
             let virtual_trading_system = guard.virtual_trading_system.as_ref().unwrap().lock().await;
-            let receiver = virtual_trading_system.get_vts_event_receiver();
+            let receiver = virtual_trading_system.vts_event_receiver();
             let cancel_token = guard.cancel_token.clone();
             (receiver, cancel_token)
         };

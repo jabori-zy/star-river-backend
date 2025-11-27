@@ -27,6 +27,7 @@ use crate::{
 pub type PositionNodeMetadata = NodeMetadata<PositionNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PositionNodeContext {
     metadata: PositionNodeMetadata,
     node_config: PositionNodeBacktestConfig,

@@ -1,11 +1,10 @@
 use chrono::{DateTime, Utc};
 use derive_more::From;
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use star_river_core::{
-    custom_type::{CycleId, HandleId, NodeId, NodeName, StrategyId},
+    custom_type::{CycleId, StrategyId},
     error::error_trait::{ErrorLanguage, StarRiverErrorTrait},
 };
-use strum::Display;
 use utoipa::ToSchema;
 
 use crate::benchmark::strategy_benchmark::StrategyPerformanceReport;
@@ -198,37 +197,15 @@ impl StrategyStateErrorLog {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Display, ToSchema)]
-pub enum StrategyRunningLogSource {
-    #[strum(serialize = "node")]
-    #[serde(rename = "Node")]
-    Node,
-    #[strum(serialize = "virtual_trading_system")]
-    #[serde(rename = "VirtualTradingSystem")]
-    VirtualTradingSystem,
-}
-
-#[derive(Debug, Clone, Serialize, Display, ToSchema)]
-pub enum StrategyRunningLogType {
-    #[strum(serialize = "condition_match")]
-    #[serde(rename = "ConditionMatch")]
-    ConditionMatch,
-    #[strum(serialize = "order_created")]
-    #[serde(rename = "OrderCreated")]
-    OrderCreated,
-    #[strum(serialize = "order_filled")]
-    #[serde(rename = "OrderFilled")]
-    OrderFilled,
-    #[strum(serialize = "order_canceled")]
-    #[serde(rename = "OrderCanceled")]
-    OrderCanceled,
-    #[strum(serialize = "processing_order")]
-    #[serde(rename = "ProcessingOrder")]
-    ProcessingOrder,
+// Helper function to serialize type field as "strategy"
+fn serialize_strategy_type<S>(_: &(), serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str("strategy")
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema, From)]
-#[serde(rename_all = "camelCase")]
 #[serde(tag = "logLevel")]
 pub enum StrategyRunningLogEvent {
     Info(StrategyRunningInfoLog),
@@ -253,25 +230,11 @@ impl StrategyRunningLogEvent {
         }
     }
 
-    pub fn node_id(&self) -> &NodeId {
+    pub fn strategy_id(&self) -> &StrategyId {
         match self {
-            StrategyRunningLogEvent::Info(event) => &event.node_id,
-            StrategyRunningLogEvent::Warn(event) => &event.node_id,
-            StrategyRunningLogEvent::Error(event) => &event.node_id,
-        }
-    }
-    pub fn node_name(&self) -> &NodeName {
-        match self {
-            StrategyRunningLogEvent::Info(event) => &event.node_name,
-            StrategyRunningLogEvent::Warn(event) => &event.node_name,
-            StrategyRunningLogEvent::Error(event) => &event.node_name,
-        }
-    }
-    pub fn output_handle_id(&self) -> &HandleId {
-        match self {
-            StrategyRunningLogEvent::Info(event) => &event.output_handle_id,
-            StrategyRunningLogEvent::Warn(event) => &event.output_handle_id,
-            StrategyRunningLogEvent::Error(event) => &event.output_handle_id,
+            StrategyRunningLogEvent::Info(event) => &event.strategy_id,
+            StrategyRunningLogEvent::Warn(event) => &event.strategy_id,
+            StrategyRunningLogEvent::Error(event) => &event.strategy_id,
         }
     }
 }
@@ -280,10 +243,6 @@ impl StrategyRunningLogEvent {
     pub fn info_with_time(
         cycle_id: CycleId,
         strategy_id: StrategyId,
-        node_id: NodeId,
-        node_name: NodeName,
-        source: StrategyRunningLogSource,
-        log_type: StrategyRunningLogType,
         message: String,
         detail: serde_json::Value,
         datetime: DateTime<Utc>,
@@ -291,10 +250,6 @@ impl StrategyRunningLogEvent {
         Self::Info(StrategyRunningInfoLog::new(
             cycle_id,
             strategy_id,
-            node_id,
-            node_name,
-            source,
-            log_type,
             message,
             detail,
             Some(datetime),
@@ -304,9 +259,6 @@ impl StrategyRunningLogEvent {
     pub fn warn_with_time(
         cycle_id: CycleId,
         strategy_id: StrategyId,
-        node_id: NodeId,
-        node_name: NodeName,
-        source: StrategyRunningLogSource,
         message: String,
         error_code: Option<String>,
         error_code_chain: Option<Vec<String>>,
@@ -315,9 +267,6 @@ impl StrategyRunningLogEvent {
         Self::Warn(StrategyRunningWarnLog::new(
             cycle_id,
             strategy_id,
-            node_id,
-            node_name,
-            source,
             message,
             error_code,
             error_code_chain,
@@ -328,18 +277,12 @@ impl StrategyRunningLogEvent {
     pub fn error_with_time(
         cycle_id: CycleId,
         strategy_id: StrategyId,
-        node_id: NodeId,
-        node_name: NodeName,
-        source: StrategyRunningLogSource,
         error: &impl StarRiverErrorTrait,
         datetime: DateTime<Utc>,
     ) -> Self {
         Self::Error(StrategyRunningErrorLog::new_with_time(
             cycle_id,
             strategy_id,
-            node_id,
-            node_name,
-            source,
             ErrorLanguage::English,
             error,
             datetime,
@@ -349,20 +292,12 @@ impl StrategyRunningLogEvent {
     pub fn info(
         cycle_id: CycleId,
         strategy_id: StrategyId,
-        node_id: NodeId,
-        node_name: NodeName,
-        log_type: StrategyRunningLogType,
-        source: StrategyRunningLogSource,
         message: String,
         detail: serde_json::Value,
     ) -> Self {
         Self::Info(StrategyRunningInfoLog::new(
             cycle_id,
             strategy_id,
-            node_id,
-            node_name,
-            source,
-            log_type,
             message,
             detail,
             None,
@@ -372,9 +307,6 @@ impl StrategyRunningLogEvent {
     pub fn warn(
         cycle_id: CycleId,
         strategy_id: StrategyId,
-        node_id: NodeId,
-        node_name: NodeName,
-        source: StrategyRunningLogSource,
         message: String,
         error_code: Option<String>,
         error_code_chain: Option<Vec<String>>,
@@ -382,9 +314,6 @@ impl StrategyRunningLogEvent {
         Self::Warn(StrategyRunningWarnLog::new(
             cycle_id,
             strategy_id,
-            node_id,
-            node_name,
-            source,
             message,
             error_code,
             error_code_chain,
@@ -395,17 +324,11 @@ impl StrategyRunningLogEvent {
     pub fn error(
         cycle_id: CycleId,
         strategy_id: StrategyId,
-        node_id: NodeId,
-        node_name: NodeName,
-        source: StrategyRunningLogSource,
         error: &impl StarRiverErrorTrait,
     ) -> Self {
         Self::Error(StrategyRunningErrorLog::new(
             cycle_id,
             strategy_id,
-            node_id,
-            node_name,
-            source,
             error,
             None,
         ))
@@ -415,13 +338,12 @@ impl StrategyRunningLogEvent {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct StrategyRunningInfoLog {
+    #[serde(rename = "type")]
+    #[serde(serialize_with = "serialize_strategy_type")]
+    #[serde(skip_deserializing)]
+    _type: (),
     pub cycle_id: CycleId,
     pub strategy_id: StrategyId,
-    pub node_id: NodeId,
-    pub node_name: NodeName,
-    pub output_handle_id: HandleId,
-    pub source: StrategyRunningLogSource,
-    pub log_type: StrategyRunningLogType,
     pub message: String,
     pub detail: serde_json::Value,
     pub datetime: DateTime<Utc>,
@@ -431,23 +353,15 @@ impl StrategyRunningInfoLog {
     pub fn new(
         cycle_id: CycleId,
         strategy_id: StrategyId,
-        node_id: NodeId,
-        node_name: NodeName,
-        source: StrategyRunningLogSource,
-        log_type: StrategyRunningLogType,
         message: String,
         detail: serde_json::Value,
         datetime: Option<DateTime<Utc>>,
     ) -> Self {
         let datetime = datetime.unwrap_or(Utc::now());
         Self {
+            _type: (),
             cycle_id,
             strategy_id,
-            node_id: node_id.clone(),
-            node_name,
-            output_handle_id: format!("{}_strategy_output_handle", node_id),
-            source,
-            log_type,
             message,
             detail,
             datetime,
@@ -458,13 +372,14 @@ impl StrategyRunningInfoLog {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct StrategyRunningWarnLog {
+    #[serde(rename = "type")]
+    #[serde(serialize_with = "serialize_strategy_type")]
+    #[serde(skip_deserializing)]
+    _type: (),
     pub cycle_id: CycleId,
     pub strategy_id: StrategyId,
-    pub node_id: NodeId,
-    pub node_name: NodeName,
-    pub source: StrategyRunningLogSource,
-    pub output_handle_id: HandleId,
     pub message: String,
+    pub detail: serde_json::Value,
     pub error_code: Option<String>,
     pub error_code_chain: Option<Vec<String>>,
     pub datetime: DateTime<Utc>,
@@ -474,9 +389,6 @@ impl StrategyRunningWarnLog {
     pub fn new(
         cycle_id: CycleId,
         strategy_id: StrategyId,
-        node_id: NodeId,
-        node_name: NodeName,
-        source: StrategyRunningLogSource,
         message: String,
         error_code: Option<String>,
         error_code_chain: Option<Vec<String>>,
@@ -484,13 +396,11 @@ impl StrategyRunningWarnLog {
     ) -> Self {
         let datetime = datetime.unwrap_or(Utc::now());
         Self {
+            _type: (),
             cycle_id,
             strategy_id,
-            node_id: node_id.clone(),
-            node_name,
-            source,
-            output_handle_id: format!("{}_strategy_output_handle", node_id),
             message,
+            detail: serde_json::Value::Null,
             error_code,
             error_code_chain,
             datetime,
@@ -500,17 +410,14 @@ impl StrategyRunningWarnLog {
     pub fn new_with_time(
         cycle_id: CycleId,
         strategy_id: StrategyId,
-        node_id: NodeId,
-        node_name: NodeName,
         language: Option<ErrorLanguage>,
-        source: StrategyRunningLogSource,
         message: Option<String>,
         error: Option<&impl StarRiverErrorTrait>,
         datetime: Option<DateTime<Utc>>,
     ) -> Self {
         let datetime = datetime.unwrap_or(Utc::now());
 
-        // 根据优先级确定 message: message > error.error_message() > ""
+        // Determine message priority: message > error.error_message() > ""
         let final_message = if let Some(msg) = message {
             msg
         } else if let Some(err) = error {
@@ -519,7 +426,7 @@ impl StrategyRunningWarnLog {
             String::new()
         };
 
-        // 如果 error 存在，提取 error_code 和 error_code_chain
+        // Extract error_code and error_code_chain if error exists
         let (error_code, error_code_chain) = if let Some(err) = error {
             (Some(err.error_code().to_string()), Some(err.error_code_chain()))
         } else {
@@ -527,13 +434,11 @@ impl StrategyRunningWarnLog {
         };
 
         Self {
+            _type: (),
             cycle_id,
             strategy_id,
-            node_id: node_id.clone(),
-            node_name,
-            source,
-            output_handle_id: format!("{}_strategy_output_handle", node_id),
             message: final_message,
+            detail: serde_json::Value::Null,
             error_code,
             error_code_chain,
             datetime,
@@ -544,13 +449,14 @@ impl StrategyRunningWarnLog {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct StrategyRunningErrorLog {
+    #[serde(rename = "type")]
+    #[serde(serialize_with = "serialize_strategy_type")]
+    #[serde(skip_deserializing)]
+    _type: (),
     pub cycle_id: CycleId,
     pub strategy_id: StrategyId,
-    pub node_id: NodeId,
-    pub node_name: NodeName,
-    pub output_handle_id: HandleId,
-    pub source: StrategyRunningLogSource,
     pub message: String,
+    pub detail: serde_json::Value,
     pub error_code: String,
     pub error_code_chain: Vec<String>,
     pub datetime: DateTime<Utc>,
@@ -560,9 +466,6 @@ impl StrategyRunningErrorLog {
     pub fn new(
         cycle_id: CycleId,
         strategy_id: StrategyId,
-        node_id: NodeId,
-        node_name: NodeName,
-        source: StrategyRunningLogSource,
         error: &impl StarRiverErrorTrait,
         datetime: Option<DateTime<Utc>>,
     ) -> Self {
@@ -571,13 +474,11 @@ impl StrategyRunningErrorLog {
         let error_code = error.error_code().to_string();
         let error_code_chain = error.error_code_chain();
         Self {
+            _type: (),
             cycle_id,
             strategy_id,
-            node_id: node_id.clone(),
-            output_handle_id: format!("{}_strategy_output_handle", node_id),
-            source,
-            node_name,
             message,
+            detail: serde_json::Value::Null,
             error_code,
             error_code_chain,
             datetime,
@@ -587,21 +488,16 @@ impl StrategyRunningErrorLog {
     pub fn new_with_time(
         cycle_id: CycleId,
         strategy_id: StrategyId,
-        node_id: NodeId,
-        node_name: NodeName,
-        source: StrategyRunningLogSource,
         language: ErrorLanguage,
         error: &impl StarRiverErrorTrait,
         datetime: DateTime<Utc>,
     ) -> Self {
         Self {
+            _type: (),
             cycle_id,
             strategy_id,
-            node_id: node_id.clone(),
-            node_name,
-            output_handle_id: format!("{}_strategy_output_handle", node_id),
-            source,
             message: error.error_message(language),
+            detail: serde_json::Value::Null,
             error_code: error.error_code().to_string(),
             error_code_chain: error.error_code_chain(),
             datetime,

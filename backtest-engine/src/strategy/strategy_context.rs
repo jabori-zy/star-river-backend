@@ -16,7 +16,7 @@ use star_river_core::{
     kline::{Kline, KlineInterval},
 };
 use strategy_core::{
-    event::strategy_event::StrategyRunningLogEvent,
+    event::node_common_event::NodeRunningLogEvent,
     strategy::{StrategyConfig, context_trait::StrategyMetaDataExt, metadata::StrategyMetadata},
 };
 use ta_lib::indicator::Indicator;
@@ -30,7 +30,7 @@ use super::{
 };
 use crate::{
     node::{BacktestNode, node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
-    strategy::strategy_command::BacktestStrategyCommand,
+    strategy::{strategy_command::BacktestStrategyCommand, strategy_error::BacktestStrategyError},
     virtual_trading_system::{BacktestVts, BacktestVtsContext},
 };
 
@@ -44,7 +44,7 @@ pub struct BacktestStrategyContext {
     initial_play_speed: Arc<RwLock<u32>>,
     cancel_play_token: CancellationToken,
     batch_id: Uuid,
-    running_log: Arc<RwLock<Vec<StrategyRunningLogEvent>>>,
+    running_log: Arc<RwLock<Vec<NodeRunningLogEvent>>>,
     execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>,
     execute_over_notify: Arc<Notify>,
     min_interval: KlineInterval,
@@ -66,7 +66,8 @@ impl BacktestStrategyContext {
 
         let metadata = BacktestStrategyMetadata::new("backtest", strategy_config, state_machine, database, heartbeat);
 
-        let virtual_trading_system = BacktestVts::new(BacktestVtsContext::new());
+        let strategy_time_watch_rx = metadata.strategy_time_watch_rx();
+        let virtual_trading_system = BacktestVts::new(BacktestVtsContext::new(strategy_time_watch_rx));
 
         Self {
             metadata,
@@ -77,7 +78,7 @@ impl BacktestStrategyContext {
             running_log: Arc::new(RwLock::new(vec![])),
             execute_over_node_ids: Arc::new(RwLock::new(vec![])),
             execute_over_notify: Arc::new(Notify::new()),
-            min_interval: KlineInterval::Minutes1,
+            min_interval: KlineInterval::Months1,
             kline_data: Arc::new(RwLock::new(HashMap::new())),
             indicator_data: Arc::new(RwLock::new(HashMap::new())),
             keys: Arc::new(RwLock::new(HashMap::new())),
@@ -93,6 +94,7 @@ impl StrategyMetaDataExt for BacktestStrategyContext {
     type StrategyCommand = BacktestStrategyCommand;
     type NodeCommand = BacktestNodeCommand;
     type NodeEvent = BacktestNodeEvent;
+    type Error = BacktestStrategyError;
 
     fn metadata(&self) -> &StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent> {
         &self.metadata
@@ -213,12 +215,12 @@ impl BacktestStrategyContext {
     // ========================================================================
 
     /// 获取运行日志
-    pub async fn running_log(&self) -> Vec<StrategyRunningLogEvent> {
+    pub async fn running_log(&self) -> Vec<NodeRunningLogEvent> {
         self.running_log.read().await.clone()
     }
 
     /// 添加运行日志
-    pub async fn add_running_log(&self, log: StrategyRunningLogEvent) {
+    pub async fn add_running_log(&self, log: NodeRunningLogEvent) {
         self.running_log.write().await.push(log);
     }
 
