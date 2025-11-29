@@ -72,6 +72,8 @@ impl NodeEventHandlerExt for VariableNodeContext {
                                 Ok(())
                             })
                             .await?;
+                        self.default_output_handle_send_trigger_event(Some(self.strategy_time())).await?;
+
                         Ok(())
                     }
                     IfElseNodeEvent::ElseTrue(else_true) => {
@@ -86,7 +88,34 @@ impl NodeEventHandlerExt for VariableNodeContext {
                             .await?;
                         Ok(())
                     }
-                    _ => Ok(()),
+                    IfElseNodeEvent::ElseFalse(else_false) => {
+                        let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                        node_cycle_tracker.start_phase("handle_condition_trigger");
+                        // 过滤出condition trigger caseid相同的变量配置
+                        let configs = filter_else_trigger_configs(self.node_config.variable_configs.iter(), else_false.node_id());
+                        
+                        if self.is_leaf_node() {
+                            configs.iter().try_for_each(|config| {
+                                self.send_execute_over_event(Some(config.confing_id()), Some(self.strategy_time()))
+                            })?;
+                            return Ok(());
+                        }
+
+                        stream::iter(configs.iter().map(|config| Ok::<_, VariableNodeError>(config)))
+                            .try_for_each_concurrent(None, |config| async {
+                                self.send_trigger_event(&config.output_handle_id(), Some(self.strategy_time()))
+                                    .await?;
+                                Ok(())
+                            })
+                            .await?;
+                        self.default_output_handle_send_trigger_event(Some(self.strategy_time())).await?;
+
+                        node_cycle_tracker.end_phase("handle_condition_trigger");
+                        let completed_tracker = node_cycle_tracker.end();
+                        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                            .await?;
+                        Ok(())
+                    }
                 }
             }
             // k线更新，处理dataflow

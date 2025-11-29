@@ -387,12 +387,7 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
     /// - `event` - 要发送的事件
     fn default_output_handle_send(&self, event: Self::NodeEvent) -> Result<(), crate::error::NodeError> {
         let default_handle = self.default_output_handle()?;
-
-        if default_handle.is_connected() {
-            default_handle.send(event)
-        } else {
-            Ok(())
-        }
+        default_handle.send(event)
     }
 
     fn send_execute_over_event(&self, config_id: Option<i32>, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
@@ -459,13 +454,36 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
         };
 
         let output_handle = self.output_handle(handle_id)?;
+        output_handle.send(trigger_event.into())
+        
+    }
 
-        if output_handle.is_connected() {
-            output_handle.send(trigger_event.into())
+    async fn default_output_handle_send_trigger_event(&self, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
+        let default_handle = self.default_output_handle()?;
+
+        let payload = TriggerPayload;
+        let trigger_event: CommonEvent = if let Some(datetime) = datetime {
+            TriggerEvent::new_with_time(
+                self.cycle_id(),
+                self.node_id().clone(),
+                self.node_name().to_string(),
+                default_handle.output_handle_id().clone(),
+                datetime,
+                payload,
+            )
+            .into()
         } else {
-            // tracing::warn!("@[{}] output handle {} is not connected, skip sending event", self.node_name(), handle_id);
-            Ok(())
-        }
+            TriggerEvent::new(
+                self.cycle_id(),
+                self.node_id().clone(),
+                self.node_name().to_string(),
+                default_handle.output_handle_id().clone(),
+                payload,
+            )
+            .into()
+        };
+
+        self.default_output_handle_send(trigger_event.into())
     }
 }
 

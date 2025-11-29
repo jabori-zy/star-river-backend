@@ -29,7 +29,7 @@ use tokio::sync::oneshot;
 
 use super::VariableNodeContext;
 use crate::{
-    node::node_error::VariableNodeError,
+    node::node_error::{VariableNodeError, variable_node_error::TaskFailedSnafu},
     strategy::strategy_command::{
         ResetCustomVarCmdPayload, ResetCustomVarValueCommand, UpdateCustomVarValueCmdPayload, UpdateCustomVarValueCommand,
     },
@@ -74,7 +74,7 @@ impl VariableNodeContext {
         }
 
         if !reset_var_configs.is_empty() {
-            self.reset_variable(&reset_var_configs).await;
+            self.reset_variable(&reset_var_configs).await?;
         }
 
         Ok(())
@@ -154,7 +154,7 @@ impl VariableNodeContext {
 
     async fn get_variable(&self, get_var_configs: &Vec<GetVariableConfig>) -> Result<(), VariableNodeError> {
         // 先生成Handler,然后同时执行
-        let mut get_var_handles = Vec::with_capacity(get_var_configs.len());
+        let mut get_var_handles: Vec<tokio::task::JoinHandle<Result<(), VariableNodeError>>> = Vec::with_capacity(get_var_configs.len());
 
         // 在循环外提前克隆共享数据，避免重复克隆
         let node_id = self.node_id().clone();
@@ -236,7 +236,12 @@ impl VariableNodeContext {
         }
 
         // 等待所有任务完成
-        futures::future::join_all(get_var_handles).await;
+        let result = futures::future::join_all(get_var_handles).await;
+        result.into_iter().try_for_each(|res| {
+            res
+            .context(TaskFailedSnafu{})??;
+            Ok::<(), VariableNodeError>(())
+        })?;
         Ok(())
     }
 
@@ -338,11 +343,16 @@ impl VariableNodeContext {
         }
 
         // 等待所有任务完成
-        futures::future::join_all(update_handles).await;
+        let result = futures::future::join_all(update_handles).await;
+        result.into_iter().try_for_each(move |res| {
+            res
+            .context(TaskFailedSnafu{})??;
+            Ok::<(), VariableNodeError>(())
+        })?;
         Ok(())
     }
 
-    async fn reset_variable(&self, reset_var_configs: &Vec<ResetVariableConfig>) {
+    async fn reset_variable(&self, reset_var_configs: &Vec<ResetVariableConfig>) -> Result<(), VariableNodeError> {
         // 先生成Handler,然后同时执行
         let mut reset_handles = Vec::with_capacity(reset_var_configs.len());
 
@@ -434,7 +444,13 @@ impl VariableNodeContext {
         }
 
         // 等待所有任务完成
-        futures::future::join_all(reset_handles).await;
+        let result = futures::future::join_all(reset_handles).await;
+        result.into_iter().try_for_each(move |res| {
+            res
+            .context(TaskFailedSnafu{})??;
+            Ok::<(), VariableNodeError>(())
+        })?;
+        Ok(())
     }
 
     /// 处理错误值的策略

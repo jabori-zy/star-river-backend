@@ -20,6 +20,9 @@ pub enum VariableNodeError {
 
     #[snafu(display("@[{node_name}] exchange mode not configured"))]
     ExchangeModeNotConfigured { node_name: NodeName, backtrace: Backtrace },
+
+    #[snafu(display("task failed: {source}"))]
+    TaskFailed { source: tokio::task::JoinError, backtrace: Backtrace },
 }
 
 impl StarRiverErrorTrait for VariableNodeError {
@@ -34,6 +37,7 @@ impl StarRiverErrorTrait for VariableNodeError {
             VariableNodeError::VtsError { .. } => 1002,                  // vts error
             VariableNodeError::SysVariableSymbolIsNull { .. } => 1003,   //system variable symbol is null
             VariableNodeError::ExchangeModeNotConfigured { .. } => 1004, //exchange mode not configured
+            VariableNodeError::TaskFailed { .. } => 1005, //task failed
         };
 
         format!("{}_{:04}", prefix, code)
@@ -45,6 +49,7 @@ impl StarRiverErrorTrait for VariableNodeError {
             VariableNodeError::VtsError { source, .. } => source.http_status_code(),
             VariableNodeError::SysVariableSymbolIsNull { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             VariableNodeError::ExchangeModeNotConfigured { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            VariableNodeError::TaskFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -54,7 +59,8 @@ impl StarRiverErrorTrait for VariableNodeError {
         match self {
             VariableNodeError::NodeError { source, .. } => generate_error_code_chain(source),
             VariableNodeError::VtsError { source, .. } => generate_error_code_chain(source),
-            VariableNodeError::SysVariableSymbolIsNull { .. } => vec![self.error_code()],
+            VariableNodeError::SysVariableSymbolIsNull { .. } |
+            VariableNodeError::TaskFailed { .. } |
             VariableNodeError::ExchangeModeNotConfigured { .. } => vec![self.error_code()],
         }
     }
@@ -71,6 +77,7 @@ impl StarRiverErrorTrait for VariableNodeError {
                 VariableNodeError::ExchangeModeNotConfigured { node_name, .. } => {
                     format!("@{} 交易所模式未配置", node_name)
                 }
+                VariableNodeError::TaskFailed { source, .. } => format!("任务失败: {}", source),
             },
         }
     }

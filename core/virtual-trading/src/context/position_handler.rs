@@ -109,7 +109,7 @@ where
             self.leverage,
             self.current_datetime(),
         );
-        tracing::debug!("create position successfully: {:#?}", virtual_position);
+        // tracing::debug!("create position successfully: {:#?}", virtual_position);
         self.current_positions.push(virtual_position.clone());
         Ok(virtual_position)
     }
@@ -117,7 +117,7 @@ where
     /// Execute an open order, return position id
     /// Generate position and transaction details
     pub fn execute_order(&mut self, order: &VirtualOrder, current_price: f64) -> Result<PositionId, VtsError> {
-        tracing::info!("execute open order: {:#?}, execute price: {:?}", order, current_price);
+        // tracing::info!("execute open order: {:#?}, execute price: {:?}", order, current_price);
 
         let execute_datetime = self.current_datetime();
 

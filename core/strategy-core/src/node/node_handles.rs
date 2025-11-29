@@ -121,16 +121,20 @@ impl<E> NodeOutputHandle<E> {
     where
         E: Debug + Send + Sync + 'static,
     {
-        let result = self.node_event_sender.send(event).map_err(|e| {
-            NodeEventSendFailedSnafu {
-                node_name: self.node_name().clone(),
-                handle_id: self.output_handle_id.clone(),
+        if self.is_connected() {
+            let result = self.node_event_sender.send(event).map_err(|e| {
+                NodeEventSendFailedSnafu {
+                    node_name: self.node_name().clone(),
+                    handle_id: self.output_handle_id.clone(),
+                }
+                .into_error(Arc::new(e))
+            });
+            match result {
+                Ok(_) => Ok(()),
+                Err(e) => Err(e),
             }
-            .into_error(Arc::new(e))
-        });
-        match result {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
+        } else {
+            Ok(())
         }
     }
 

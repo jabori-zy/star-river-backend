@@ -2,11 +2,10 @@ use async_trait::async_trait;
 use event_center::Event;
 use star_river_event::backtest_strategy::node_event::{
     IfElseNodeEvent, IndicatorNodeEvent, KlineNodeEvent, VariableNodeEvent,
-    if_else_node_event::{CaseFalseEvent, CaseFalsePayload, ElseFalseEvent, ElseFalsePayload},
 };
 use strategy_core::{
     event::node_common_event::CommonEvent,
-    node::context_trait::{NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
+    node::context_trait::{NodeEventHandlerExt, NodeInfoExt},
 };
 
 use super::IfElseNodeContext;

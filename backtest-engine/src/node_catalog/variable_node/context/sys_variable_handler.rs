@@ -49,6 +49,7 @@ impl VariableNodeContext {
         let cycle_id = self.cycle_id();
         let node_id = self.node_id().clone();
         let output_handle = self.output_handle(&system_var_config.output_handle_id())?.clone();
+        let default_output_handle = self.default_output_handle()?.clone();
         let strategy_output_handle = self.strategy_bound_handle().clone();
         let node_name = self.node_name().clone();
         let is_leaf_node = self.is_leaf_node();
@@ -78,7 +79,7 @@ impl VariableNodeContext {
             match response {
                 StrategyResponse::Success { .. } => {
                     let payload = SysVarUpdatePayload::new(cycle_id, system_var_config.config_id(), sys_variable);
-                    let var_event: VariableNodeEvent = SysVarUpdateEvent::new_with_time(
+                    let var_update_evt: VariableNodeEvent = SysVarUpdateEvent::new_with_time(
                         cycle_id,
                         node_id.clone(),
                         node_name.clone(),
@@ -87,7 +88,7 @@ impl VariableNodeContext {
                         payload,
                     )
                     .into();
-                    let backtest_var_event: BacktestNodeEvent = var_event.clone().into();
+                    let backtest_var_event: BacktestNodeEvent = var_update_evt.into();
                     strategy_output_handle.send(backtest_var_event.clone())?;
                     if is_leaf_node {
                         let payload = ExecuteOverPayload::new(None);
@@ -102,7 +103,11 @@ impl VariableNodeContext {
                         .into();
                         strategy_output_handle.send(execute_over_event.into())?;
                     } else {
-                        output_handle.send(backtest_var_event)?;
+                        tracing::debug!("send var update event to output handle: {}", output_handle.output_handle_id());
+                        output_handle.send(backtest_var_event.clone())?;
+                        tracing::debug!("send var update event to output handle: {}", output_handle.output_handle_id());
+                        default_output_handle.send(backtest_var_event.clone())?;
+                        tracing::debug!("send var update event to default output handle: {}", default_output_handle.output_handle_id());
                     }
                 }
                 StrategyResponse::Fail { error, .. } => {
@@ -166,6 +171,7 @@ impl VariableNodeContext {
                     let current_positions = vts
                         .with_ctx_read(|ctx| ctx.current_positions_count_of_symbol(&symbol, &exchange))
                         .await;
+                    tracing::debug!("current positions count: {}", current_positions);
                     let var_name = SysVariableType::CurrentPositionAmount;
                     let var_value = VariableValue::Number(Decimal::from(current_positions));
                     SysVariable::new(var_name, var_display_name, Some(symbol), var_value)
