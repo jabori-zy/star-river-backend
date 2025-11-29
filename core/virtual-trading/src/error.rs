@@ -50,6 +50,13 @@ pub enum VtsError {
     #[snafu(display("position [{position_id}] not found."))]
     PositionNotFound { position_id: PositionId, backtrace: Backtrace },
 
+    #[snafu(display("position not found for symbol [{symbol}] and exchange [{exchange}]"))]
+    PositionNotFoundForSymbol {
+        symbol: String,
+        exchange: String,
+        backtrace: Backtrace,
+    },
+
     #[snafu(display("only support one direction, the order side is [{order_side}] but the position side is [{position_side}]"))]
     OnlyOneDirectionSupported {
         order_side: String,
@@ -98,6 +105,7 @@ impl StarRiverErrorTrait for VtsError {
             VtsError::OnlyOneDirectionSupported { .. } => 1009,          // only one direction supported
             VtsError::TpOrderQuantityMoreThanPosQuantity { .. } => 1010, // tp order quantity more than pos quantity
             VtsError::SlOrderQuantityMoreThanPosQuantity { .. } => 1011, // sl order quantity more than pos quantity
+            VtsError::PositionNotFoundForSymbol { .. } => 1012,          // position not found for symbol and exchange
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -127,6 +135,9 @@ impl StarRiverErrorTrait for VtsError {
                 }
                 VtsError::PositionNotFound { position_id, .. } => {
                     format!("仓位 {} 未找到.", position_id)
+                }
+                VtsError::PositionNotFoundForSymbol { symbol, exchange, .. } => {
+                    format!("仓位未找到 for symbol [{}] and exchange [{}]", symbol, exchange)
                 }
                 VtsError::CommandSendFailed { source, .. } => {
                     format!("命令发送失败: {}", source)
@@ -177,6 +188,7 @@ impl StarRiverErrorTrait for VtsError {
             VtsError::OnlyOneDirectionSupported { .. } => StatusCode::BAD_REQUEST,
             VtsError::TpOrderQuantityMoreThanPosQuantity { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             VtsError::SlOrderQuantityMoreThanPosQuantity { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            VtsError::PositionNotFoundForSymbol { .. } => StatusCode::NOT_FOUND,
         }
     }
 
@@ -192,7 +204,8 @@ impl StarRiverErrorTrait for VtsError {
             | VtsError::ResponseRecvFailed { .. }
             | VtsError::OnlyOneDirectionSupported { .. }
             | VtsError::TpOrderQuantityMoreThanPosQuantity { .. }
-            | VtsError::SlOrderQuantityMoreThanPosQuantity { .. } => vec![self.error_code()],
+            | VtsError::SlOrderQuantityMoreThanPosQuantity { .. }
+            | VtsError::PositionNotFoundForSymbol { .. } => vec![self.error_code()],
         }
     }
 }

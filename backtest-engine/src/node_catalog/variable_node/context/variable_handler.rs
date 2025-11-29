@@ -20,7 +20,10 @@ use strategy_core::{
         },
         variable_config::{get::GetVariableConfig, reset::ResetVariableConfig, update::UpdateVariableConfig},
     },
-    variable::{custom_variable::VariableValue, sys_varibale::SysVariableType},
+    variable::{
+        custom_variable::VariableValue,
+        sys_varibale::{SysVariable, SysVariableType},
+    },
 };
 use tokio::sync::oneshot;
 
@@ -184,21 +187,46 @@ impl VariableNodeContext {
                 GetVariableConfig::System(system_config) => {
                     let system_var = SysVariableType::from_str(system_config.var_name()).unwrap();
                     match system_var {
-                        SysVariableType::TotalPositionNumber => {
-                            let handle = self.create_total_position_number_handle(system_config.clone()).await?;
+                        SysVariableType::CurrentTime => {
+                            let handle = self.create_current_time_handle(system_config.clone()).await?;
                             get_var_handles.push(handle);
                         }
-                        SysVariableType::TotalFilledOrderNumber => {
-                            let handle = self.create_total_filled_order_number_handle(system_config.clone()).await?;
+                        SysVariableType::TotalCurrentPositionAmount => {
+                            let handle = self.create_total_current_position_amount_handle(system_config.clone()).await?;
+                            get_var_handles.push(handle);
+                        }
+                        SysVariableType::CurrentPositionAmount => {
+                            let handle = self.create_current_position_amount_handle(system_config.clone()).await?;
                             get_var_handles.push(handle);
                         }
 
-                        SysVariableType::FilledOrderNumber => {
-                            let handle = self.create_filled_order_number_handle(system_config.clone()).await?;
+                        SysVariableType::TotalUnfilledOrderAmount => {
+                            let handle = self.create_total_unfilled_order_amount_handle(system_config.clone()).await?;
                             get_var_handles.push(handle);
                         }
-                        SysVariableType::CurrentTime => {
-                            let handle = self.create_current_time_handle(system_config.clone()).await?;
+
+                        SysVariableType::UnfilledOrderAmount => {
+                            let handle = self.create_unfilled_order_amount_handle(system_config.clone()).await?;
+                            get_var_handles.push(handle);
+                        }
+                        SysVariableType::TotalHistoryOrderAmount => {
+                            let handle = self.create_total_history_order_amount_handle(system_config.clone()).await?;
+                            get_var_handles.push(handle);
+                        }
+                        SysVariableType::HistoryOrderAmount => {
+                            let handle = self.create_history_order_amount_handle(system_config.clone()).await?;
+                            get_var_handles.push(handle);
+                        }
+                        SysVariableType::HistoryPositionAmount => {
+                            let handle = self.create_history_position_amount_handle(system_config.clone()).await?;
+                            get_var_handles.push(handle);
+                        }
+                        SysVariableType::TotalHistoryPositionAmount => {
+                            let handle = self.create_total_history_position_amount_handle(system_config.clone()).await?;
+                            get_var_handles.push(handle);
+                        }
+                        SysVariableType::CurrentRoi => {
+                            let handle = self.create_current_roi_handle(system_config.clone()).await?;
                             get_var_handles.push(handle);
                         }
                         _ => {}

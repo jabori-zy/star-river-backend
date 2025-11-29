@@ -38,12 +38,14 @@ where
     E: Clone + Send + Sync + 'static,
 {
     strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
-    kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳) 只获取min_interval_symbols中的k线缓存数据
+
     event_transceiver: (broadcast::Sender<VtsEvent>, broadcast::Receiver<VtsEvent>),
     command_transceiver: (mpsc::Sender<VtsCommand>, Arc<Mutex<mpsc::Receiver<VtsCommand>>>),
     cancel_token: CancellationToken,
     kline_node_event_receiver: Vec<broadcast::Receiver<E>>,
     pub leverage: Leverage, // 杠杆
+
+    pub kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳) 只获取min_interval_symbols中的k线缓存数据
 
     // 资金相关
     pub initial_balance: Balance,   // 初始资金
@@ -136,10 +138,6 @@ where
         self.kline_price = kline_price;
     }
 
-    pub fn kline_price(&self) -> &HashMap<KlineKey, Kline> {
-        &self.kline_price
-    }
-
     pub fn handle_kline_update(&mut self, kline_key: KlineKey, kline: Kline) {
         // if kline_key not in hashmap key, skip
         if !self.kline_price.contains_key(&kline_key) {
@@ -153,31 +151,11 @@ where
         self.kline_node_event_receiver.push(kline_node_event_receiver);
     }
 
-    pub fn balance(&self) -> Balance {
-        self.balance
-    }
-
-    pub fn equity(&self) -> Equity {
-        self.equity
-    }
-
-    pub fn available_balance(&self) -> Balance {
-        self.available_balance
-    }
-
-    pub fn unrealized_pnl(&self) -> Pnl {
-        self.unrealized_pnl
-    }
-
-    pub fn realized_pnl(&self) -> Pnl {
-        self.realized_pnl
-    }
-
     // 设置k线缓存索引, 并更新所有数据
     pub fn update_system(&mut self, kline_key: &KlineKey, kline: &Kline) -> Result<(), VtsError> {
         self.check_unfilled_orders(&kline_key, &kline)?;
         // 价格更新后，更新仓位
-        self.update_position(&kline_key, &kline)?;
+        self.update_current_positions(&kline_key, &kline)?;
 
         // 按正确顺序更新余额相关数据
         // 1. 更新已实现盈亏
@@ -220,74 +198,10 @@ where
         self.fee_rate = fee_rate;
     }
 
-    // 设置杠杆
-    pub fn leverage(&mut self, leverage: Leverage) {
-        self.leverage = leverage;
-    }
-
-    // 设置手续费率
-    pub fn fee_rate(&mut self, fee_rate: FeeRate) {
-        self.fee_rate = fee_rate;
-    }
-
-    // 获取初始资金
-    pub fn initial_balance(&self) -> Balance {
-        self.initial_balance
-    }
-
-    // 获取当前资金
-    pub fn current_balance(&self) -> Balance {
-        self.available_balance
-    }
-
-    // 获取保证金
-    pub fn margin(&self) -> Margin {
-        self.used_margin
-    }
-
-    // 获取所有订单
-    pub fn unfilled_orders(&self) -> &Vec<VirtualOrder> {
-        &self.unfilled_orders
-    }
-
-    pub fn history_orders(&self) -> &Vec<VirtualOrder> {
-        &self.history_orders
-    }
-
-    pub fn get_unfiiled_order_by_id(&self, order_id: &OrderId) -> Result<&VirtualOrder, VtsError> {
-        self.unfilled_orders
-            .iter()
-            .find(|order| &order.order_id == order_id)
-            .context(OrderNotFoundSnafu { order_id: *order_id })
-    }
-
-    pub fn get_order_by_id_mut(&mut self, order_id: &OrderId) -> Result<&mut VirtualOrder, VtsError> {
-        self.unfilled_orders
-            .iter_mut()
-            .find(|order| &order.order_id == order_id)
-            .context(OrderNotFoundSnafu { order_id: *order_id })
-    }
-
-    pub fn get_tp_order_ids(&self, symbol: &String, exchange: &Exchange) -> Vec<i32> {
-        self.unfilled_orders
-            .iter()
-            .filter(|order| order.exchange == *exchange && order.symbol == *symbol && order.order_type == OrderType::TakeProfitMarket)
-            .map(|order| order.order_id)
-            .collect()
-    }
-
-    pub fn get_sl_order_ids(&self, symbol: &String, exchange: &Exchange) -> Vec<i32> {
-        self.unfilled_orders
-            .iter()
-            .filter(|order| order.exchange == *exchange && order.symbol == *symbol && order.order_type == OrderType::StopMarket)
-            .map(|order| order.order_id)
-            .collect()
-    }
-
     // 根据交易所和symbol获取k线缓存key
     fn get_kline_key(&self, exchange: &Exchange, symbol: &String) -> Result<&KlineKey, VtsError> {
         // tracing::debug!("kline_price keys: {:?}", self.kline_price.keys());
-        self.kline_price()
+        self.kline_price
             .keys()
             .find(|kline_key| &kline_key.exchange == exchange && &kline_key.symbol == symbol)
             .context(KlineKeyNotFoundSnafu {

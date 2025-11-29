@@ -130,12 +130,12 @@ where
 
         // let datetime = trading_system.get_datetime(); // 时间戳
         let datetime = Utc::now();
-        let balance = trading_system.balance(); // 账户余额
-        let available_balance = trading_system.available_balance(); // 可用余额
-        let positions = trading_system.get_current_positions(); // 当前持仓
-        let unrealized_pnl = trading_system.unrealized_pnl(); // 未实现盈亏
-        let equity = trading_system.equity(); // 净值
-        let realized_pnl = trading_system.realized_pnl(); // 已实现盈亏
+        let balance = trading_system.balance; // 账户余额
+        let available_balance = trading_system.available_balance; // 可用余额
+        let positions = trading_system.current_positions.clone(); // 当前持仓
+        let unrealized_pnl = trading_system.unrealized_pnl; // 未实现盈亏
+        let equity = trading_system.equity; // 净值
+        let realized_pnl = trading_system.realized_pnl; // 已实现盈亏
         let position_count = positions.len() as u32; // 持仓数量
 
         drop(trading_system);

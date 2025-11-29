@@ -1,12 +1,7 @@
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use snafu::{IntoError, ResultExt};
-use star_river_core::{
-    custom_type::{CycleId, NodeId},
-    order::OrderStatus,
-};
 use star_river_event::backtest_strategy::node_event::{
     VariableNodeEvent,
     variable_node_event::{SysVarUpdateEvent, SysVarUpdatePayload},
@@ -131,7 +126,7 @@ impl VariableNodeContext {
         Ok(handle)
     }
     /// 创建获取总持仓数量的 Handle
-    pub(super) async fn create_total_position_number_handle(
+    pub(super) async fn create_total_current_position_amount_handle(
         &self,
         system_var_config: GetSystemVariableConfig,
     ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
@@ -139,9 +134,9 @@ impl VariableNodeContext {
         let handle = self
             .create_sys_variable_handle(system_var_config, |vts| {
                 Box::pin(async move {
-                    let current_positions = vts.with_ctx_read(|ctx| ctx.get_current_positions().clone()).await;
-                    let var_name = SysVariableType::TotalPositionNumber;
-                    let var_value = VariableValue::Number(Decimal::from(current_positions.len()));
+                    let current_positions = vts.with_ctx_read(|ctx| ctx.current_positions_count()).await;
+                    let var_name = SysVariableType::TotalCurrentPositionAmount;
+                    let var_value = VariableValue::Number(Decimal::from(current_positions));
                     SysVariable::new(var_name, var_display_name, None, var_value)
                 })
             })
@@ -149,8 +144,39 @@ impl VariableNodeContext {
         Ok(handle)
     }
 
+    pub(super) async fn create_current_position_amount_handle(
+        &self,
+        system_var_config: GetSystemVariableConfig,
+    ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
+        let var_display_name = system_var_config.var_display_name().clone();
+        let symbol = system_var_config
+            .symbol()
+            .as_ref()
+            .ok_or_else(|| {
+                SysVariableSymbolIsNullSnafu {
+                    sys_var_name: system_var_config.var_name().to_string(),
+                }
+                .build()
+            })?
+            .to_string();
+        let exchange = self.node_config.exchange_mode()?.selected_account.exchange.clone();
+        let handle = self
+            .create_sys_variable_handle(system_var_config, |vts| {
+                Box::pin(async move {
+                    let current_positions = vts
+                        .with_ctx_read(|ctx| ctx.current_positions_count_of_symbol(&symbol, &exchange))
+                        .await;
+                    let var_name = SysVariableType::CurrentPositionAmount;
+                    let var_value = VariableValue::Number(Decimal::from(current_positions));
+                    SysVariable::new(var_name, var_display_name, Some(symbol), var_value)
+                })
+            })
+            .await?;
+        Ok(handle)
+    }
+
     /// 创建获取总成交订单数量的 Handle
-    pub(super) async fn create_total_filled_order_number_handle(
+    pub(super) async fn create_total_unfilled_order_amount_handle(
         &self,
         system_var_config: GetSystemVariableConfig,
     ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
@@ -158,13 +184,9 @@ impl VariableNodeContext {
         let handle = self
             .create_sys_variable_handle(system_var_config, |vts| {
                 Box::pin(async move {
-                    let orders = vts.with_ctx_read(|ctx| ctx.unfilled_orders().clone()).await;
-                    let filled_order_number = orders
-                        .iter()
-                        .filter(|order| matches!(order.order_status, OrderStatus::Filled))
-                        .count();
-                    let var_name = SysVariableType::TotalFilledOrderNumber;
-                    let var_value = VariableValue::Number(Decimal::from(filled_order_number));
+                    let unfilled_order_number = vts.with_ctx_read(|ctx| ctx.unfilled_order_count()).await;
+                    let var_name = SysVariableType::TotalUnfilledOrderAmount;
+                    let var_value = VariableValue::Number(Decimal::from(unfilled_order_number));
                     SysVariable::new(var_name, var_display_name, None, var_value)
                 })
             })
@@ -173,7 +195,7 @@ impl VariableNodeContext {
     }
 
     /// 创建获取指定币种成交订单数量的 Handle
-    pub(super) async fn create_filled_order_number_handle(
+    pub(super) async fn create_unfilled_order_amount_handle(
         &self,
         system_var_config: GetSystemVariableConfig,
     ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
@@ -188,24 +210,150 @@ impl VariableNodeContext {
                 .build()
             })?
             .to_string();
+        let exchange = self.node_config.exchange_mode()?.selected_account.exchange.clone();
 
         let var_display_name = system_var_config.var_display_name().clone();
         // 调用通用方法，并在闭包中使用捕获的 symbol
         let handle = self
             .create_sys_variable_handle(system_var_config, move |vts| {
                 Box::pin(async move {
-                    let orders = vts.with_ctx_read(|ctx| ctx.unfilled_orders().clone()).await;
-                    let filled_order_number = orders
-                        .iter()
-                        .filter(|order| order.symbol == symbol && matches!(order.order_status, OrderStatus::Filled))
-                        .count();
-                    let var_name = SysVariableType::FilledOrderNumber;
-                    let var_value = VariableValue::Number(Decimal::from(filled_order_number));
+                    let unfilled_order_number = vts
+                        .with_ctx_read(|ctx| ctx.unfilled_order_count_of_symbol(&symbol, &exchange))
+                        .await;
+                    let var_name = SysVariableType::UnfilledOrderAmount;
+                    let var_value = VariableValue::Number(Decimal::from(unfilled_order_number));
                     SysVariable::new(var_name, var_display_name, Some(symbol), var_value)
                 })
             })
             .await?;
 
+        Ok(handle)
+    }
+
+    pub(super) async fn create_total_history_order_amount_handle(
+        &self,
+        system_var_config: GetSystemVariableConfig,
+    ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
+        let var_display_name = system_var_config.var_display_name().clone();
+        let handle = self
+            .create_sys_variable_handle(system_var_config, |vts| {
+                Box::pin(async move {
+                    let history_order_number = vts.with_ctx_read(|ctx| ctx.history_order_count()).await;
+                    let var_name = SysVariableType::TotalHistoryOrderAmount;
+                    let var_value = VariableValue::Number(Decimal::from(history_order_number));
+                    SysVariable::new(var_name, var_display_name, None, var_value)
+                })
+            })
+            .await?;
+        Ok(handle)
+    }
+
+    pub(super) async fn create_history_order_amount_handle(
+        &self,
+        system_var_config: GetSystemVariableConfig,
+    ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
+        let var_display_name = system_var_config.var_display_name().clone();
+        let symbol = system_var_config
+            .symbol()
+            .as_ref()
+            .ok_or_else(|| {
+                SysVariableSymbolIsNullSnafu {
+                    sys_var_name: system_var_config.var_name().to_string(),
+                }
+                .build()
+            })?
+            .to_string();
+        let exchange = self.node_config.exchange_mode()?.selected_account.exchange.clone();
+        let handle = self
+            .create_sys_variable_handle(system_var_config, |vts| {
+                Box::pin(async move {
+                    let history_order_number = vts.with_ctx_read(|ctx| ctx.history_order_count_of_symbol(&symbol, &exchange)).await;
+                    let var_name = SysVariableType::HistoryOrderAmount;
+                    let var_value = VariableValue::Number(Decimal::from(history_order_number));
+                    SysVariable::new(var_name, var_display_name, Some(symbol), var_value)
+                })
+            })
+            .await?;
+        Ok(handle)
+    }
+
+    pub(super) async fn create_total_history_position_amount_handle(
+        &self,
+        system_var_config: GetSystemVariableConfig,
+    ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
+        let var_display_name = system_var_config.var_display_name().clone();
+        let handle = self
+            .create_sys_variable_handle(system_var_config, |vts| {
+                Box::pin(async move {
+                    let history_position_amount = vts.with_ctx_read(|ctx| ctx.history_positions_count()).await;
+                    let var_name = SysVariableType::TotalHistoryPositionAmount;
+                    let var_value = VariableValue::Number(Decimal::from(history_position_amount));
+                    SysVariable::new(var_name, var_display_name, None, var_value)
+                })
+            })
+            .await?;
+        Ok(handle)
+    }
+
+    pub(super) async fn create_history_position_amount_handle(
+        &self,
+        system_var_config: GetSystemVariableConfig,
+    ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
+        let var_display_name = system_var_config.var_display_name().clone();
+        let symbol = system_var_config
+            .symbol()
+            .as_ref()
+            .ok_or_else(|| {
+                SysVariableSymbolIsNullSnafu {
+                    sys_var_name: system_var_config.var_name().to_string(),
+                }
+                .build()
+            })?
+            .to_string();
+        let exchange = self.node_config.exchange_mode()?.selected_account.exchange.clone();
+        let handle = self
+            .create_sys_variable_handle(system_var_config, |vts| {
+                Box::pin(async move {
+                    let history_position_amount = vts
+                        .with_ctx_read(|ctx| ctx.history_positions_count_of_symbol(&symbol, &exchange))
+                        .await;
+                    let var_name = SysVariableType::HistoryPositionAmount;
+                    let var_value = VariableValue::Number(Decimal::from(history_position_amount));
+                    SysVariable::new(var_name, var_display_name, Some(symbol), var_value)
+                })
+            })
+            .await?;
+        Ok(handle)
+    }
+
+    pub(super) async fn create_current_roi_handle(
+        &self,
+        system_var_config: GetSystemVariableConfig,
+    ) -> Result<JoinHandle<Result<(), VariableNodeError>>, VariableNodeError> {
+        let var_display_name = system_var_config.var_display_name().clone();
+        let symbol = system_var_config
+            .symbol()
+            .as_ref()
+            .ok_or_else(|| {
+                SysVariableSymbolIsNullSnafu {
+                    sys_var_name: system_var_config.var_name().to_string(),
+                }
+                .build()
+            })?
+            .to_string();
+        let exchange = self.node_config.exchange_mode()?.selected_account.exchange.clone();
+        let handle = self
+            .create_sys_variable_handle(system_var_config, |vts| {
+                Box::pin(async move {
+                    let current_roi = vts
+                        .with_ctx_read(|ctx| ctx.find_position_for(&symbol, &exchange).map(|p| p.roi))
+                        .await;
+                    let var_name = SysVariableType::CurrentRoi;
+                    let var_value = current_roi.map(VariableValue::percentage).unwrap_or(VariableValue::Null);
+                    SysVariable::new(var_name, var_display_name, None, var_value)
+                })
+            })
+            .await?;
         Ok(handle)
     }
 

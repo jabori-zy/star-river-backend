@@ -16,13 +16,27 @@ pub enum SysVariableType {
 
     IsTradable,
 
-    TotalPositionNumber,
+    TotalCurrentPositionAmount, // 总当前持仓数量
 
-    PositionNumber, //持仓数量
+    CurrentPositionAmount, //指定交易对持仓数量
 
-    TotalFilledOrderNumber, // 总成交订单数量
+    TotalHistoryPositionAmount, // 总历史持仓数量
 
-    FilledOrderNumber, // 已成交订单数量
+    HistoryPositionAmount, // 指定交易对历史持仓数量
+
+    TotalUnfilledOrderAmount, // 总未成交订单数量
+
+    UnfilledOrderAmount, // 指定交易对未成交订单数量
+
+    TotalHistoryOrderAmount, // 总历史订单数量
+
+    HistoryOrderAmount, // 指定交易对历史订单数量
+
+    TotalUnrealizedPnl, // 总未实现盈亏
+
+    UnrealizedPnl, // 指定交易对未实现盈亏
+
+    CurrentRoi, // current return on investment
 }
 
 #[derive(Debug, Clone, Deserialize, ToSchema)]

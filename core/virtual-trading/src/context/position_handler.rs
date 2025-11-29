@@ -4,6 +4,7 @@ use snafu::OptionExt;
 // Current crate imports
 use star_river_core::{
     custom_type::*,
+    exchange::Exchange,
     kline::Kline,
     order::{FuturesOrderSide, OrderStatus},
     position::PositionSide,
@@ -12,7 +13,7 @@ use star_river_core::{
 // Local module imports
 use super::VirtualTradingSystemContext;
 use crate::{
-    error::{MarginNotEnoughSnafu, PositionNotFoundSnafu, VtsError},
+    error::{MarginNotEnoughSnafu, PositionNotFoundForSymbolSnafu, PositionNotFoundSnafu, VtsError},
     event::VtsEvent,
     types::{VirtualOrder, VirtualPosition, VirtualTransaction},
     utils::Formula,
@@ -22,18 +23,62 @@ impl<E> VirtualTradingSystemContext<E>
 where
     E: Clone + Send + Sync + 'static,
 {
-    pub fn get_positions_by_kline_key(&self, kline_key: &KlineKey) -> Vec<VirtualPosition> {
+    pub fn find_position(&self, position_id: PositionId) -> Result<&VirtualPosition, VtsError> {
         self.current_positions
             .iter()
-            .filter(|position| position.exchange == kline_key.exchange && position.symbol == kline_key.symbol)
-            .cloned()
-            .collect::<Vec<VirtualPosition>>()
+            .find(|p| p.position_id == position_id)
+            .context(PositionNotFoundSnafu { position_id: position_id })
     }
 
-    pub fn generate_position_id(&self) -> PositionId {
-        self.current_positions.len() as PositionId
+    pub fn find_position_for(&self, symbol: &String, exchange: &Exchange) -> Result<&VirtualPosition, VtsError> {
+        self.current_positions
+            .iter()
+            .find(|p| &p.symbol == symbol && &p.exchange == exchange)
+            .context(PositionNotFoundForSymbolSnafu {
+                symbol: symbol.clone(),
+                exchange: exchange.to_string(),
+            })
     }
 
+    pub fn find_position_mut(&mut self, position_id: PositionId) -> Result<&mut VirtualPosition, VtsError> {
+        self.current_positions
+            .iter_mut()
+            .find(|p| p.position_id == position_id)
+            .context(PositionNotFoundSnafu { position_id: position_id })
+    }
+
+    // 将仓位从当前持仓列表中移除
+    pub fn remove_open_position(&mut self, position_id: PositionId) {
+        self.current_positions.retain(|p| p.position_id != position_id);
+    }
+
+    pub fn current_positions_count(&self) -> usize {
+        self.current_positions.len()
+    }
+
+    pub fn current_positions_count_of_symbol(&self, symbol: &String, exchange: &Exchange) -> usize {
+        self.current_positions
+            .iter()
+            .filter(|p| &p.symbol == symbol && &p.exchange == exchange)
+            .count()
+    }
+
+    pub fn history_positions_count(&self) -> usize {
+        self.history_positions.len()
+    }
+
+    pub fn history_positions_count_of_symbol(&self, symbol: &String, exchange: &Exchange) -> usize {
+        self.history_positions
+            .iter()
+            .filter(|p| &p.symbol == symbol && &p.exchange == exchange)
+            .count()
+    }
+}
+
+impl<E> VirtualTradingSystemContext<E>
+where
+    E: Clone + Send + Sync + 'static,
+{
     pub fn create_position(&mut self, order: &VirtualOrder, current_price: f64) -> Result<VirtualPosition, VtsError> {
         // 判断保证金是否充足
         let margin = Formula::calculate_margin(self.leverage, current_price, order.quantity);
@@ -86,7 +131,7 @@ where
         // Get or create position
         let (position, is_new_position) = if let Some(position_id) = existing_position_id {
             let updated_position = {
-                let position = self.get_position_by_id_mut(position_id)?;
+                let position = self.find_position_mut(position_id)?;
                 position.update_with_new_order(order, current_price, execute_datetime)?;
                 position.clone()
             };
@@ -145,7 +190,7 @@ where
     }
 
     // 更新仓位
-    pub fn update_position(&mut self, kline_key: &KlineKey, kline: &Kline) -> Result<(), VtsError> {
+    pub fn update_current_positions(&mut self, kline_key: &KlineKey, kline: &Kline) -> Result<(), VtsError> {
         let position_ids: Vec<PositionId> = self
             .current_positions
             .iter()
@@ -163,7 +208,7 @@ where
             let leverage = self.leverage;
             let available_balance = self.available_balance;
 
-            let position = self.get_position_by_id_mut(position_id)?;
+            let position = self.find_position_mut(position_id)?;
             let current_price = kline.close;
             let current_datetime = kline.datetime;
             let quantity = position.quantity;
@@ -179,34 +224,6 @@ where
             self.send_event(position_updated_event)?;
         }
         Ok(())
-    }
-
-    // 获取当前持仓
-    pub fn get_current_positions(&self) -> &Vec<VirtualPosition> {
-        &self.current_positions
-    }
-
-    pub fn get_history_positions(&self) -> Vec<VirtualPosition> {
-        self.history_positions.clone()
-    }
-
-    pub fn get_position_by_id(&self, position_id: PositionId) -> Result<&VirtualPosition, VtsError> {
-        self.current_positions
-            .iter()
-            .find(|p| p.position_id == position_id)
-            .context(PositionNotFoundSnafu { position_id: position_id })
-    }
-
-    pub fn get_position_by_id_mut(&mut self, position_id: PositionId) -> Result<&mut VirtualPosition, VtsError> {
-        self.current_positions
-            .iter_mut()
-            .find(|p| p.position_id == position_id)
-            .context(PositionNotFoundSnafu { position_id: position_id })
-    }
-
-    // 将仓位从当前持仓列表中移除
-    pub fn remove_open_position(&mut self, position_id: PositionId) {
-        self.current_positions.retain(|p| p.position_id != position_id);
     }
 
     /// Execute take profit order
@@ -228,12 +245,12 @@ where
         // Update position and determine if fully closed
         let (is_all_closed, virtual_transaction) = {
             let available_balance = self.available_balance;
-            let position = self.get_position_by_id_mut(position_id)?;
+            let position = self.find_position_mut(position_id)?;
             position.update_with_tp_order(tp_order, available_balance, execute_datetime)
         };
 
         // Get position snapshot
-        let position = self.get_position_by_id(position_id)?.clone();
+        let position = self.find_position(position_id)?.clone();
 
         // Send position updated event
         self.send_event(VtsEvent::PositionUpdated(position.clone()))?;
@@ -249,12 +266,17 @@ where
         let updated_tp_order = self.update_order_status(tp_order.order_id, OrderStatus::Filled)?;
         self.send_event(VtsEvent::TakeProfitOrderFilled(updated_tp_order))?;
 
-        // If fully closed, cancel sl orders and move position to history
+        // If fully closed, cancel all unfilled sl orders and tp orders, then move position to history
         if is_all_closed {
-            let sl_order_ids = self.get_sl_order_ids(&position.symbol, &position.exchange);
+            let sl_order_ids = self.find_sl_order_ids(&position.symbol, &position.exchange);
             for id in sl_order_ids {
                 let updated_sl_order = self.update_order_status(id, OrderStatus::Canceled)?;
                 self.send_event(VtsEvent::StopLossOrderCanceled(updated_sl_order))?;
+            }
+            let tp_order_ids = self.find_tp_order_ids(&position.symbol, &position.exchange);
+            for id in tp_order_ids {
+                let updated_tp_order = self.update_order_status(id, OrderStatus::Canceled)?;
+                self.send_event(VtsEvent::TakeProfitOrderCanceled(updated_tp_order))?;
             }
             self.remove_open_position(position_id);
             self.history_positions.push(position);
@@ -283,12 +305,12 @@ where
         // Update position and determine if fully closed
         let (is_all_closed, virtual_transaction) = {
             let available_balance = self.available_balance;
-            let position = self.get_position_by_id_mut(position_id)?;
+            let position = self.find_position_mut(position_id)?;
             position.update_with_sl_order(sl_order, available_balance, execute_datetime)
         };
 
         // Get position snapshot
-        let position = self.get_position_by_id(position_id)?.clone();
+        let position = self.find_position(position_id)?.clone();
 
         // Send position updated event
         self.send_event(VtsEvent::PositionUpdated(position.clone()))?;
@@ -308,7 +330,7 @@ where
 
         // If fully closed, cancel tp orders and move position to history
         if is_all_closed {
-            let tp_order_ids = self.get_tp_order_ids(&position.symbol, &position.exchange);
+            let tp_order_ids = self.find_tp_order_ids(&position.symbol, &position.exchange);
             for id in tp_order_ids {
                 let updated_tp_order = self.update_order_status(id, OrderStatus::Canceled)?;
                 self.send_event(VtsEvent::TakeProfitOrderCanceled(updated_tp_order))?;

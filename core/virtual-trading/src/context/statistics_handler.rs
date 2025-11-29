@@ -32,8 +32,8 @@ where
 
     // 更新冻结保证金
     pub fn update_frozen_margin(&mut self) {
-        let unfilled_orders = self.get_unfilled_orders();
-        self.frozen_margin = unfilled_orders
+        self.frozen_margin = self
+            .unfilled_orders
             .iter()
             .map(|order| Formula::calculate_margin(self.leverage, order.open_price, order.quantity))
             .sum();

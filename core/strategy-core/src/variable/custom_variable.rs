@@ -39,6 +39,12 @@ pub enum VariableValue {
 }
 
 impl VariableValue {
+    pub fn percentage(value: f64) -> Self {
+        Self::Percentage(Decimal::try_from(value).unwrap_or(Decimal::ZERO))
+    }
+}
+
+impl VariableValue {
     /// 根据 VariableValueType 从 JSON Value 解析 VariableValue
     pub fn from_json_with_type(value: serde_json::Value, value_type: &VariableValueType) -> Result<Self, String> {
         match value_type {

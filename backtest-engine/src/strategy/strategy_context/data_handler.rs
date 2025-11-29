@@ -17,36 +17,26 @@ impl BacktestStrategyContext {
     pub async fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
         let virtual_trading_system = self.virtual_trading_system.lock().await;
         let virtual_orders = virtual_trading_system
-            .with_ctx_read(|ctx| {
-                ctx.unfilled_orders()
-                    .clone()
-                    .into_iter()
-                    .chain(ctx.history_orders().clone())
-                    .collect()
-            })
+            .with_ctx_read(|ctx| ctx.unfilled_orders.clone().into_iter().chain(ctx.history_orders.clone()).collect())
             .await;
         virtual_orders
     }
 
     pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
         let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let current_positions = virtual_trading_system
-            .with_ctx_read(|ctx| ctx.get_current_positions().clone())
-            .await;
+        let current_positions = virtual_trading_system.with_ctx_read(|ctx| ctx.current_positions.clone()).await;
         current_positions
     }
 
     pub async fn get_history_positions(&self) -> Vec<VirtualPosition> {
         let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let history_positions = virtual_trading_system
-            .with_ctx_read(|ctx| ctx.get_history_positions().clone())
-            .await;
+        let history_positions = virtual_trading_system.with_ctx_read(|ctx| ctx.history_positions.clone()).await;
         history_positions
     }
 
     pub async fn get_transactions(&self) -> Vec<VirtualTransaction> {
         let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let transactions = virtual_trading_system.with_ctx_read(|ctx| ctx.get_transactions().clone()).await;
+        let transactions = virtual_trading_system.with_ctx_read(|ctx| ctx.transactions.clone()).await;
         transactions
     }
 

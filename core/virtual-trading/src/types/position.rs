@@ -12,7 +12,7 @@ use utoipa::ToSchema;
 
 use super::id_generator::POSITION_ID_COUNTER;
 use crate::{
-    error::{OnlyOneDirectionSupportedSnafu, SlOrderQuantityMoreThanPosQuantitySnafu, TpOrderQuantityMoreThanPosQuantitySnafu, VtsError},
+    error::{OnlyOneDirectionSupportedSnafu, VtsError},
     types::{VirtualOrder, VirtualTransaction},
     utils::Formula,
 };
@@ -34,6 +34,7 @@ pub struct VirtualPosition {
     pub force_price: f64,          // 强平价格
     pub margin: Margin,            // 仓位占用的保证金
     pub margin_ratio: MarginRatio, // 保证金率
+    pub roi: f64,                  // 收益率
     pub create_time: DateTime<Utc>,
     pub update_time: DateTime<Utc>,
 }
@@ -67,6 +68,7 @@ impl VirtualPosition {
             margin,
             margin_ratio,
             leverage,
+            roi: 0.0,
             create_time: datetime,
             update_time: datetime,
         }
@@ -79,6 +81,7 @@ impl VirtualPosition {
             PositionSide::Long => self.quantity * (current_price - self.open_price),
             PositionSide::Short => self.quantity * (self.open_price - current_price),
         };
+        self.roi = self.unrealized_profit / (self.open_price * self.quantity);
         self.margin = margin;
         self.margin_ratio = margin_ratio;
         self.force_price = force_price;
@@ -119,6 +122,7 @@ impl VirtualPosition {
             PositionSide::Long => self.quantity * (current_price - self.open_price),
             PositionSide::Short => self.quantity * (self.open_price - current_price),
         };
+        self.roi = self.unrealized_profit / (self.open_price * self.quantity);
 
         // Note: margin, margin_ratio, and force_price need to be updated separately
         // as they require leverage and available_balance which are not available here
@@ -143,6 +147,7 @@ impl VirtualPosition {
                 PositionSide::Long => self.quantity * (self.current_price - self.open_price),
                 PositionSide::Short => self.quantity * (self.open_price - self.current_price),
             };
+            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
             self.force_price = 0.0;
             self.margin = 0.0;
             self.margin_ratio = 0.0;
@@ -171,6 +176,7 @@ impl VirtualPosition {
                 PositionSide::Long => self.quantity * (self.current_price - self.open_price),
                 PositionSide::Short => self.quantity * (self.open_price - self.current_price),
             };
+            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
             self.margin = Formula::calculate_margin(self.leverage, self.current_price, self.quantity);
             self.margin_ratio = Formula::calculate_margin_ratio(balance, self.leverage, self.current_price, self.quantity);
             self.force_price = Formula::calculate_force_price(&self.position_side, self.leverage, self.current_price, self.quantity);
@@ -202,6 +208,7 @@ impl VirtualPosition {
                 PositionSide::Long => self.quantity * (self.current_price - self.open_price),
                 PositionSide::Short => self.quantity * (self.open_price - self.current_price),
             };
+            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
             self.force_price = 0.0;
             self.margin = 0.0;
             self.margin_ratio = 0.0;
@@ -243,6 +250,7 @@ impl VirtualPosition {
                 PositionSide::Long => self.quantity * (self.current_price - self.open_price),
                 PositionSide::Short => self.quantity * (self.open_price - self.current_price),
             };
+            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
             self.force_price = 0.0;
             self.margin = 0.0;
             self.margin_ratio = 0.0;
@@ -271,6 +279,7 @@ impl VirtualPosition {
                 PositionSide::Long => self.quantity * (self.current_price - self.open_price),
                 PositionSide::Short => self.quantity * (self.open_price - self.current_price),
             };
+            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
             self.margin = Formula::calculate_margin(self.leverage, self.current_price, self.quantity);
             self.margin_ratio = Formula::calculate_margin_ratio(balance, self.leverage, self.current_price, self.quantity);
             self.force_price = Formula::calculate_force_price(&self.position_side, self.leverage, self.current_price, self.quantity);
@@ -302,6 +311,7 @@ impl VirtualPosition {
                 PositionSide::Long => self.quantity * (self.current_price - self.open_price),
                 PositionSide::Short => self.quantity * (self.open_price - self.current_price),
             };
+            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
             self.force_price = 0.0;
             self.margin = 0.0;
             self.margin_ratio = 0.0;
