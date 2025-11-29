@@ -7,7 +7,7 @@ impl<E> VirtualTradingSystemContext<E>
 where
     E: Clone + Send + Sync + 'static,
 {
-    pub fn get_transaction_id(&self) -> TransactionId {
+    pub fn generate_transaction_id(&self) -> TransactionId {
         self.transactions.len() as TransactionId + 1
     }
 

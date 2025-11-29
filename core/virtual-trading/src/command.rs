@@ -9,7 +9,7 @@ use star_river_core::{
 };
 use tokio::sync::oneshot;
 
-use crate::error::VirtualTradingSystemError;
+use crate::error::VtsError;
 
 // ================================ VTS Command Base ================================
 
@@ -75,14 +75,8 @@ pub enum VtsResponse<P>
 where
     P: Debug + Send + Sync + 'static,
 {
-    Success {
-        payload: P,
-        datetime: DateTime<Utc>,
-    },
-    Fail {
-        error: VirtualTradingSystemError,
-        datetime: DateTime<Utc>,
-    },
+    Success { payload: P, datetime: DateTime<Utc> },
+    Fail { error: VtsError, datetime: DateTime<Utc> },
 }
 
 impl<P> VtsResponse<P>
@@ -98,7 +92,7 @@ where
     }
 
     /// Create fail response
-    pub fn fail(error: VirtualTradingSystemError) -> Self {
+    pub fn fail(error: VtsError) -> Self {
         Self::Fail {
             error,
             datetime: Utc::now(),
@@ -132,7 +126,7 @@ where
     }
 
     /// Get error reference (if fail)
-    pub fn error(&self) -> Option<&VirtualTradingSystemError> {
+    pub fn error(&self) -> Option<&VtsError> {
         match self {
             Self::Success { .. } => None,
             Self::Fail { error, .. } => Some(error),
@@ -140,7 +134,7 @@ where
     }
 
     /// Consume self and return payload (if success)
-    pub fn into_payload(self) -> Result<P, VirtualTradingSystemError> {
+    pub fn into_payload(self) -> Result<P, VtsError> {
         match self {
             Self::Success { payload, .. } => Ok(payload),
             Self::Fail { error, .. } => Err(error),

@@ -1,7 +1,10 @@
 use std::{fmt::Debug, ops::Deref, sync::Arc};
 
 use chrono::Utc;
-use star_river_core::{custom_type::NodeId, error::error_trait::StarRiverErrorTrait};
+use star_river_core::{
+    custom_type::{NodeId, NodeName},
+    error::error_trait::StarRiverErrorTrait,
+};
 use tokio::sync::oneshot;
 
 // ================================ Node Command ================================
@@ -11,6 +14,7 @@ where
     S: Debug + Send + Sync + 'static,
 {
     pub node_id: NodeId,
+    pub node_name: NodeName,
     pub datetime: chrono::DateTime<Utc>,
     pub responder: oneshot::Sender<NodeResponse<S>>,
 }
@@ -30,9 +34,10 @@ where
     T: Debug + Send + Sync + 'static,
     S: Debug + Send + Sync + 'static,
 {
-    pub fn new(node_id: NodeId, responder: oneshot::Sender<NodeResponse<S>>, command_payload: T) -> Self {
+    pub fn new(node_id: NodeId, node_name: NodeName, responder: oneshot::Sender<NodeResponse<S>>, command_payload: T) -> Self {
         let command_base = NodeCommandBase {
             node_id,
+            node_name,
             datetime: Utc::now(),
             responder,
         };
@@ -44,6 +49,10 @@ where
 
     pub fn node_id(&self) -> &NodeId {
         &self.command_base.node_id
+    }
+
+    pub fn node_name(&self) -> &NodeName {
+        &self.command_base.node_name
     }
 
     pub fn datetime(&self) -> chrono::DateTime<Utc> {
@@ -75,11 +84,13 @@ where
 {
     Success {
         node_id: NodeId,
+        node_name: NodeName,
         payload: P,
         datetime: chrono::DateTime<Utc>,
     },
     Fail {
         node_id: NodeId,
+        node_name: NodeName,
         error: Arc<dyn StarRiverErrorTrait>,
         datetime: chrono::DateTime<Utc>,
     },
@@ -90,18 +101,20 @@ where
     P: Debug + Send + Sync + 'static,
 {
     /// 创建成功响应
-    pub fn success(node_id: NodeId, payload: P) -> Self {
+    pub fn success(node_id: NodeId, node_name: NodeName, payload: P) -> Self {
         Self::Success {
             node_id,
+            node_name,
             payload,
             datetime: Utc::now(),
         }
     }
 
     /// 创建失败响应
-    pub fn fail(node_id: NodeId, error: Arc<dyn StarRiverErrorTrait>) -> Self {
+    pub fn fail(node_id: NodeId, node_name: NodeName, error: Arc<dyn StarRiverErrorTrait>) -> Self {
         Self::Fail {
             node_id,
+            node_name,
             error,
             datetime: Utc::now(),
         }
@@ -122,6 +135,13 @@ where
         match self {
             Self::Success { node_id, .. } => node_id.clone(),
             Self::Fail { node_id, .. } => node_id.clone(),
+        }
+    }
+    /// 获取节点名称
+    pub fn node_name(&self) -> NodeName {
+        match self {
+            Self::Success { node_name, .. } => node_name.clone(),
+            Self::Fail { node_name, .. } => node_name.clone(),
         }
     }
 
@@ -166,14 +186,26 @@ where
         match self {
             Self::Success {
                 node_id,
+                node_name,
                 payload,
                 datetime,
             } => NodeResponse::Success {
                 node_id,
+                node_name,
                 payload: f(payload),
                 datetime,
             },
-            Self::Fail { node_id, error, datetime } => NodeResponse::Fail { node_id, error, datetime },
+            Self::Fail {
+                node_id,
+                node_name,
+                error,
+                datetime,
+            } => NodeResponse::Fail {
+                node_id,
+                node_name,
+                error,
+                datetime,
+            },
         }
     }
 }

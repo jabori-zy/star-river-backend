@@ -1,3 +1,5 @@
+use std::{error::Error, sync::Arc};
+
 use snafu::{Backtrace, Snafu};
 use star_river_core::{
     custom_type::NodeId,
@@ -132,6 +134,22 @@ pub enum StrategyError {
 
     #[snafu(display("[{strategy_name}] node cycle detected"))]
     NodeCycleDetected { strategy_name: String, backtrace: Backtrace },
+
+    #[snafu(display("#[{strategy_name}] node @[{node_name}] command send failed, reason: {source}"))]
+    NodeCmdSendFailed {
+        strategy_name: String,
+        node_name: String,
+        source: Arc<dyn Error + Send + Sync + 'static>,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("#[{strategy_name}] node @[{node_name}] command response receive failed, reason: {source}"))]
+    NodeCmdRespRecvFailed {
+        strategy_name: String,
+        node_name: String,
+        source: tokio::sync::oneshot::error::RecvError,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for Mt5Error
@@ -163,6 +181,8 @@ impl StarRiverErrorTrait for StrategyError {
             StrategyError::DivideByZero { .. } => 1018,               // 除零错误
             StrategyError::NodeBenchmarkNotFound { .. } => 1019,      // 节点benchmark未找到
             StrategyError::NodeCycleDetected { .. } => 1020,          // 节点存在循环依赖
+            StrategyError::NodeCmdSendFailed { .. } => 1021,          // 节点命令发送失败
+            StrategyError::NodeCmdRespRecvFailed { .. } => 1022,      // 节点命令响应接收失败
         };
         format!("{prefix}_{code}")
     }
@@ -182,7 +202,9 @@ impl StarRiverErrorTrait for StrategyError {
             | StrategyError::NodeStateNotReady { .. }
             | StrategyError::WaitAllNodesStoppedTimeout { .. }
             | StrategyError::DivideByZero { .. }
-            | StrategyError::NodeCycleDetected { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            | StrategyError::NodeCycleDetected { .. }
+            | StrategyError::NodeCmdSendFailed { .. }
+            | StrategyError::NodeCmdRespRecvFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
 
             // 客户端错误 - 配置/数据问题 (400)
             StrategyError::NodeConfigNull { .. }
@@ -281,6 +303,22 @@ impl StarRiverErrorTrait for StrategyError {
 
                 StrategyError::NodeCycleDetected { strategy_name, .. } => {
                     format!("策略 [{strategy_name}] 节点存在循环依赖")
+                }
+                StrategyError::NodeCmdSendFailed {
+                    strategy_name,
+                    node_name,
+                    source,
+                    ..
+                } => {
+                    format!("#[{strategy_name}] node @[{node_name}] command send failed, reason: {source}")
+                }
+                StrategyError::NodeCmdRespRecvFailed {
+                    strategy_name,
+                    node_name,
+                    source,
+                    ..
+                } => {
+                    format!("#[{strategy_name}] node @[{node_name}] command response receive failed, reason: {source}")
                 }
             },
         }

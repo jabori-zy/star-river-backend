@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
 
-use crate::{exchange::Exchange, system::DateTimeUtc};
+use crate::{exchange::Exchange, position::PositionSide, system::DateTimeUtc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrderParams {
@@ -39,18 +39,18 @@ pub struct GetTransactionDetailParams {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, Display, ToSchema)]
 pub enum FuturesOrderSide {
-    #[strum(serialize = "OPEN LONG")]
-    #[serde(rename = "OPEN_LONG")]
-    OpenLong,
-    #[strum(serialize = "OPEN SHORT")]
-    #[serde(rename = "OPEN SHORT")]
-    OpenShort,
-    #[strum(serialize = "CLOSE LONG")]
-    #[serde(rename = "CLOSE_LONG")]
-    CloseLong,
-    #[strum(serialize = "CLOSE SHORT")]
-    #[serde(rename = "CLOSE_SHORT")]
-    CloseShort,
+    #[strum(serialize = "LONG")]
+    #[serde(rename = "LONG")]
+    Long,
+    #[strum(serialize = "SHORT")]
+    #[serde(rename = "SHORT")]
+    Short,
+    // #[strum(serialize = "CLOSE LONG")]
+    // #[serde(rename = "CLOSE_LONG")]
+    // CloseLong,
+    // #[strum(serialize = "CLOSE SHORT")]
+    // #[serde(rename = "CLOSE_SHORT")]
+    // CloseShort,
 }
 
 // 止盈止损类型

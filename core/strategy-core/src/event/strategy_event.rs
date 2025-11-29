@@ -247,13 +247,7 @@ impl StrategyRunningLogEvent {
         detail: serde_json::Value,
         datetime: DateTime<Utc>,
     ) -> Self {
-        Self::Info(StrategyRunningInfoLog::new(
-            cycle_id,
-            strategy_id,
-            message,
-            detail,
-            Some(datetime),
-        ))
+        Self::Info(StrategyRunningInfoLog::new(cycle_id, strategy_id, message, detail, Some(datetime)))
     }
 
     pub fn warn_with_time(
@@ -274,12 +268,7 @@ impl StrategyRunningLogEvent {
         ))
     }
 
-    pub fn error_with_time(
-        cycle_id: CycleId,
-        strategy_id: StrategyId,
-        error: &impl StarRiverErrorTrait,
-        datetime: DateTime<Utc>,
-    ) -> Self {
+    pub fn error_with_time(cycle_id: CycleId, strategy_id: StrategyId, error: &impl StarRiverErrorTrait, datetime: DateTime<Utc>) -> Self {
         Self::Error(StrategyRunningErrorLog::new_with_time(
             cycle_id,
             strategy_id,
@@ -289,19 +278,8 @@ impl StrategyRunningLogEvent {
         ))
     }
 
-    pub fn info(
-        cycle_id: CycleId,
-        strategy_id: StrategyId,
-        message: String,
-        detail: serde_json::Value,
-    ) -> Self {
-        Self::Info(StrategyRunningInfoLog::new(
-            cycle_id,
-            strategy_id,
-            message,
-            detail,
-            None,
-        ))
+    pub fn info(cycle_id: CycleId, strategy_id: StrategyId, message: String, detail: serde_json::Value) -> Self {
+        Self::Info(StrategyRunningInfoLog::new(cycle_id, strategy_id, message, detail, None))
     }
 
     pub fn warn(
@@ -321,17 +299,8 @@ impl StrategyRunningLogEvent {
         ))
     }
 
-    pub fn error(
-        cycle_id: CycleId,
-        strategy_id: StrategyId,
-        error: &impl StarRiverErrorTrait,
-    ) -> Self {
-        Self::Error(StrategyRunningErrorLog::new(
-            cycle_id,
-            strategy_id,
-            error,
-            None,
-        ))
+    pub fn error(cycle_id: CycleId, strategy_id: StrategyId, error: &impl StarRiverErrorTrait) -> Self {
+        Self::Error(StrategyRunningErrorLog::new(cycle_id, strategy_id, error, None))
     }
 }
 
@@ -463,12 +432,7 @@ pub struct StrategyRunningErrorLog {
 }
 
 impl StrategyRunningErrorLog {
-    pub fn new(
-        cycle_id: CycleId,
-        strategy_id: StrategyId,
-        error: &impl StarRiverErrorTrait,
-        datetime: Option<DateTime<Utc>>,
-    ) -> Self {
+    pub fn new(cycle_id: CycleId, strategy_id: StrategyId, error: &impl StarRiverErrorTrait, datetime: Option<DateTime<Utc>>) -> Self {
         let datetime = datetime.unwrap_or(Utc::now());
         let message = error.error_message(ErrorLanguage::Chinese);
         let error_code = error.error_code().to_string();

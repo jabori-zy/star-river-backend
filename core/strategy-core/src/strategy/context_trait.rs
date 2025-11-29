@@ -9,7 +9,7 @@ use event_center_core::event::EventTrait;
 use heartbeat::Heartbeat;
 use petgraph::{Directed, Direction, Graph, graph::NodeIndex};
 use sea_orm::DatabaseConnection;
-use snafu::OptionExt;
+use snafu::{IntoError, OptionExt};
 use star_river_core::{
     custom_type::{CycleId, NodeId, NodeName, StrategyId, StrategyName},
     error::StarRiverErrorTrait,
@@ -31,7 +31,7 @@ use crate::{
     communication::{NodeCommandTrait, StrategyCommandTrait},
     error::{
         StrategyError, StrategyStateMachineError,
-        strategy_error::{CustomVariableNotExistSnafu, NodeCycleDetectedSnafu},
+        strategy_error::{CustomVariableNotExistSnafu, NodeCmdSendFailedSnafu, NodeCycleDetectedSnafu},
     },
     event::node::NodeEventTrait,
     node::NodeTrait,
@@ -141,7 +141,6 @@ impl<Ctx> StrategyInfoExt for Ctx where Ctx: StrategyMetaDataExt {}
 /// Provides workflow management capabilities such as topological sorting and node lifecycle management
 #[async_trait]
 pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt {
-
     /// Perform topological sort on the workflow graph
     ///
     /// Returns nodes in topological order, ensuring dependencies are processed before dependents
@@ -361,7 +360,7 @@ impl<Ctx> StrategyTaskControlExt for Ctx where Ctx: StrategyMetaDataExt {}
 ///
 /// Manages communication channels for strategy commands
 #[async_trait]
-pub trait StrategyCommunicationExt: StrategyMetaDataExt {
+pub trait StrategyCommunicationExt: StrategyMetaDataExt + StrategyIdentityExt {
     /// Get strategy command sender
     #[inline]
     fn strategy_command_sender(&self) -> &mpsc::Sender<Self::StrategyCommand> {
@@ -382,9 +381,16 @@ pub trait StrategyCommunicationExt: StrategyMetaDataExt {
         self.metadata().node_command_sender(node_id)
     }
 
-    async fn send_node_command(&self, command: Self::NodeCommand) -> Result<(), tokio::sync::mpsc::error::SendError<Self::NodeCommand>> {
+    async fn send_node_command(&self, command: Self::NodeCommand) -> Result<(), StrategyError> {
         let node_id = command.node_id();
-        self.node_command_sender(node_id).send(command).await
+        let node_name = command.node_name().clone();
+        self.node_command_sender(node_id).send(command).await.map_err(|e| {
+            NodeCmdSendFailedSnafu {
+                strategy_name: self.strategy_name().clone(),
+                node_name: node_name.clone(),
+            }
+            .into_error(Arc::new(e))
+        })
     }
 }
 

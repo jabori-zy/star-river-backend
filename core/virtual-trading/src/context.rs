@@ -4,7 +4,11 @@ pub mod position_handler;
 pub mod statistics_handler;
 pub mod transaction_handler;
 
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    sync::{Arc, atomic::Ordering},
+};
 
 use chrono::{DateTime, Utc};
 use key::{KeyTrait, KlineKey};
@@ -19,8 +23,11 @@ use crate::{
     event::{VirtualTradingSystemEventReceiver, VirtualTradingSystemEventSender, VtsEvent},
 };
 use crate::{
-    error::{EventSendFailedSnafu, KlineKeyNotFoundSnafu, OrderNotFoundSnafu, VirtualTradingSystemError},
-    types::{VirtualOrder, VirtualPosition, VirtualTransaction},
+    error::{EventSendFailedSnafu, KlineKeyNotFoundSnafu, OrderNotFoundSnafu, VtsError},
+    types::{
+        VirtualOrder, VirtualPosition, VirtualTransaction,
+        id_generator::{ORDER_ID_COUNTER, POSITION_ID_COUNTER, TRANSACTION_ID_COUNTER},
+    },
 };
 
 /// 虚拟交易系统
@@ -59,7 +66,8 @@ where
     // 持仓相关
     pub current_positions: Vec<VirtualPosition>, // 当前持仓
     pub history_positions: Vec<VirtualPosition>, // 历史持仓
-    pub orders: Vec<VirtualOrder>,               // 所有订单(已成交订单 + 未成交订单)
+    pub unfilled_orders: Vec<VirtualOrder>,      // 所有订单(未成交订单)
+    pub history_orders: Vec<VirtualOrder>,       // 历史订单(已成交订单)
     pub transactions: Vec<VirtualTransaction>,   // 交易历史
 }
 
@@ -88,7 +96,8 @@ where
             fee_rate: 0.0,
             current_positions: vec![],
             history_positions: vec![],
-            orders: vec![],
+            unfilled_orders: vec![],
+            history_orders: vec![],
             transactions: vec![],
             event_transceiver: (tx, rx),
             command_transceiver: (command_tx, Arc::new(Mutex::new(command_rx))),
@@ -116,7 +125,7 @@ where
         &self.kline_node_event_receiver
     }
 
-    pub fn get_kline_price(&self, kline_key: &KlineKey) -> Result<&Kline, VirtualTradingSystemError> {
+    pub fn get_kline_price(&self, kline_key: &KlineKey) -> Result<&Kline, VtsError> {
         self.kline_price.get(kline_key).context(KlineKeyNotFoundSnafu {
             exchange: kline_key.exchange().to_string(),
             symbol: kline_key.symbol(),
@@ -165,7 +174,7 @@ where
     }
 
     // 设置k线缓存索引, 并更新所有数据
-    pub fn update_system(&mut self, kline_key: &KlineKey, kline: &Kline) -> Result<(), VirtualTradingSystemError> {
+    pub fn update_system(&mut self, kline_key: &KlineKey, kline: &Kline) -> Result<(), VtsError> {
         self.check_unfilled_orders(&kline_key, &kline)?;
         // 价格更新后，更新仓位
         self.update_position(&kline_key, &kline)?;
@@ -193,7 +202,7 @@ where
         Ok(())
     }
 
-    pub fn send_event(&self, event: VtsEvent) -> Result<usize, VirtualTradingSystemError> {
+    pub fn send_event(&self, event: VtsEvent) -> Result<usize, VtsError> {
         self.event_transceiver.0.send(event).context(EventSendFailedSnafu {})
     }
 
@@ -237,38 +246,46 @@ where
     }
 
     // 获取所有订单
-    pub fn get_orders(&self) -> &Vec<VirtualOrder> {
-        &self.orders
+    pub fn unfilled_orders(&self) -> &Vec<VirtualOrder> {
+        &self.unfilled_orders
     }
 
-    pub fn get_order_by_id(&self, order_id: &OrderId) -> Result<&VirtualOrder, VirtualTradingSystemError> {
-        self.orders
+    pub fn history_orders(&self) -> &Vec<VirtualOrder> {
+        &self.history_orders
+    }
+
+    pub fn get_unfiiled_order_by_id(&self, order_id: &OrderId) -> Result<&VirtualOrder, VtsError> {
+        self.unfilled_orders
             .iter()
             .find(|order| &order.order_id == order_id)
             .context(OrderNotFoundSnafu { order_id: *order_id })
     }
 
-    pub fn get_order_by_id_mut(&mut self, order_id: &OrderId) -> Result<&mut VirtualOrder, VirtualTradingSystemError> {
-        self.orders
+    pub fn get_order_by_id_mut(&mut self, order_id: &OrderId) -> Result<&mut VirtualOrder, VtsError> {
+        self.unfilled_orders
             .iter_mut()
             .find(|order| &order.order_id == order_id)
             .context(OrderNotFoundSnafu { order_id: *order_id })
     }
 
-    pub fn get_take_profit_order(&self, position_id: PositionId) -> Option<&VirtualOrder> {
-        self.orders
+    pub fn get_tp_order_ids(&self, symbol: &String, exchange: &Exchange) -> Vec<i32> {
+        self.unfilled_orders
             .iter()
-            .find(|order| order.position_id == Some(position_id) && order.order_type == OrderType::TakeProfitMarket)
+            .filter(|order| order.exchange == *exchange && order.symbol == *symbol && order.order_type == OrderType::TakeProfitMarket)
+            .map(|order| order.order_id)
+            .collect()
     }
 
-    pub fn get_stop_loss_order(&self, position_id: PositionId) -> Option<&VirtualOrder> {
-        self.orders
+    pub fn get_sl_order_ids(&self, symbol: &String, exchange: &Exchange) -> Vec<i32> {
+        self.unfilled_orders
             .iter()
-            .find(|order| order.position_id == Some(position_id) && order.order_type == OrderType::StopMarket)
+            .filter(|order| order.exchange == *exchange && order.symbol == *symbol && order.order_type == OrderType::StopMarket)
+            .map(|order| order.order_id)
+            .collect()
     }
 
     // 根据交易所和symbol获取k线缓存key
-    fn get_kline_key(&self, exchange: &Exchange, symbol: &String) -> Result<&KlineKey, VirtualTradingSystemError> {
+    fn get_kline_key(&self, exchange: &Exchange, symbol: &String) -> Result<&KlineKey, VtsError> {
         // tracing::debug!("kline_price keys: {:?}", self.kline_price.keys());
         self.kline_price()
             .keys()
@@ -284,9 +301,13 @@ where
     pub fn reset(&mut self) {
         self.current_positions.clear();
         self.history_positions.clear();
-        self.orders.clear();
+        self.unfilled_orders.clear();
+        self.history_orders.clear();
         self.transactions.clear();
         self.available_balance = self.initial_balance;
         self.used_margin = 0.0;
+        ORDER_ID_COUNTER.store(0, Ordering::SeqCst);
+        POSITION_ID_COUNTER.store(0, Ordering::SeqCst);
+        TRANSACTION_ID_COUNTER.store(0, Ordering::SeqCst);
     }
 }

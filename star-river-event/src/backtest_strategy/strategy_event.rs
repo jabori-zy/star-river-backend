@@ -84,25 +84,25 @@ pub enum BacktestStrategyEvent {
 
     #[strum(serialize = "position-created-event")]
     #[serde(rename = "position-created-event")]
-    PositionCreated { 
+    PositionCreated {
         #[serde(rename = "virtualPosition")]
-        virtual_position: VirtualPosition 
+        virtual_position: VirtualPosition,
     }, // 仓位创建事件
 
     #[strum(serialize = "position-updated-event")]
     #[serde(rename = "position-updated-event")]
     #[from(ignore)]
-    PositionUpdated { 
+    PositionUpdated {
         #[serde(rename = "virtualPosition")]
-        virtual_position: VirtualPosition 
+        virtual_position: VirtualPosition,
     }, // 仓位更新事件
 
     #[strum(serialize = "position-closed-event")]
     #[serde(rename = "position-closed-event")]
     #[from(ignore)]
-    PositionClosed { 
+    PositionClosed {
         #[serde(rename = "virtualPosition")]
-        virtual_position: VirtualPosition 
+        virtual_position: VirtualPosition,
     }, // 仓位关闭事件
 
     #[strum(serialize = "strategy-stats-updated-event")]
@@ -133,7 +133,6 @@ pub enum BacktestStrategyEvent {
     #[serde(rename = "strategy-performance-update-event")]
     StrategyPerformanceUpdate(StrategyPerformanceUpdateEvent), // 策略性能更新事件
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

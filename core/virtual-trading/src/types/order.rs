@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use star_river_core::{
@@ -7,66 +9,33 @@ use star_river_core::{
 };
 use utoipa::ToSchema;
 
+use super::id_generator::ORDER_ID_COUNTER;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-/// 虚拟订单
+#[serde(rename_all = "camelCase")]
 pub struct VirtualOrder {
-    #[serde(rename = "orderId")]
-    pub order_id: OrderId, // 订单ID
-
-    #[serde(rename = "positionId")]
+    pub order_id: OrderId,               // 订单ID
     pub position_id: Option<PositionId>, // 仓位ID
-
-    #[serde(rename = "strategyId")]
-    pub strategy_id: StrategyId, // 策略ID
-
-    #[serde(rename = "nodeId")]
-    pub node_id: NodeId, // 节点ID
-
-    #[serde(rename = "nodeName")]
-    pub node_name: NodeName, // 节点名称
-
-    #[serde(rename = "orderConfigId")]
-    pub order_config_id: i32, // 订单配置ID
-
-    #[serde(rename = "exchange")]
-    pub exchange: Exchange, // 交易所
-
-    #[serde(rename = "symbol")]
-    pub symbol: String, // 交易对
-
-    #[serde(rename = "orderSide")]
-    pub order_side: FuturesOrderSide, // 订单方向
-
-    #[serde(rename = "orderType")]
-    pub order_type: OrderType, // 订单类型
-
-    #[serde(rename = "orderStatus")]
-    pub order_status: OrderStatus, // 订单状态
-
-    #[serde(rename = "quantity")]
-    pub quantity: f64, // 数量
-
-    #[serde(rename = "openPrice")]
-    pub open_price: f64, // 开仓价格
-
-    #[serde(rename = "tp")]
-    pub tp: Option<f64>, // 止盈
-
-    #[serde(rename = "sl")]
-    pub sl: Option<f64>, // 止损
-
-    #[serde(rename = "createTime")]
-    pub create_time: DateTime<Utc>, // 创建时间
-
-    #[serde(rename = "updateTime")]
-    pub update_time: DateTime<Utc>, // 更新时间
+    pub strategy_id: StrategyId,         // 策略ID
+    pub node_id: NodeId,                 // 节点ID
+    pub node_name: NodeName,             // 节点名称
+    pub order_config_id: i32,            // 订单配置ID
+    pub exchange: Exchange,              // 交易所
+    pub symbol: String,                  // 交易对
+    pub order_side: FuturesOrderSide,    // 订单方向
+    pub order_type: OrderType,           // 订单类型
+    pub order_status: OrderStatus,       // 订单状态
+    pub quantity: f64,                   // 数量
+    pub open_price: f64,                 // 开仓价格
+    pub tp: Option<f64>,                 // 止盈
+    pub sl: Option<f64>,                 // 止损
+    pub create_time: DateTime<Utc>,      // 创建时间
+    pub update_time: DateTime<Utc>,      // 更新时间
 }
 
 impl VirtualOrder {
     pub fn new(
         position_id: Option<PositionId>,
         strategy_id: StrategyId,
-        order_id: OrderId,
         node_id: NodeId,
         node_name: NodeName,
         order_config_id: i32,
@@ -83,9 +52,10 @@ impl VirtualOrder {
         point: Option<f64>,
         datetime: DateTime<Utc>,
     ) -> Self {
+        let order_id = ORDER_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         Self {
-            position_id,
             order_id,
+            position_id,
             strategy_id,
             node_id,
             node_name,
@@ -106,7 +76,6 @@ impl VirtualOrder {
 
     pub fn create_order(
         strategy_id: StrategyId,
-        order_id: OrderId,
         node_id: NodeId,
         node_name: NodeName,
         order_config_id: i32,
@@ -126,7 +95,6 @@ impl VirtualOrder {
         Self::new(
             None,
             strategy_id,
-            order_id,
             node_id,
             node_name,
             order_config_id,
@@ -146,9 +114,8 @@ impl VirtualOrder {
     }
 
     pub fn create_take_profit_order(
-        position_id: PositionId,
+        position_id: Option<PositionId>,
         strategy_id: StrategyId,
-        order_id: OrderId,
         node_id: NodeId,
         node_name: NodeName,
         order_config_id: i32,
@@ -160,9 +127,8 @@ impl VirtualOrder {
         datetime: DateTime<Utc>,
     ) -> Self {
         Self::new(
-            Some(position_id),
+            position_id,
             strategy_id,
-            order_id,
             node_id,
             node_name,
             order_config_id,
@@ -182,9 +148,8 @@ impl VirtualOrder {
     }
 
     pub fn create_stop_loss_order(
-        position_id: PositionId,
+        position_id: Option<PositionId>,
         strategy_id: StrategyId,
-        order_id: OrderId,
         node_id: NodeId,
         node_name: NodeName,
         order_config_id: i32,
@@ -196,9 +161,8 @@ impl VirtualOrder {
         datetime: DateTime<Utc>,
     ) -> Self {
         Self::new(
-            Some(position_id),
+            position_id,
             strategy_id,
-            order_id,
             node_id,
             node_name,
             order_config_id,
@@ -232,24 +196,22 @@ impl VirtualOrder {
                         return Some(tp);
                     }
                     TpslType::Percentage => match order_side {
-                        FuturesOrderSide::OpenLong => {
+                        FuturesOrderSide::Long => {
                             return Some(open_price * (1.0 + tp / 100.0));
                         }
-                        FuturesOrderSide::OpenShort => {
+                        FuturesOrderSide::Short => {
                             return Some(open_price * (1.0 - tp / 100.0));
                         }
-                        _ => return None,
                     },
                     TpslType::Point => {
                         if let Some(point) = point {
                             match order_side {
-                                FuturesOrderSide::OpenLong => {
+                                FuturesOrderSide::Long => {
                                     return Some(open_price + tp * point);
                                 }
-                                FuturesOrderSide::OpenShort => {
+                                FuturesOrderSide::Short => {
                                     return Some(open_price - tp * point);
                                 }
-                                _ => return None,
                             }
                         }
                         return None;
@@ -276,24 +238,22 @@ impl VirtualOrder {
                         return Some(sl);
                     }
                     TpslType::Percentage => match order_side {
-                        FuturesOrderSide::OpenLong => {
+                        FuturesOrderSide::Long => {
                             return Some(open_price * (1.0 - sl / 100.0));
                         }
-                        FuturesOrderSide::OpenShort => {
+                        FuturesOrderSide::Short => {
                             return Some(open_price * (1.0 + sl / 100.0));
                         }
-                        _ => return None,
                     },
                     TpslType::Point => {
                         if let Some(point) = point {
                             match order_side {
-                                FuturesOrderSide::OpenLong => {
+                                FuturesOrderSide::Long => {
                                     return Some(open_price - sl * point);
                                 }
-                                FuturesOrderSide::OpenShort => {
+                                FuturesOrderSide::Short => {
                                     return Some(open_price + sl * point);
                                 }
-                                _ => return None,
                             }
                         }
                         return None;

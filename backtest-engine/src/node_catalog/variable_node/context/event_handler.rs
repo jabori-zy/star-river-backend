@@ -47,11 +47,11 @@ impl NodeEventHandlerExt for VariableNodeContext {
                         Ok(())
                     }
                     IfElseNodeEvent::CaseFalse(case_false_event) => {
-                        tracing::debug!(
-                            "@[{}] receive case false event for case {}",
-                            self.node_name(),
-                            case_false_event.case_id
-                        );
+                        // tracing::debug!(
+                        //     "@[{}] receive case false event for case {}",
+                        //     self.node_name(),
+                        //     case_false_event.case_id
+                        // );
                         let configs = filter_case_trigger_configs(
                             self.node_config.variable_configs.iter(),
                             case_false_event.case_id,
@@ -132,7 +132,7 @@ impl NodeEventHandlerExt for VariableNodeContext {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
                     let paylod = NodeResetRespPayload;
-                    let response = NodeResetResponse::success(self.node_id().clone(), paylod);
+                    let response = NodeResetResponse::success(self.node_id().clone(), self.node_name().clone(), paylod);
                     cmd.respond(response);
                     Ok(())
                 } else {

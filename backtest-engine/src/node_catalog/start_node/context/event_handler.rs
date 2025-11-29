@@ -29,14 +29,14 @@ impl NodeEventHandlerExt for StartNodeContext {
                 let start_node_config = self.node_config.read().await.clone();
 
                 let payload = GetStartNodeConfigRespPayload::new(start_node_config);
-                let response = GetStartNodeConfigResponse::success(self.node_id().clone(), payload);
+                let response = GetStartNodeConfigResponse::success(self.node_id().clone(), self.node_name().clone(), payload);
                 cmd.respond(response);
                 Ok(())
             }
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
                     let payload = NodeResetRespPayload {};
-                    let response = NodeResetResponse::success(self.node_id().clone(), payload);
+                    let response = NodeResetResponse::success(self.node_id().clone(), self.node_name().clone(), payload);
                     cmd.respond(response);
                     Ok(())
                 } else {

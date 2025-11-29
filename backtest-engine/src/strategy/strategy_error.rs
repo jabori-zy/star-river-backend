@@ -30,7 +30,6 @@ pub enum BacktestStrategyError {
     #[snafu(transparent)]
     EventCenterError { source: EventCenterError, backtrace: Backtrace },
 
-
     #[snafu(display("[{strategy_name}] update status failed: {source}"))]
     UpdateStrategyStatusFailed {
         strategy_name: String,
@@ -135,7 +134,7 @@ impl StarRiverErrorTrait for BacktestStrategyError {
             BacktestStrategyError::StrategyError { .. } => 1001,              // 策略错误.
             BacktestStrategyError::StrategyStateMachineError { .. } => 1002,  // 策略状态机错误
             BacktestStrategyError::BacktestNodeError { .. } => 1003,          // 节点错误
-            BacktestStrategyError::EventCenterError { .. } => 1004,          // 事件中心错误
+            BacktestStrategyError::EventCenterError { .. } => 1004,           // 事件中心错误
             BacktestStrategyError::UpdateStrategyStatusFailed { .. } => 1005, // 更新策略状态失败
             BacktestStrategyError::PlayFinished { .. } => 1006,               // 所有回测数据播放完毕
             BacktestStrategyError::AlreadyPlaying { .. } => 1007,             // 策略正在播放，无法再次播放

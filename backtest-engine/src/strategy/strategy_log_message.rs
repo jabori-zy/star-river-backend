@@ -10,7 +10,6 @@ log_message!(
     zh: "#[{strategy_name}] 当前状态是：{strategy_state}"
 );
 
-
 log_message!(
     LongLimitOrderExecutedDirectlyMsg,
     params: (
@@ -22,8 +21,6 @@ log_message!(
     en: "#[{strategy_name}] order price {limit_price} is greater than current price {current_price}, limit order executed directly - Order ID: {order_id}",
     zh: "#[{strategy_name}] 订单价格{limit_price}大于当前价格{current_price}, 限价单直接成交, 订单ID: {order_id}"
 );
-
-
 
 log_message!(
     ShortLimitOrderExecutedDirectlyMsg,

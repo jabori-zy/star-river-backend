@@ -26,7 +26,7 @@ impl BacktestStrategyContext {
         let (resp_tx, resp_rx) = oneshot::channel();
 
         let payload = GetStartNodeConfigCmdPayload {};
-        let cmd = GetStartNodeConfigCommand::new("start_node".to_string(), resp_tx, payload);
+        let cmd = GetStartNodeConfigCommand::new("start_node".to_string(), "start_node".to_string(), resp_tx, payload);
 
         self.send_node_command(cmd.into()).await.unwrap();
 
@@ -50,7 +50,7 @@ impl BacktestStrategyContext {
     ) -> Result<FuturesOrderNodeConfig, BacktestStrategyError> {
         let (tx, rx) = oneshot::channel();
         let payload = GetFuturesOrderConfigCmdPayload {};
-        let cmd = GetFuturesOrderConfigCommand::new(node_id.clone(), tx, payload);
+        let cmd = GetFuturesOrderConfigCommand::new(node_id.clone(), node_name.clone(), tx, payload);
         tracing::debug!("send get futures order config command to node @[{node_name}]");
         self.send_node_command(cmd.into()).await.unwrap();
         tracing::debug!("received get futures order config response from node @[{node_name}]");

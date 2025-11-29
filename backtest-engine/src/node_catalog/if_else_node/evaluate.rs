@@ -1,9 +1,6 @@
 use star_river_core::error::StarRiverErrorTrait;
 use strategy_core::{
-    event::{
-        node_common_event::CommonEvent,
-        node_common_event::{NodeRunningLogEvent},
-    },
+    event::node_common_event::{CommonEvent, NodeRunningLogEvent},
     node::{
         context_trait::{NodeCommunicationExt, NodeInfoExt, NodeTaskControlExt},
         node_trait::NodeContextAccessor,

@@ -16,7 +16,7 @@ pub enum CommonEvent {
     Trigger(TriggerEvent),               // Trigger event
     ExecuteOver(ExecuteOverEvent),       // Execute over
     NodeRunningLog(NodeRunningLogEvent), // Running log
-    RunStateLog(NodeStateLogEvent),         // State log
+    RunStateLog(NodeStateLogEvent),      // State log
 }
 
 impl CommonEvent {
@@ -270,14 +270,7 @@ impl NodeRunningLogEvent {
         node_name: NodeName,
         error: &impl StarRiverErrorTrait,
     ) -> Self {
-        Self::Error(NodeRunningErrorLog::new(
-            cycle_id,
-            strategy_id,
-            node_id,
-            node_name,
-            error,
-            None,
-        ))
+        Self::Error(NodeRunningErrorLog::new(cycle_id, strategy_id, node_id, node_name, error, None))
     }
 }
 

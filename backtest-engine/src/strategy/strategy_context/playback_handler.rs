@@ -3,10 +3,12 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use event_center::EventCenterSingleton;
+use snafu::ResultExt;
 use star_river_core::custom_type::StrategyId;
 use star_river_event::backtest_strategy::strategy_event::{BacktestStrategyEvent, PlayFinishedEvent};
 use strategy_core::{
     benchmark::{StrategyBenchmark, strategy_benchmark::StrategyCycleTracker},
+    error::strategy_error::NodeCmdRespRecvFailedSnafu,
     node::NodeTrait,
     strategy::{
         context_trait::{
@@ -299,6 +301,7 @@ impl BacktestStrategyContext {
         let vts_guard = self.virtual_trading_system.lock().await;
         vts_guard.with_ctx_write(|ctx| ctx.reset()).await;
 
+        self.send_reset_node_event().await?;
         // 替换已经取消的令牌
         self.cancel_play_token = CancellationToken::new();
         Ok(())
@@ -375,21 +378,26 @@ impl BacktestStrategyContext {
         Ok(signal_index as i32)
     }
 
-    pub async fn send_reset_node_event(&self) {
+    pub async fn send_reset_node_event(&self) -> Result<(), BacktestStrategyError> {
         let nodes = self.topological_sort().unwrap();
         for node in nodes {
             let (resp_tx, resp_rx) = oneshot::channel();
             let node_id = node.node_id().await;
+            let node_name = node.node_name().await;
             let payload = NodeResetCmdPayload {};
-            let cmd = NodeResetCommand::new(node_id, resp_tx, payload);
+            let cmd = NodeResetCommand::new(node_id, node_name.clone(), resp_tx, payload);
 
-            self.send_node_command(cmd.into()).await;
-            let response = resp_rx.await.unwrap();
+            self.send_node_command(cmd.into()).await?;
+            let response = resp_rx.await.context(NodeCmdRespRecvFailedSnafu {
+                strategy_name: self.strategy_name().clone(),
+                node_name: node_name.clone(),
+            })?;
             if response.is_success() {
-                tracing::info!("{}: 收到节点重置响应", response.node_id());
+                tracing::info!("{}: received node reset response", response.node_id());
             } else {
-                tracing::error!("{}: 收到节点重置响应失败", response.node_id());
+                tracing::error!("{}: received node reset response failed", response.node_id());
             }
         }
+        Ok(())
     }
 }

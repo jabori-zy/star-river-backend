@@ -158,7 +158,7 @@ impl VariableNodeContext {
         let handle = self
             .create_sys_variable_handle(system_var_config, |vts| {
                 Box::pin(async move {
-                    let orders = vts.with_ctx_read(|ctx| ctx.get_orders().clone()).await;
+                    let orders = vts.with_ctx_read(|ctx| ctx.unfilled_orders().clone()).await;
                     let filled_order_number = orders
                         .iter()
                         .filter(|order| matches!(order.order_status, OrderStatus::Filled))
@@ -194,7 +194,7 @@ impl VariableNodeContext {
         let handle = self
             .create_sys_variable_handle(system_var_config, move |vts| {
                 Box::pin(async move {
-                    let orders = vts.with_ctx_read(|ctx| ctx.get_orders().clone()).await;
+                    let orders = vts.with_ctx_read(|ctx| ctx.unfilled_orders().clone()).await;
                     let filled_order_number = orders
                         .iter()
                         .filter(|order| order.symbol == symbol && matches!(order.order_status, OrderStatus::Filled))

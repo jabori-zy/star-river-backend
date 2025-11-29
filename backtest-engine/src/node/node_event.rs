@@ -8,8 +8,7 @@ use serde::Serialize;
 use star_river_core::custom_type::{CycleId, HandleId, NodeId, NodeName};
 pub use star_river_event::backtest_strategy::node_event::{
     futures_order_node_event::FuturesOrderNodeEvent, if_else_node_event::IfElseNodeEvent, indicator_node_event::IndicatorNodeEvent,
-    kline_node_event::KlineNodeEvent, start_node_event::StartNodeEvent,
-    variable_node_event::VariableNodeEvent,
+    kline_node_event::KlineNodeEvent, start_node_event::StartNodeEvent, variable_node_event::VariableNodeEvent,
 };
 use strategy_core::event::node::NodeEventTrait;
 pub use strategy_core::event::node_common_event::CommonEvent;
@@ -52,7 +51,6 @@ pub enum BacktestNodeEvent {
     // #[strum(serialize = "position_node")]
     // #[serde(rename = "position_node")]
     // PositionNode(PositionNodeEvent),
-
     #[strum(serialize = "if_else_node")]
     #[serde(rename = "if_else_node")]
     IfElseNode(IfElseNodeEvent),

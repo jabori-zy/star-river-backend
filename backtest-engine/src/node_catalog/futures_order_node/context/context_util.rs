@@ -31,7 +31,7 @@ impl FuturesOrderNodeContext {
         &self,
         output_handle_id: HandleId,
         virtual_order: VirtualOrder,
-        event_type: &VtsEvent,
+        vts_event: &VtsEvent,
     ) -> Option<FuturesOrderNodeEvent> {
         macro_rules! create_event {
             ($event_type:ident, $payload_type:ident) => {{
@@ -50,7 +50,7 @@ impl FuturesOrderNodeContext {
             }};
         }
 
-        match event_type {
+        match vts_event {
             // 期货订单事件
             VtsEvent::FuturesOrderCreated(_) => create_event!(FuturesOrderCreatedEvent, FuturesOrderCreatedPayload),
             VtsEvent::FuturesOrderFilled(_) => create_event!(FuturesOrderFilledEvent, FuturesOrderFilledPayload),

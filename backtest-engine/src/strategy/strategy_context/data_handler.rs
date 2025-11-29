@@ -3,43 +3,51 @@ use chrono::{DateTime, Utc};
 use key::{Key, KeyTrait};
 use strategy_core::strategy::context_trait::StrategyIdentityExt;
 use strategy_stats::StatsSnapshot;
-use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
+use virtual_trading::{
+    types::{VirtualOrder, VirtualPosition, VirtualTransaction},
+    vts_trait::VtsCtxAccessor,
+};
 
 // current crate
 use super::BacktestStrategyContext;
-use crate::strategy::{
-    PlayIndex,
-    strategy_error::{BacktestStrategyError, GetDataByDatetimeFailedSnafu, GetDataFailedSnafu, KlineDataLengthNotSameSnafu},
-};
+use crate::strategy::strategy_error::{BacktestStrategyError, GetDataFailedSnafu};
 
 impl BacktestStrategyContext {
     // 获取所有的virtual order
     pub async fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
-        // let virtual_trading_system = self.virtual_trading_system.lock().await;
-        // let virtual_orders = virtual_trading_system.get_orders().clone();
-        // virtual_orders
-        vec![]
+        let virtual_trading_system = self.virtual_trading_system.lock().await;
+        let virtual_orders = virtual_trading_system
+            .with_ctx_read(|ctx| {
+                ctx.unfilled_orders()
+                    .clone()
+                    .into_iter()
+                    .chain(ctx.history_orders().clone())
+                    .collect()
+            })
+            .await;
+        virtual_orders
     }
 
     pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
-        // let virtual_trading_system = self.virtual_trading_system.lock().await;
-        // let current_positions = virtual_trading_system.get_current_positions();
-        // current_positions.clone()
-        vec![]
+        let virtual_trading_system = self.virtual_trading_system.lock().await;
+        let current_positions = virtual_trading_system
+            .with_ctx_read(|ctx| ctx.get_current_positions().clone())
+            .await;
+        current_positions
     }
 
     pub async fn get_history_positions(&self) -> Vec<VirtualPosition> {
-        // let virtual_trading_system = self.virtual_trading_system.lock().await;
-        // let history_positions = virtual_trading_system.get_history_positions();
-        // history_positions
-        vec![]
+        let virtual_trading_system = self.virtual_trading_system.lock().await;
+        let history_positions = virtual_trading_system
+            .with_ctx_read(|ctx| ctx.get_history_positions().clone())
+            .await;
+        history_positions
     }
 
     pub async fn get_transactions(&self) -> Vec<VirtualTransaction> {
-        // let virtual_trading_system = self.virtual_trading_system.lock().await;
-        // let transactions = virtual_trading_system.get_transactions();
-        // transactions
-        vec![]
+        let virtual_trading_system = self.virtual_trading_system.lock().await;
+        let transactions = virtual_trading_system.with_ctx_read(|ctx| ctx.get_transactions().clone()).await;
+        transactions
     }
 
     pub async fn get_stats_history(&self, play_index: i32) -> Vec<StatsSnapshot> {

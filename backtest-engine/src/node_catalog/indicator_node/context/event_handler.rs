@@ -46,7 +46,7 @@ impl NodeEventHandlerExt for IndicatorNodeContext {
                 if self.node_id() == cmd.node_id() {
                     self.cache_kline_slice.clear();
                     let payload = NodeResetRespPayload {};
-                    let response = NodeResetResponse::success(self.node_id().clone(), payload);
+                    let response = NodeResetResponse::success(self.node_id().clone(), self.node_name().clone(), payload);
                     cmd.respond(response);
                     Ok(())
                 } else {

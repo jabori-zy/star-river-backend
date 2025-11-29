@@ -6,7 +6,7 @@ use star_river_core::{
     error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, generate_error_code_chain},
 };
 use strategy_core::error::NodeError;
-use virtual_trading::error::VirtualTradingSystemError;
+use virtual_trading::error::VtsError;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -15,13 +15,14 @@ pub enum FuturesOrderNodeError {
     NodeError { source: NodeError, backtrace: Backtrace },
 
     #[snafu(transparent)]
-    VirtualTradingSystem {
-        source: VirtualTradingSystemError,
+    VirtualTradingSystem { source: VtsError, backtrace: Backtrace },
+
+    #[snafu(display("@[{node_name}] config {:?} is processing order, skip", order_config_id))]
+    CannotCreateOrder {
+        node_name: NodeName,
+        order_config_id: i32,
         backtrace: Backtrace,
     },
-
-    #[snafu(display("cannot create order because current is processing order or unfilled order is not empty"))]
-    CannotCreateOrder { backtrace: Backtrace },
 
     #[snafu(display("order config not found for order config id: {order_config_id}"))]
     OrderConfigNotFound { order_config_id: i32, backtrace: Backtrace },

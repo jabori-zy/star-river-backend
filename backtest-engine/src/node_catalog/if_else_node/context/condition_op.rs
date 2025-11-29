@@ -12,9 +12,7 @@ use star_river_event::backtest_strategy::node_event::{
 // Current crate imports - strategy_core
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
-    event::{
-        node_common_event::{CommonEvent, NodeRunningLogEvent},
-    },
+    event::node_common_event::{CommonEvent, NodeRunningLogEvent},
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
     node_infra::if_else_node::{Case, Condition, ConditionResult, FormulaRight, LogicalSymbol},
 };
@@ -184,15 +182,17 @@ impl IfElseNodeContext {
         Ok(())
     }
 
-    pub(super)fn handle_case_false(&self, case: &Case, case_result: Option<Vec<ConditionResult>>) -> Result<(), IfElseNodeError> {
+    pub(super) fn handle_case_false(&self, case: &Case, case_result: Option<Vec<ConditionResult>>) -> Result<(), IfElseNodeError> {
         if let Some(case_result) = case_result {
             case_result
                 .iter()
                 .filter(|condition_result| !condition_result.condition_result)
                 .try_for_each(|false_result| {
                     let message = if false_result.left_value.is_null() && false_result.right_value.is_null() {
-                        Some(ConditionLeftAndRightValueNullMsg::new(self.node_name().clone(), case.case_id, false_result.condition_id)
-                            .to_string())
+                        Some(
+                            ConditionLeftAndRightValueNullMsg::new(self.node_name().clone(), case.case_id, false_result.condition_id)
+                                .to_string(),
+                        )
                     } else if false_result.left_value.is_null() {
                         Some(ConditionLeftValueNullMsg::new(self.node_name().clone(), case.case_id, false_result.condition_id).to_string())
                     } else if false_result.right_value.is_null() {

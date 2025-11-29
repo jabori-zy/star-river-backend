@@ -1,5 +1,5 @@
 use derive_more::From;
-use star_river_core::custom_type::NodeId;
+use star_river_core::custom_type::{NodeId, NodeName};
 use strategy_core::communication::{
     NodeCommandTrait,
     node::{NodeCommand, NodeResponse},
@@ -20,6 +20,13 @@ impl NodeCommandTrait for BacktestNodeCommand {
             BacktestNodeCommand::GetStartNodeConfig(command) => command.node_id(),
             BacktestNodeCommand::GetFuturesOrderConfig(command) => command.node_id(),
             BacktestNodeCommand::NodeReset(command) => command.node_id(),
+        }
+    }
+    fn node_name(&self) -> &NodeName {
+        match self {
+            BacktestNodeCommand::GetStartNodeConfig(command) => command.node_name(),
+            BacktestNodeCommand::GetFuturesOrderConfig(command) => command.node_name(),
+            BacktestNodeCommand::NodeReset(command) => command.node_name(),
         }
     }
 }

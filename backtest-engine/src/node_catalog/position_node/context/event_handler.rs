@@ -32,7 +32,7 @@ impl NodeEventHandlerExt for PositionNodeContext {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
                     let payload = NodeResetRespPayload;
-                    let response = NodeResetResponse::success(self.node_id().clone(), payload);
+                    let response = NodeResetResponse::success(self.node_id().clone(), self.node_name().clone(), payload);
                     cmd.respond(response);
                     Ok(())
                 } else {

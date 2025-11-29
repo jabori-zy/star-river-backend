@@ -25,7 +25,7 @@ impl NodeEventHandlerExt for IfElseNodeContext {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
                     let payload = NodeResetRespPayload;
-                    let response = NodeResetResponse::success(self.node_id().clone(), payload);
+                    let response = NodeResetResponse::success(self.node_id().clone(), self.node_name().clone(), payload);
                     cmd.respond(response);
                     Ok(())
                 } else {
@@ -115,7 +115,6 @@ impl IfElseNodeContext {
     }
 
     pub(super) async fn all_case_handle_false(&mut self) -> Result<(), IfElseNodeError> {
-
         for case in self.node_config.cases.iter() {
             self.handle_case_false(case, None)?;
         }

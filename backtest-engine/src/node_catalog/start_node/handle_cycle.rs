@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use star_river_core::error::StarRiverErrorTrait;
 use strategy_core::{
-    event::{
-        node_common_event::{CommonEvent, NodeRunningLogEvent},
-    },
+    event::node_common_event::{CommonEvent, NodeRunningLogEvent},
     node::{
         context_trait::{NodeCommunicationExt, NodeInfoExt, NodeTaskControlExt},
         node_trait::NodeContextAccessor,
