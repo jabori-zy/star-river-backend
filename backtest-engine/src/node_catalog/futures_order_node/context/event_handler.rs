@@ -82,6 +82,7 @@ impl FuturesOrderNodeContext {
         node_event: BacktestNodeEvent,
         order_config_id: i32,
     ) -> Result<(), FuturesOrderNodeError> {
+        tracing::debug!("{}: 收到事件: {:?}", self.node_name(), node_event);
         match node_event {
             BacktestNodeEvent::Common(common_evt) => {
                 if let CommonEvent::Trigger(_trigger_evt) = common_evt {
@@ -104,9 +105,9 @@ impl FuturesOrderNodeContext {
         cycle_tracker.start_phase(&phase_name);
 
         if self.is_leaf_node() {
-            self.send_execute_over_event(Some(order_config_id), Some(self.strategy_time()))?;
+            self.send_execute_over_event(Some(order_config_id), Some("handle trigger event for specific order".to_string()), Some(self.strategy_time()))?;
         } else {
-            self.independent_order_send_trigger_event(order_config_id).await?;
+            self.independent_order_send_trigger_event(order_config_id, Some("handle trigger event for specific order".to_string())).await?;
         }
 
         cycle_tracker.end_phase(&phase_name);
@@ -121,6 +122,7 @@ impl FuturesOrderNodeContext {
         ifelse_node_event: IfElseNodeEvent,
         order_config_id: i32,
     ) -> Result<(), FuturesOrderNodeError> {
+
         match ifelse_node_event {
             IfElseNodeEvent::CaseTrue(_) | IfElseNodeEvent::ElseTrue(_) => {
                 let mut cycle_tracker = CycleTracker::new(self.cycle_id());
@@ -142,14 +144,20 @@ impl FuturesOrderNodeContext {
                     match e {
                         FuturesOrderNodeError::CannotCreateOrder { .. } => {
                             if self.is_leaf_node() {
-                                self.send_execute_over_event(Some(order_config_id), Some(self.strategy_time()))?;
+                                self.send_execute_over_event(Some(order_config_id), Some("create order failed".to_string()), Some(self.strategy_time()))?;
                             } else {
-                                self.independent_order_send_trigger_event(order_config_id).await?;
+                                self.independent_order_send_trigger_event(order_config_id, Some("create order failed".to_string())).await?;
                             }
                         }
                         _ => {
                             return Err(e);
                         }
+                    }
+                } else {
+                    if self.is_leaf_node() {
+                        self.send_execute_over_event(Some(order_config_id), Some("create order success".to_string()), Some(self.strategy_time()))?;
+                    } else {
+                        self.independent_order_send_trigger_event(order_config_id, Some("create order success".to_string())).await?;
                     }
                 }
 
@@ -161,9 +169,9 @@ impl FuturesOrderNodeContext {
             }
             IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
                 if self.is_leaf_node() {
-                    self.send_execute_over_event(Some(order_config_id), Some(self.strategy_time()))?;
+                    self.send_execute_over_event(Some(order_config_id), Some("handle case false event for order".to_string()), Some(self.strategy_time()))?;
                 } else {
-                    self.independent_order_send_trigger_event(order_config_id).await?;
+                    self.independent_order_send_trigger_event(order_config_id, Some("handle case false event for order".to_string())).await?;
                 }
                 Ok(())
             }
@@ -187,7 +195,7 @@ impl FuturesOrderNodeContext {
         }
 
         if self.is_leaf_node() {
-            self.send_execute_over_event(Some(virtual_order.order_config_id), Some(self.strategy_time()))?;
+            // self.send_execute_over_event(Some(virtual_order.order_config_id), Some("send order status event".to_string()), Some(self.strategy_time()))?;
             Ok(())
         } else {
             let order_status_output_handle_id =

@@ -60,19 +60,19 @@ impl NodeEventHandlerExt for VariableNodeContext {
 
                         if self.is_leaf_node() {
                             configs.iter().try_for_each(|config| {
-                                self.send_execute_over_event(Some(config.confing_id()), Some(self.strategy_time()))
+                                self.send_execute_over_event(Some(config.confing_id()), Some("handle case false event for variable node".to_string()), Some(self.strategy_time()))
                             })?;
                             return Ok(());
                         }
 
                         stream::iter(configs.iter().map(|config| Ok::<_, VariableNodeError>(config)))
                             .try_for_each_concurrent(None, |config| async {
-                                self.send_trigger_event(&config.output_handle_id(), Some(self.strategy_time()))
+                                self.send_trigger_event(&config.output_handle_id(), Some(config.confing_id()), Some("handle case false event for variable node".to_string()), Some(self.strategy_time()))
                                     .await?;
                                 Ok(())
                             })
                             .await?;
-                        self.default_output_handle_send_trigger_event(Some(self.strategy_time())).await?;
+                        self.default_output_handle_send_trigger_event(None, Some("handle case false event for variable node".to_string()), Some(self.strategy_time())).await?;
 
                         Ok(())
                     }
@@ -96,19 +96,19 @@ impl NodeEventHandlerExt for VariableNodeContext {
                         
                         if self.is_leaf_node() {
                             configs.iter().try_for_each(|config| {
-                                self.send_execute_over_event(Some(config.confing_id()), Some(self.strategy_time()))
+                                self.send_execute_over_event(Some(config.confing_id()), Some("handle case true event for variable node".to_string()), Some(self.strategy_time()))
                             })?;
                             return Ok(());
                         }
 
                         stream::iter(configs.iter().map(|config| Ok::<_, VariableNodeError>(config)))
                             .try_for_each_concurrent(None, |config| async {
-                                self.send_trigger_event(&config.output_handle_id(), Some(self.strategy_time()))
+                                self.send_trigger_event(&config.output_handle_id(), Some(config.confing_id()), Some("handle case true event for variable node".to_string()), Some(self.strategy_time()))
                                     .await?;
                                 Ok(())
                             })
                             .await?;
-                        self.default_output_handle_send_trigger_event(Some(self.strategy_time())).await?;
+                        self.default_output_handle_send_trigger_event(None, Some("handle case true event for variable node".to_string()), Some(self.strategy_time())).await?;
 
                         node_cycle_tracker.end_phase("handle_condition_trigger");
                         let completed_tracker = node_cycle_tracker.end();

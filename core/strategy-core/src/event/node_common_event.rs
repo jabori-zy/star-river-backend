@@ -5,7 +5,6 @@ use star_river_core::{
     custom_type::{CycleId, HandleId, NodeId, NodeName, StrategyId},
     error::error_trait::{ErrorLanguage, StarRiverErrorTrait},
 };
-use strum::Display;
 use utoipa::ToSchema;
 
 use crate::event::{log_event::NodeStateLogEvent, node::NodeEvent};
@@ -71,47 +70,28 @@ pub type TriggerEvent = NodeEvent<TriggerPayload>;
 pub type ExecuteOverEvent = NodeEvent<ExecuteOverPayload>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TriggerPayload;
+pub struct TriggerPayload {
+    pub config_id: Option<i32>,
+    pub context: Option<String>,
+}
+
+impl TriggerPayload {
+    pub fn new(config_id: Option<i32>, context: Option<String>) -> Self {
+        Self { config_id, context }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecuteOverPayload {
     pub config_id: Option<i32>,
+    pub context: Option<String>,
 }
 
 impl ExecuteOverPayload {
-    pub fn new(config_id: Option<i32>) -> Self {
-        Self { config_id }
+    pub fn new(config_id: Option<i32>, context: Option<String>) -> Self {
+        Self { config_id, context }
     }
 }
-
-// #[derive(Debug, Clone, Serialize, Display, ToSchema)]
-// pub enum NodeRunningLogSource {
-//     #[strum(serialize = "node")]
-//     #[serde(rename = "Node")]
-//     Node,
-//     #[strum(serialize = "virtual_trading_system")]
-//     #[serde(rename = "VirtualTradingSystem")]
-//     VirtualTradingSystem,
-// }
-
-// #[derive(Debug, Clone, Serialize, Display, ToSchema)]
-// pub enum NodeRunningLogType {
-//     #[strum(serialize = "condition_match")]
-//     #[serde(rename = "ConditionMatch")]
-//     ConditionMatch,
-//     #[strum(serialize = "order_created")]
-//     #[serde(rename = "OrderCreated")]
-//     OrderCreated,
-//     #[strum(serialize = "order_filled")]
-//     #[serde(rename = "OrderFilled")]
-//     OrderFilled,
-//     #[strum(serialize = "order_canceled")]
-//     #[serde(rename = "OrderCanceled")]
-//     OrderCanceled,
-//     #[strum(serialize = "processing_order")]
-//     #[serde(rename = "ProcessingOrder")]
-//     ProcessingOrder,
-// }
 
 #[derive(Debug, Clone, Serialize, ToSchema, From)]
 #[serde(tag = "logLevel")]

@@ -56,6 +56,7 @@ impl VariableNodeContext {
         let virtual_trading_system = self.virtual_trading_system.clone();
         let strategy_command_sender = self.strategy_command_sender().clone();
         let current_time = self.strategy_time();
+        let config_id = system_var_config.config_id();
         let handle = tokio::spawn(async move {
             // let var_name = SysVariableType::from_str(system_var_config.var_name()).unwrap();
 
@@ -78,7 +79,7 @@ impl VariableNodeContext {
             })?;
             match response {
                 StrategyResponse::Success { .. } => {
-                    let payload = SysVarUpdatePayload::new(cycle_id, system_var_config.config_id(), sys_variable);
+                    let payload = SysVarUpdatePayload::new(cycle_id, config_id, sys_variable);
                     let var_update_evt: VariableNodeEvent = SysVarUpdateEvent::new_with_time(
                         cycle_id,
                         node_id.clone(),
@@ -91,7 +92,7 @@ impl VariableNodeContext {
                     let backtest_var_event: BacktestNodeEvent = var_update_evt.into();
                     strategy_output_handle.send(backtest_var_event.clone())?;
                     if is_leaf_node {
-                        let payload = ExecuteOverPayload::new(None);
+                        let payload = ExecuteOverPayload::new(Some(config_id), Some("handle update sys variable".to_string()));
                         let execute_over_event: CommonEvent = ExecuteOverEvent::new_with_time(
                             cycle_id,
                             node_id,
@@ -103,16 +104,13 @@ impl VariableNodeContext {
                         .into();
                         strategy_output_handle.send(execute_over_event.into())?;
                     } else {
-                        tracing::debug!("send var update event to output handle: {}", output_handle.output_handle_id());
                         output_handle.send(backtest_var_event.clone())?;
-                        tracing::debug!("send var update event to output handle: {}", output_handle.output_handle_id());
                         default_output_handle.send(backtest_var_event.clone())?;
-                        tracing::debug!("send var update event to default output handle: {}", default_output_handle.output_handle_id());
                     }
                 }
                 StrategyResponse::Fail { error, .. } => {
                     tracing::error!("update sys variable failed: {:?}", error);
-                    let payload = TriggerPayload;
+                    let payload = TriggerPayload::new(Some(config_id), Some("handle update sys variable failed".to_string()));
                     let trigger_event: CommonEvent = TriggerEvent::new_with_time(
                         cycle_id,
                         node_id,

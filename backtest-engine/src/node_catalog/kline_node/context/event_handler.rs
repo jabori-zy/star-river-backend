@@ -61,6 +61,7 @@ impl KlineNodeContext {
         kline_key: &KlineKey,
         should_calculate: bool,
         kline_data: Option<Kline>,
+        context: Option<String>,
     ) -> Result<(), KlineNodeError> {
         if let Some(k) = kline_data {
             let generate_event = |handle_id: String| {
@@ -83,7 +84,7 @@ impl KlineNodeContext {
 
             let symbol_handle_id = symbol_info.1.clone();
             if self.is_leaf_node() {
-                self.send_execute_over_event(Some(symbol_info.0), Some(self.strategy_time()))?;
+                self.send_execute_over_event(Some(symbol_info.0), context, Some(self.strategy_time()))?;
             } else {
                 let event = generate_event(symbol_handle_id);
                 self.output_handle_send(event)?;
@@ -94,9 +95,9 @@ impl KlineNodeContext {
             }
         } else {
             if self.is_leaf_node() {
-                self.send_execute_over_event(Some(symbol_info.0), Some(self.strategy_time()))?;
+                self.send_execute_over_event(Some(symbol_info.0), context, Some(self.strategy_time()))?;
             } else {
-                self.send_trigger_event(&symbol_info.1, Some(self.strategy_time())).await?;
+                self.send_trigger_event(&symbol_info.1, Some(symbol_info.0), context, Some(self.strategy_time())).await?;
             }
         }
 
@@ -120,7 +121,7 @@ impl KlineNodeContext {
             if self.cycle_id() == 0 {
                 // 如果play_index为0，则向缓存引擎插入新的k线
                 self.insert_new_kline_to_strategy(symbol_key, &min_interval_kline).await?;
-                self.handle_event_send(symbol_info, symbol_key, true, Some(min_interval_kline.clone()))
+                self.handle_event_send(symbol_info, symbol_key, true, Some(min_interval_kline.clone()), Some("insert first new kline".to_string()))
                     .await
             } else {
                 // 核心步骤（插值算法）
@@ -131,7 +132,7 @@ impl KlineNodeContext {
                     // 如果当前是新的周期，则向缓存引擎插入新的k线
                     self.insert_new_kline_to_strategy(symbol_key, &min_interval_kline).await?;
                     // 发送K线事件
-                    self.handle_event_send(symbol_info, symbol_key, true, Some(min_interval_kline.clone()))
+                    self.handle_event_send(symbol_info, symbol_key, true, Some(min_interval_kline.clone()), Some("insert cross interval new kline".to_string()))
                         .await
                 } else {
                     // 如果当前不是新的周期，则更新缓存引擎中的值
@@ -139,7 +140,7 @@ impl KlineNodeContext {
                     if let Some(last_kline) = last_kline {
                         let new_kline = self.update_existing_kline(&last_kline, symbol_key, &min_interval_kline).await?;
                         // 发送K线事件
-                        self.handle_event_send(symbol_info, symbol_key, true, Some(new_kline)).await
+                        self.handle_event_send(symbol_info, symbol_key, true, Some(new_kline), Some("update existing kline".to_string())).await
                     } else {
                         return Err(PendingUpdateKlineNotExistSnafu {
                             symbol: symbol_key.symbol().to_string(),
@@ -150,7 +151,7 @@ impl KlineNodeContext {
                 }
             }
         } else {
-            self.handle_event_send(symbol_info, symbol_key, false, None).await?;
+            self.handle_event_send(symbol_info, symbol_key, false, None, Some("no min interval kline".to_string())).await?;
             Ok(())
         }
     }
@@ -235,7 +236,7 @@ impl KlineNodeContext {
         symbol_info: &(i32, String), // (config_id, handle_id)
     ) -> Result<(), KlineNodeError> {
         let kline = self.get_single_kline_from_strategy(symbol_key, Some(self.strategy_time())).await?;
-        self.handle_event_send(symbol_info, symbol_key, false, kline).await?;
+        self.handle_event_send(symbol_info, symbol_key, false, kline, Some("handle min interval kline".to_string())).await?;
 
         Ok(())
     }

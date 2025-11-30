@@ -124,9 +124,9 @@ impl VariableNodeContext {
                     Some(val) => val,
                     None => {
                         if self.is_leaf_node() {
-                            self.send_execute_over_event(Some(config.config_id()), Some(self.strategy_time()))?
+                            self.send_execute_over_event(Some(config.config_id()), Some("handle dataflow trigger".to_string()), Some(self.strategy_time()))?
                         } else {
-                            self.send_trigger_event(&output_handle_id, Some(self.strategy_time())).await?;
+                            self.send_trigger_event(&output_handle_id, Some(config.config_id()), Some("handle dataflow trigger".to_string()), Some(self.strategy_time())).await?;
                         }
                         continue;
                     } // 如果返回 None，跳过当前迭代
@@ -307,7 +307,7 @@ impl VariableNodeContext {
                         .into();
                         strategy_output_handle_clone.send(var_event.clone().into())?;
                         if is_leaf_node {
-                            let payload = ExecuteOverPayload::new(None);
+                            let payload = ExecuteOverPayload::new(Some(config_id), Some("handle update variable".to_string()));
                             let execute_over_event: CommonEvent = ExecuteOverEvent::new_with_time(
                                 cycle_id,
                                 node_id_clone,
@@ -324,7 +324,7 @@ impl VariableNodeContext {
                     }
                     StrategyResponse::Fail { error, .. } => {
                         tracing::error!("update_variable failed: {:?}", error);
-                        let payload = TriggerPayload;
+                        let payload = TriggerPayload::new(Some(config_id), Some("handle update variable failed".to_string()));
                         let trigger_event: CommonEvent = TriggerEvent::new_with_time(
                             cycle_id,
                             node_id_clone,
@@ -408,7 +408,7 @@ impl VariableNodeContext {
                         .into();
                         strategy_output_handle_clone.send(var_event.clone().into())?;
                         if is_leaf_node {
-                            let payload = ExecuteOverPayload::new(None);
+                            let payload = ExecuteOverPayload::new(Some(config_id), Some("handle reset variable".to_string()));
                             let execute_over_event: CommonEvent = ExecuteOverEvent::new_with_time(
                                 cycle_id,
                                 node_id_clone,
@@ -425,7 +425,7 @@ impl VariableNodeContext {
                     }
                     StrategyResponse::Fail { error, .. } => {
                         tracing::error!("reset_variable failed: {:?}", error);
-                        let payload = TriggerPayload;
+                        let payload = TriggerPayload::new(Some(config_id), Some("handle reset variable failed".to_string()));
                         let trigger_event: CommonEvent = TriggerEvent::new_with_time(
                             cycle_id,
                             node_id_clone,

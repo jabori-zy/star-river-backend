@@ -172,7 +172,7 @@ impl IfElseNodeContext {
         // 根据节点类型处理事件发送
         if self.is_leaf_node() {
             // 叶子节点：发送执行结束事件
-            self.send_execute_over_event(Some(case.case_id), Some(self.strategy_time()))?;
+            self.send_execute_over_event(Some(case.case_id),Some("case true".to_string()), Some(self.strategy_time()))?;
         } else {
             // 非叶子节点：将事件传递给下游节点
             self.output_handle_send(condition_match_event.into())?;
@@ -219,7 +219,7 @@ impl IfElseNodeContext {
         }
 
         if self.is_leaf_node() {
-            self.send_execute_over_event(Some(case.case_id), Some(self.strategy_time()))?;
+            self.send_execute_over_event(Some(case.case_id), Some("case false".to_string()), Some(self.strategy_time()))?;
             return Ok(());
         }
 

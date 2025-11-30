@@ -89,6 +89,7 @@ impl IndicatorNodeContext {
         indicator: Option<Indicator>,
         node_id: &String,
         node_name: &String,
+        context: Option<String>,
     ) -> Result<(), IndicatorNodeError> {
         if let Some(ind) = indicator {
             // 事件生成闭包
@@ -121,7 +122,7 @@ impl IndicatorNodeContext {
 
             // 渠道2: 根据节点类型发送到符号特定输出句柄
             if self.is_leaf_node() {
-                self.send_execute_over_event(Some(*config_id), Some(self.strategy_time()))?;
+                self.send_execute_over_event(Some(*config_id), context, Some(self.strategy_time()))?;
             } else {
                 let event = generate_event(handle_id.clone());
                 self.output_handle_send(event)?;
@@ -132,9 +133,9 @@ impl IndicatorNodeContext {
             }
         } else {
             if self.is_leaf_node() {
-                self.send_execute_over_event(Some(*config_id), Some(self.strategy_time()))?;
+                self.send_execute_over_event(Some(*config_id), context, Some(self.strategy_time()))?;
             } else {
-                self.send_trigger_event(&handle_id, Some(self.strategy_time())).await?;
+                self.send_trigger_event(&handle_id, Some(*config_id), context, Some(self.strategy_time())).await?;
             }
         }
 
@@ -168,7 +169,7 @@ impl IndicatorNodeContext {
                     && let Some(lookback) = lookback
                 {
                     if kline_series.len() < *lookback + 1 {
-                        self.handle_event_send(output_handle_id.clone(), &indicator_key, &config_id, None, &node_id, &node_name)
+                        self.handle_event_send(output_handle_id.clone(), &indicator_key, &config_id, None, &node_id, &node_name, Some("kline series length less than lookback".to_string()))
                             .await?;
                         cycle_tracker.end_phase(&phase_name);
                         continue;
@@ -187,6 +188,7 @@ impl IndicatorNodeContext {
                         Some(calculate_result),
                         &node_id,
                         &node_name,
+                        Some("calculate indicator success".to_string())
                     )
                     .await?;
 
@@ -216,6 +218,7 @@ impl IndicatorNodeContext {
                     indicator_data,
                     &node_id,
                     &node_name,
+                    Some("send indicator data directly".to_string())
                 )
                 .await?;
                 cycle_tracker.end_phase(&phase_name);

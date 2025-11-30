@@ -68,7 +68,7 @@ impl VariableNodeContext {
                     .into();
                     strategy_output_handle.send(var_event.clone().into())?;
                     if is_leaf_node {
-                        let payload = ExecuteOverPayload::new(Some(config_id));
+                        let payload = ExecuteOverPayload::new(Some(config_id), Some("handle get custom variable".to_string()));
                         let execute_over_event: CommonEvent =
                             ExecuteOverEvent::new_with_time(cycle_id, node_id, node_name, output_handle_id.clone(), current_time, payload)
                                 .into();
@@ -79,7 +79,7 @@ impl VariableNodeContext {
                 }
                 StrategyResponse::Fail { error, .. } => {
                     tracing::error!("get_variable failed: {:?}", error);
-                    let payload = TriggerPayload;
+                    let payload = TriggerPayload::new(Some(config_id), Some("handle get custom variable failed".to_string()));
                     let trigger_event: CommonEvent =
                         TriggerEvent::new_with_time(cycle_id, node_id, node_name, output_handle_id.clone(), current_time, payload).into();
                     let backtest_trigger_event: BacktestNodeEvent = trigger_event.into();

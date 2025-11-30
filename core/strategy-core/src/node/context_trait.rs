@@ -390,12 +390,12 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
         default_handle.send(event)
     }
 
-    fn send_execute_over_event(&self, config_id: Option<i32>, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
+    fn send_execute_over_event(&self, config_id: Option<i32>, context: Option<String>, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
         if !self.is_leaf_node() {
             return Ok(());
         }
 
-        let payload = ExecuteOverPayload::new(config_id);
+        let payload = ExecuteOverPayload::new(config_id, context);
         let execute_over_event: CommonEvent = if let Some(datetime) = datetime {
             ExecuteOverEvent::new_with_time(
                 self.cycle_id(),
@@ -423,14 +423,14 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
     }
 
     // send trigger event to downstream node. if current node is leaf node, send execute over event instead.
-    async fn send_trigger_event(&self, handle_id: &str, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
+    async fn send_trigger_event(&self, handle_id: &str, config_id: Option<i32>, context: Option<String>, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
         // 叶子节点不发送触发事件
         if self.is_leaf_node() {
             // self.send_execute_over_event()?;
             return Ok(());
         }
 
-        let payload = TriggerPayload;
+        let payload = TriggerPayload::new(config_id, context);
 
         let trigger_event: CommonEvent = if let Some(datetime) = datetime {
             TriggerEvent::new_with_time(
@@ -458,10 +458,10 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
         
     }
 
-    async fn default_output_handle_send_trigger_event(&self, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
+    async fn default_output_handle_send_trigger_event(&self, config_id: Option<i32>, context: Option<String>, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
         let default_handle = self.default_output_handle()?;
 
-        let payload = TriggerPayload;
+        let payload = TriggerPayload::new(config_id, context);
         let trigger_event: CommonEvent = if let Some(datetime) = datetime {
             TriggerEvent::new_with_time(
                 self.cycle_id(),

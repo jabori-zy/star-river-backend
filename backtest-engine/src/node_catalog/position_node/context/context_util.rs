@@ -4,13 +4,13 @@ use super::PositionNodeContext;
 use crate::node::node_error::PositionNodeError;
 
 impl PositionNodeContext {
-    pub(super) async fn independent_position_op_send_trigger_event(&self, config_id: i32) -> Result<(), PositionNodeError> {
+    pub(super) async fn independent_position_op_send_trigger_event(&self, config_id: i32, context: Option<String>) -> Result<(), PositionNodeError> {
         let all_output_handles = self.output_handles();
         tracing::debug!("send trigger event to position output handles: {:#?}", all_output_handles);
         let futures = all_output_handles
             .values()
             .filter(|handle| handle.config_id() == config_id)
-            .map(|handle| self.send_trigger_event(handle.output_handle_id(), Some(self.strategy_time())));
+            .map(|handle| self.send_trigger_event(handle.output_handle_id(), Some(config_id), context.clone(), Some(self.strategy_time())));
 
         futures::future::try_join_all(futures).await?;
         Ok(())
