@@ -235,7 +235,8 @@ where
             .get_mut(&handle_id)
             .context(OutputHandleNotFoundSnafu {
                 node_name: self.node_name.clone(),
-                handle_id: handle_id.clone(),
+                handle_id: Some(handle_id),
+                config_id: None,
             })?
             .subscribe(subscriber_id))
     }

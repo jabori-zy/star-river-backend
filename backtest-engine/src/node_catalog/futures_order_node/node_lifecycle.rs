@@ -146,7 +146,7 @@ impl NodeLifecycle for FuturesOrderNode {
                         &strategy_output_handle,
                     )
                     .await;
-                    self.listen_source_node_events_for_independent_order().await;
+                    self.listen_source_node_events().await;
                 }
                 FuturesOrderNodeAction::ListenAndHandleCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");

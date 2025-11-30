@@ -8,7 +8,7 @@ use star_river_event::backtest_strategy::node_event::{
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
     event::node_common_event::{CommonEvent, NodeRunningLogEvent},
-    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt}, node_infra::condition_trigger::ConditionTrigger,
 };
 use virtual_trading::{
     event::VtsEvent,
@@ -24,6 +24,7 @@ use crate::node::{
     node_event::BacktestNodeEvent,
     node_message::futures_order_node_log_message::{OrderCanceledMsg, OrderCreatedMsg, OrderFilledMsg},
 };
+use crate::node_catalog::futures_order_node::context::config_filter::{filter_case_trigger_configs, filter_else_trigger_configs};
 
 #[async_trait]
 impl NodeEventHandlerExt for FuturesOrderNodeContext {
@@ -33,8 +34,21 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
         Ok(())
     }
 
-    async fn handle_source_node_event(&mut self, _node_event: BacktestNodeEvent) -> Result<(), Self::Error> {
-        Ok(())
+    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), Self::Error> {
+        match node_event {
+            BacktestNodeEvent::Common(common_evt) => {
+                if let CommonEvent::Trigger(_trigger_evt) = common_evt {
+                    tracing::debug!("@[{}] received trigger event", self.node_name());
+                    // self.handle_trigger_event_for_independent_order(order_config_id).await?;
+                }
+                Ok(())
+            }
+            BacktestNodeEvent::IfElseNode(ifelse_node_event) => {
+                self.handle_ifelse_node_event(ifelse_node_event).await?;
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 
     async fn handle_command(&mut self, node_command: BacktestNodeCommand) -> Result<(), Self::Error> {
@@ -43,7 +57,6 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
                 if self.node_id() == cmd.node_id() {
                     let mut is_processing_order = self.is_processing_order.write().await;
                     is_processing_order.clear();
-                    tracing::debug!("reset is_processing_order: {:?}", is_processing_order);
                     // 重置unfilled_virtual_order
                     let mut unfilled_virtual_order = self.unfilled_virtual_order.write().await;
                     unfilled_virtual_order.clear();
@@ -82,7 +95,7 @@ impl FuturesOrderNodeContext {
         node_event: BacktestNodeEvent,
         order_config_id: i32,
     ) -> Result<(), FuturesOrderNodeError> {
-        tracing::debug!("{}: 收到事件: {:?}", self.node_name(), node_event);
+        // tracing::debug!("{}: 收到事件: {:?}", self.node_name(), node_event);
         match node_event {
             BacktestNodeEvent::Common(common_evt) => {
                 if let CommonEvent::Trigger(_trigger_evt) = common_evt {
@@ -91,7 +104,7 @@ impl FuturesOrderNodeContext {
                 Ok(())
             }
             BacktestNodeEvent::IfElseNode(ifelse_node_event) => {
-                self.handle_ifelse_node_event_for_independent_order(ifelse_node_event, order_config_id)
+                self.handle_ifelse_node_event(ifelse_node_event)
                     .await?;
                 Ok(())
             }
@@ -105,9 +118,14 @@ impl FuturesOrderNodeContext {
         cycle_tracker.start_phase(&phase_name);
 
         if self.is_leaf_node() {
-            self.send_execute_over_event(Some(order_config_id), Some("handle trigger event for specific order".to_string()), Some(self.strategy_time()))?;
+            self.send_execute_over_event(
+                Some(order_config_id),
+                Some("handle trigger event for specific order".to_string()),
+                Some(self.strategy_time()),
+            )?;
         } else {
-            self.independent_order_send_trigger_event(order_config_id, Some("handle trigger event for specific order".to_string())).await?;
+            self.independent_order_send_trigger_event(order_config_id, Some("handle trigger event for specific order".to_string()))
+                .await?;
         }
 
         cycle_tracker.end_phase(&phase_name);
@@ -117,49 +135,100 @@ impl FuturesOrderNodeContext {
         Ok(())
     }
 
-    async fn handle_ifelse_node_event_for_independent_order(
+    async fn handle_ifelse_node_event(
         &mut self,
         ifelse_node_event: IfElseNodeEvent,
-        order_config_id: i32,
     ) -> Result<(), FuturesOrderNodeError> {
-
         match ifelse_node_event {
-            IfElseNodeEvent::CaseTrue(_) | IfElseNodeEvent::ElseTrue(_) => {
+            IfElseNodeEvent::CaseTrue(case_true) => {
                 let mut cycle_tracker = CycleTracker::new(self.cycle_id());
 
-                let phase_name = format!("handle condition match event for order {}", order_config_id);
+                let phase_name = format!("handle case true for order");
                 cycle_tracker.start_phase(&phase_name);
 
                 // 根据input_handle_id获取订单配置
-                let order_config = self
-                    .node_config
-                    .futures_order_configs
-                    .iter()
-                    .find(|config| config.order_config_id == order_config_id)
-                    .ok_or(OrderConfigNotFoundSnafu { order_config_id }.build())?
-                    .clone();
+                let config_ids = filter_case_trigger_configs(
+                    self.node_config.futures_order_configs.iter(),
+                    case_true.case_id,
+                    case_true.node_id(),
+                );
 
-                // if create order failed, send trigger event, no block strategy loop
-                if let Err(e) = self.create_order(&order_config).await {
-                    match e {
-                        FuturesOrderNodeError::CannotCreateOrder { .. } => {
-                            if self.is_leaf_node() {
-                                self.send_execute_over_event(Some(order_config_id), Some("create order failed".to_string()), Some(self.strategy_time()))?;
-                            } else {
-                                self.independent_order_send_trigger_event(order_config_id, Some("create order failed".to_string())).await?;
-                            }
-                        }
-                        _ => {
-                            return Err(e);
-                        }
-                    }
-                } else {
+                for config_id in config_ids {
+                    // if create order failed, send trigger event, no block strategy loop
+                    self.create_order(config_id).await?;
                     if self.is_leaf_node() {
-                        self.send_execute_over_event(Some(order_config_id), Some("create order success".to_string()), Some(self.strategy_time()))?;
+                        self.send_execute_over_event(
+                            Some(config_id),
+                            Some("create order success".to_string()),
+                            Some(self.strategy_time()),
+                        )?;
                     } else {
-                        self.independent_order_send_trigger_event(order_config_id, Some("create order success".to_string())).await?;
+                        self.independent_order_send_trigger_event(config_id, Some("create order success".to_string()))
+                            .await?;
+                    }
+                    
+
+                }
+                cycle_tracker.end_phase(&phase_name);
+                let completed_tracker = cycle_tracker.end();
+                self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                    .await?;
+                Ok(())
+            }
+            IfElseNodeEvent::CaseFalse(case_false) => {
+
+                let config_ids = filter_case_trigger_configs(
+                    self.node_config.futures_order_configs.iter(),
+                    case_false.case_id,
+                    case_false.node_id(),
+                );
+
+                for config_id in config_ids {
+                    if self.is_leaf_node() {
+                        self.send_execute_over_event(
+                            Some(config_id),
+                            Some("handle case false event for order".to_string()),
+                            Some(self.strategy_time()),
+                        )?;
+                    } else {
+                        self.independent_order_send_trigger_event(config_id, Some("handle case false event for order".to_string()))
+                            .await?;
+                    }
+
+                }
+
+
+
+                Ok(())
+            }
+            IfElseNodeEvent::ElseTrue(else_true) => {
+                let mut cycle_tracker = CycleTracker::new(self.cycle_id());
+
+                let phase_name = format!("handle case true for order");
+                cycle_tracker.start_phase(&phase_name);
+
+                // 根据input_handle_id获取订单配置
+                let config_ids = filter_else_trigger_configs(
+                    self.node_config.futures_order_configs.iter(),
+                    else_true.node_id(),
+                );
+
+                for config_id in config_ids {
+                    // if create order failed, send trigger event, no block strategy loop
+                    self.create_order(config_id).await?;
+                    if self.is_leaf_node() {
+                        self.send_execute_over_event(
+                            Some(config_id),
+                            Some("create order success".to_string()),
+                            Some(self.strategy_time()),
+                        )?;
+                    } else {
+                        self.independent_order_send_trigger_event(config_id, Some("create order success".to_string()))
+                            .await?;
                     }
                 }
+
+                
 
                 cycle_tracker.end_phase(&phase_name);
                 let completed_tracker = cycle_tracker.end();
@@ -167,13 +236,29 @@ impl FuturesOrderNodeContext {
                     .await?;
                 Ok(())
             }
-            IfElseNodeEvent::CaseFalse(_) | IfElseNodeEvent::ElseFalse(_) => {
-                if self.is_leaf_node() {
-                    self.send_execute_over_event(Some(order_config_id), Some("handle case false event for order".to_string()), Some(self.strategy_time()))?;
-                } else {
-                    self.independent_order_send_trigger_event(order_config_id, Some("handle case false event for order".to_string())).await?;
+            IfElseNodeEvent::ElseFalse(else_false) => {
+                let config_ids = filter_else_trigger_configs(
+                    self.node_config.futures_order_configs.iter(),
+                    else_false.node_id(),
+                );
+
+                for config_id in config_ids {
+                    if self.is_leaf_node() {
+                        self.send_execute_over_event(
+                            Some(config_id),
+                            Some("handle case false event for order".to_string()),
+                            Some(self.strategy_time()),
+                        )?;
+                    } else {
+                        self.independent_order_send_trigger_event(config_id, Some("handle case false event for order".to_string()))
+                            .await?;
+                    }
+
                 }
-                Ok(())
+
+
+
+                Ok(())               
             }
         }
     }

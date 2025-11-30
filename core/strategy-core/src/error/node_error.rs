@@ -51,10 +51,11 @@ pub enum NodeError {
     #[snafu(display("@[{node_name}] mount node cycle tracker failed"))]
     NodeCycleTrackerMountFailed { node_name: String, backtrace: Backtrace },
 
-    #[snafu(display("@[{node_name}] output handle not found: {handle_id}"))]
+    #[snafu(display("@[{node_name}] output handle not found: {handle_id:?}, config_id: {config_id:?}"))]
     OutputHandleNotFound {
         node_name: NodeName,
-        handle_id: HandleId,
+        handle_id: Option<HandleId>,
+        config_id: Option<i32>,
         backtrace: Backtrace,
     },
 
@@ -191,8 +192,8 @@ impl StarRiverErrorTrait for NodeError {
                     NodeError::NodeCycleTrackerMountFailed { node_name, .. } => {
                         format!("[{node_name}] 挂载节点周期追踪器失败")
                     }
-                    NodeError::OutputHandleNotFound { handle_id, .. } => {
-                        format!("输出句柄未找到: {}", handle_id)
+                    NodeError::OutputHandleNotFound { handle_id, config_id, .. } => {
+                        format!("输出句柄未找到: {handle_id:?}, config_id: {config_id:?}")
                     }
                     NodeError::NodeEventSendFailed { handle_id, source, .. } => {
                         format!("节点事件发送失败: {}, 原因: {}", handle_id, source)

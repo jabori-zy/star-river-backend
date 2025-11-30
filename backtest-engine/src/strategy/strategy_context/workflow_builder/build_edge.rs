@@ -1,6 +1,7 @@
 // third-party
 use snafu::OptionExt;
 use strategy_core::{
+    NodeType,
     error::strategy_error::{EdgeConfigMissFieldSnafu, NodeNotFoundByIdSnafu},
     node::node_handles::NodeInputHandle,
     strategy::context_trait::{StrategyIdentityExt, StrategyWorkflowExt},
@@ -46,7 +47,7 @@ impl BacktestStrategyContext {
             .build()
         })?;
 
-        let (source, target) = {
+        let (source_idx, target_idx) = {
             let source = self.node_indices().get(source_node_id).copied().context(NodeNotFoundByIdSnafu {
                 strategy_name: strategy_name.clone(),
                 node_id: source_node_id.to_string(),
@@ -68,27 +69,25 @@ impl BacktestStrategyContext {
         );
 
         // 先获取源节点的output_handle
-        let (config_id, receiver) = self
-            .node(source)
+        let (_, receiver) = self
+            .node(source_idx)
             .unwrap()
             .subscribe_output_handle(source_handle_id.to_string(), target_handle_id.to_string())
             .await?;
 
-        if let Some(target_node) = self.node(target) {
-            // let receiver = from_node_output_handle.subscribe(target_handle_id.to_string());
+        if let Some(target_node) = self.node(target_idx) {
             // 获取接收者数量
             let input_handle = NodeInputHandle::new(
                 source_node_id.to_string(),
                 source_handle_id.to_string(),
                 target_handle_id.to_string(),
-                config_id,
                 receiver,
             );
             target_node.add_input_handle(input_handle).await;
             target_node.add_source_node(source_node_id.to_string()).await;
         }
         // tracing::debug!("添加边: {:?} -> {:?}", from_node_id, to_node_id);
-        self.graph_mut().add_edge(source, target, ());
+        self.graph_mut().add_edge(source_idx, target_idx, ());
 
         Ok(())
     }

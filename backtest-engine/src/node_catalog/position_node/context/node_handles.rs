@@ -16,25 +16,20 @@ impl NodeHandleExt for PositionNodeContext {
                 "{}_{}_success_output_{}",
                 node_id,
                 position_operation.position_operation.to_string(),
-                position_operation.position_operation_id
+                position_operation.config_id
             );
             let failed_output_handle_id = format!(
                 "{}_{}_failed_output_{}",
                 node_id,
                 position_operation.position_operation.to_string(),
-                position_operation.position_operation_id
+                position_operation.config_id
             );
             let (success_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             let (failed_tx, _) = broadcast::channel::<BacktestNodeEvent>(100);
             tracing::debug!("[{node_name}] setting success output handle: {}", success_output_handle_id);
-            self.add_output_handle(
-                false,
-                position_operation.position_operation_id,
-                success_output_handle_id,
-                success_tx,
-            );
+            self.add_output_handle(false, position_operation.config_id, success_output_handle_id, success_tx);
             tracing::debug!("[{node_name}] setting failed output handle: {}", failed_output_handle_id);
-            self.add_output_handle(false, position_operation.position_operation_id, failed_output_handle_id, failed_tx);
+            self.add_output_handle(false, position_operation.config_id, failed_output_handle_id, failed_tx);
         }
         Ok(())
     }

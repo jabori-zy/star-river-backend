@@ -124,9 +124,19 @@ impl VariableNodeContext {
                     Some(val) => val,
                     None => {
                         if self.is_leaf_node() {
-                            self.send_execute_over_event(Some(config.config_id()), Some("handle dataflow trigger".to_string()), Some(self.strategy_time()))?
+                            self.send_execute_over_event(
+                                Some(config.config_id()),
+                                Some("handle dataflow trigger".to_string()),
+                                Some(self.strategy_time()),
+                            )?
                         } else {
-                            self.send_trigger_event(&output_handle_id, Some(config.config_id()), Some("handle dataflow trigger".to_string()), Some(self.strategy_time())).await?;
+                            self.send_trigger_event(
+                                &output_handle_id,
+                                Some(config.config_id()),
+                                Some("handle dataflow trigger".to_string()),
+                                Some(self.strategy_time()),
+                            )
+                            .await?;
                         }
                         continue;
                     } // 如果返回 None，跳过当前迭代
@@ -238,8 +248,7 @@ impl VariableNodeContext {
         // 等待所有任务完成
         let result = futures::future::join_all(get_var_handles).await;
         result.into_iter().try_for_each(|res| {
-            res
-            .context(TaskFailedSnafu{})??;
+            res.context(TaskFailedSnafu {})??;
             Ok::<(), VariableNodeError>(())
         })?;
         Ok(())
@@ -345,8 +354,7 @@ impl VariableNodeContext {
         // 等待所有任务完成
         let result = futures::future::join_all(update_handles).await;
         result.into_iter().try_for_each(move |res| {
-            res
-            .context(TaskFailedSnafu{})??;
+            res.context(TaskFailedSnafu {})??;
             Ok::<(), VariableNodeError>(())
         })?;
         Ok(())
@@ -446,8 +454,7 @@ impl VariableNodeContext {
         // 等待所有任务完成
         let result = futures::future::join_all(reset_handles).await;
         result.into_iter().try_for_each(move |res| {
-            res
-            .context(TaskFailedSnafu{})??;
+            res.context(TaskFailedSnafu {})??;
             Ok::<(), VariableNodeError>(())
         })?;
         Ok(())

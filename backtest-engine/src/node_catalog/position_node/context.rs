@@ -1,6 +1,7 @@
 mod context_util;
 mod event_handler;
 mod node_handles;
+mod config_filter;
 
 use std::sync::Arc;
 
@@ -15,13 +16,13 @@ use strategy_core::{
         metadata::NodeMetadata,
     },
 };
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, broadcast, mpsc};
+use virtual_trading::{command::VtsCommand, event::VtsEvent};
 
 use super::{position_node_types::PositionNodeBacktestConfig, state_machine::PositionNodeStateMachine};
 use crate::{
     node::{node_command::BacktestNodeCommand, node_error::PositionNodeError, node_event::BacktestNodeEvent},
     strategy::strategy_command::BacktestStrategyCommand,
-    virtual_trading_system::BacktestVts,
 };
 
 pub type PositionNodeMetadata = NodeMetadata<PositionNodeStateMachine, BacktestNodeEvent, BacktestNodeCommand, BacktestStrategyCommand>;
@@ -33,7 +34,8 @@ pub struct PositionNodeContext {
     node_config: PositionNodeBacktestConfig,
     database: DatabaseConnection,
     heartbeat: Arc<Mutex<Heartbeat>>,
-    virtual_trading_system: Arc<Mutex<BacktestVts>>,
+    vts_command_sender: mpsc::Sender<VtsCommand>,
+    pub(crate) vts_event_receiver: broadcast::Receiver<VtsEvent>,
 }
 
 impl PositionNodeContext {
@@ -42,14 +44,16 @@ impl PositionNodeContext {
         node_config: PositionNodeBacktestConfig,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        virtual_trading_system: Arc<Mutex<BacktestVts>>,
+        vts_command_sender: mpsc::Sender<VtsCommand>,
+        vts_event_receiver: broadcast::Receiver<VtsEvent>,
     ) -> Self {
         Self {
             metadata,
             node_config,
             database,
             heartbeat,
-            virtual_trading_system,
+            vts_command_sender,
+            vts_event_receiver,
         }
     }
 }

@@ -1,8 +1,6 @@
 use async_trait::async_trait;
 use event_center::Event;
-use star_river_event::backtest_strategy::node_event::{
-    IfElseNodeEvent, IndicatorNodeEvent, KlineNodeEvent, VariableNodeEvent,
-};
+use star_river_event::backtest_strategy::node_event::{IfElseNodeEvent, IndicatorNodeEvent, KlineNodeEvent, VariableNodeEvent};
 use strategy_core::{
     event::node_common_event::CommonEvent,
     node::context_trait::{NodeEventHandlerExt, NodeInfoExt},

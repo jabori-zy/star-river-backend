@@ -209,7 +209,8 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeInfoExt {
             .get(&default_handle_id)
             .context(OutputHandleNotFoundSnafu {
                 node_name: self.node_name().clone(),
-                handle_id: default_handle_id,
+                handle_id: Some(default_handle_id),
+                config_id: None,
             })
     }
 
@@ -239,7 +240,8 @@ pub trait NodeHandleExt: NodeMetaDataExt + NodeInfoExt {
     fn output_handle(&self, handle_id: &str) -> Result<&NodeOutputHandle<Self::NodeEvent>, NodeError> {
         self.metadata().output_handles().get(handle_id).context(OutputHandleNotFoundSnafu {
             node_name: self.node_name().clone(),
-            handle_id: handle_id.to_string(),
+            handle_id: Some(handle_id.to_string()),
+            config_id: None,
         })
     }
 
@@ -390,7 +392,12 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
         default_handle.send(event)
     }
 
-    fn send_execute_over_event(&self, config_id: Option<i32>, context: Option<String>, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
+    fn send_execute_over_event(
+        &self,
+        config_id: Option<i32>,
+        context: Option<String>,
+        datetime: Option<DateTime<Utc>>,
+    ) -> Result<(), NodeError> {
         if !self.is_leaf_node() {
             return Ok(());
         }
@@ -423,7 +430,13 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
     }
 
     // send trigger event to downstream node. if current node is leaf node, send execute over event instead.
-    async fn send_trigger_event(&self, handle_id: &str, config_id: Option<i32>, context: Option<String>, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
+    async fn send_trigger_event(
+        &self,
+        handle_id: &str,
+        config_id: Option<i32>,
+        context: Option<String>,
+        datetime: Option<DateTime<Utc>>,
+    ) -> Result<(), NodeError> {
         // 叶子节点不发送触发事件
         if self.is_leaf_node() {
             // self.send_execute_over_event()?;
@@ -455,10 +468,14 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
 
         let output_handle = self.output_handle(handle_id)?;
         output_handle.send(trigger_event.into())
-        
     }
 
-    async fn default_output_handle_send_trigger_event(&self, config_id: Option<i32>, context: Option<String>, datetime: Option<DateTime<Utc>>) -> Result<(), NodeError> {
+    async fn default_output_handle_send_trigger_event(
+        &self,
+        config_id: Option<i32>,
+        context: Option<String>,
+        datetime: Option<DateTime<Utc>>,
+    ) -> Result<(), NodeError> {
         let default_handle = self.default_output_handle()?;
 
         let payload = TriggerPayload::new(config_id, context);
@@ -600,7 +617,6 @@ impl<Ctx> NodeContextExt for Ctx where
         + NodeCommunicationExt
         + NodeTaskControlExt
         + NodeEventHandlerExt
-        + NodeBenchmarkExt // Ctx::Event: Clone + Send + Sync,
-                           // Ctx::NodeCommand: Send,
+        + NodeBenchmarkExt
 {
 }

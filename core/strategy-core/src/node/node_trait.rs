@@ -220,6 +220,7 @@ where
                                 let mut context_guard = context.write().await;
                                 let handle_result = context_guard.handle_source_node_event(message).await;
                                 if let Err(e) = handle_result {
+                                    e.report();
                                     let current_time = context_guard.strategy_time();
                                     let running_error_log: CommonEvent = NodeRunningLogEvent::error_with_time(
                                         context_guard.cycle_id().clone(),

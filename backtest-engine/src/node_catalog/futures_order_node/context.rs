@@ -3,6 +3,7 @@ mod event_handler;
 mod node_handles;
 mod order_handler;
 mod status_handler;
+mod config_filter;
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -10,7 +11,7 @@ use async_trait::async_trait;
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
 use star_river_core::{
-    custom_type::{InputHandleId, NodeId, NodeName, OrderId},
+    custom_type::{NodeId, NodeName, OrderId},
     instrument::Symbol,
     order::OrderStatus,
 };
@@ -46,7 +47,7 @@ pub struct FuturesOrderNodeContext {
     database: DatabaseConnection,                                // 数据库连接
     heartbeat: Arc<Mutex<Heartbeat>>,                            // 心跳
     vts_command_sender: mpsc::Sender<VtsCommand>,
-    pub vts_event_receiver: broadcast::Receiver<VtsEvent>,
+    pub(crate) vts_event_receiver: broadcast::Receiver<VtsEvent>,
     unfilled_virtual_order: Arc<RwLock<Vec<VirtualOrder>>>, // 未成交的虚拟订单列表
     virtual_order_history: Arc<RwLock<Vec<VirtualOrder>>>,  // 虚拟订单历史列表
     virtual_transaction_history: Arc<RwLock<Vec<VirtualTransaction>>>, // 虚拟交易明细历史列表

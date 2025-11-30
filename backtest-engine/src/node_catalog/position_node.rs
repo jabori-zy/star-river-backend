@@ -20,12 +20,12 @@ use strategy_core::{
     node::{NodeBase, NodeType, metadata::NodeMetadata, node_trait::NodeContextAccessor, utils::generate_strategy_output_handle},
     strategy::cycle::Cycle,
 };
-use tokio::sync::{Mutex, RwLock, mpsc, watch};
+use tokio::sync::{Mutex, RwLock, broadcast, mpsc, watch};
+use virtual_trading::{command::VtsCommand, event::VtsEvent};
 
 use crate::{
     node::{node_command::BacktestNodeCommand, node_error::BacktestNodeError, node_state_machine::NodeRunState},
     strategy::strategy_command::BacktestStrategyCommand,
-    virtual_trading_system::BacktestVts,
 };
 
 #[derive(Debug, Clone)]
@@ -56,8 +56,9 @@ impl PositionNode {
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
-        virtual_trading_system: Arc<Mutex<BacktestVts>>,
         strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
+        vts_command_sender: mpsc::Sender<VtsCommand>,
+        vts_event_receiver: broadcast::Receiver<VtsEvent>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_position_node_config(node_config)?;
         let strategy_output_handle = generate_strategy_output_handle(&node_id, &node_name);
@@ -74,7 +75,7 @@ impl PositionNode {
             strategy_command_sender,
             node_command_receiver,
         );
-        let context = PositionNodeContext::new(metadata, node_config, database, heartbeat, virtual_trading_system);
+        let context = PositionNodeContext::new(metadata, node_config, database, heartbeat, vts_command_sender, vts_event_receiver);
         Ok(Self {
             inner: NodeBase::new(context),
         })

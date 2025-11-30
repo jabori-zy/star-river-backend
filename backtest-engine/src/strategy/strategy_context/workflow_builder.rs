@@ -173,13 +173,20 @@ impl BacktestStrategyContext {
                 }
                 NodeType::PositionNode => {
                     let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
+                    let (vts_command_sender, vts_event_receiver) = self
+                        .virtual_trading_system()
+                        .lock()
+                        .await
+                        .with_ctx_read(|ctx| (ctx.get_command_sender().clone(), ctx.vts_event_receiver()))
+                        .await;
                     let position_node = self
                         .build_position_node(
                             node_config.clone(),
                             node_command_rx,
                             self.database().clone(),
                             self.heartbeat().clone(),
-                            self.virtual_trading_system().clone(),
+                            vts_command_sender,
+                            vts_event_receiver,
                         )
                         .await?;
                     let node_id = position_node.with_ctx_read(|ctx| ctx.node_id().to_string()).await;

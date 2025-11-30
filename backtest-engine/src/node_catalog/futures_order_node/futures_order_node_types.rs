@@ -1,32 +1,30 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use snafu::OptionExt;
 use star_river_core::{
     custom_type::{InputHandleId, NodeName},
     order::{FuturesOrderSide, OrderType, TpslType},
     system::{TimeRange, deserialize_time_range},
 };
-use strategy_core::strategy::SelectedAccount;
+use strategy_core::{node_infra::condition_trigger::ConditionTrigger, strategy::SelectedAccount};
 
 use crate::{
-    node::node_error::{FuturesOrderNodeError, futures_order_node_error::ExchangeModeNotConfiguredSnafu},
+    node::node_error::{FuturesOrderNodeError, futures_order_node_error::{ExchangeModeNotConfiguredSnafu, OrderConfigNotFoundSnafu}},
     strategy::strategy_config::BacktestDataSource,
 };
 
 // 合约订单配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FuturesOrderConfig {
-    #[serde(rename = "orderConfigId")]
     pub order_config_id: i32,
 
-    #[serde(rename = "inputHandleId")]
     pub input_handle_id: InputHandleId,
 
     pub symbol: String,
 
-    #[serde(rename = "orderType")]
     pub order_type: OrderType,
 
     // #[serde(deserialize_with = "deserialize_futures_order_side")]
-    #[serde(rename = "orderSide")]
     pub order_side: FuturesOrderSide,
 
     pub price: f64,
@@ -36,25 +34,23 @@ pub struct FuturesOrderConfig {
     pub tp: Option<f64>,
     pub sl: Option<f64>,
 
-    #[serde(rename = "tpType")]
     pub tp_type: Option<TpslType>,
 
-    #[serde(rename = "slType")]
     pub sl_type: Option<TpslType>,
+
+    pub trigger_config: ConditionTrigger,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FuturesOrderNodeConfig {
     #[serde(skip)]
     pub node_name: NodeName,
 
-    #[serde(rename = "dataSource")]
     pub data_source: BacktestDataSource,
 
-    #[serde(rename = "exchangeModeConfig")]
     pub exchange_mode_config: Option<FuturesOrderNodeExchangeModeConfig>,
 
-    #[serde(rename = "futuresOrderConfigs")]
     pub futures_order_configs: Vec<FuturesOrderConfig>,
 }
 
@@ -69,13 +65,19 @@ impl FuturesOrderNodeConfig {
             .build())
         }
     }
+
+    pub fn find_order_config(&self, config_id: i32) -> Result<&FuturesOrderConfig, FuturesOrderNodeError> {
+        self.futures_order_configs
+        .iter()
+        .find(|config| config.order_config_id == config_id)
+        .context(OrderConfigNotFoundSnafu { order_config_id: config_id })
+    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FuturesOrderNodeExchangeModeConfig {
-    #[serde(rename = "selectedAccount")]
     pub selected_account: SelectedAccount,
-    #[serde(rename = "timeRange")]
     #[serde(deserialize_with = "deserialize_time_range")]
     pub time_range: TimeRange,
 }

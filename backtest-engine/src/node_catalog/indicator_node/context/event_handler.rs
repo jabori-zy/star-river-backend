@@ -135,7 +135,8 @@ impl IndicatorNodeContext {
             if self.is_leaf_node() {
                 self.send_execute_over_event(Some(*config_id), context, Some(self.strategy_time()))?;
             } else {
-                self.send_trigger_event(&handle_id, Some(*config_id), context, Some(self.strategy_time())).await?;
+                self.send_trigger_event(&handle_id, Some(*config_id), context, Some(self.strategy_time()))
+                    .await?;
             }
         }
 
@@ -169,8 +170,16 @@ impl IndicatorNodeContext {
                     && let Some(lookback) = lookback
                 {
                     if kline_series.len() < *lookback + 1 {
-                        self.handle_event_send(output_handle_id.clone(), &indicator_key, &config_id, None, &node_id, &node_name, Some("kline series length less than lookback".to_string()))
-                            .await?;
+                        self.handle_event_send(
+                            output_handle_id.clone(),
+                            &indicator_key,
+                            &config_id,
+                            None,
+                            &node_id,
+                            &node_name,
+                            Some("kline series length less than lookback".to_string()),
+                        )
+                        .await?;
                         cycle_tracker.end_phase(&phase_name);
                         continue;
                     }
@@ -188,7 +197,7 @@ impl IndicatorNodeContext {
                         Some(calculate_result),
                         &node_id,
                         &node_name,
-                        Some("calculate indicator success".to_string())
+                        Some("calculate indicator success".to_string()),
                     )
                     .await?;
 
@@ -218,7 +227,7 @@ impl IndicatorNodeContext {
                     indicator_data,
                     &node_id,
                     &node_name,
-                    Some("send indicator data directly".to_string())
+                    Some("send indicator data directly".to_string()),
                 )
                 .await?;
                 cycle_tracker.end_phase(&phase_name);

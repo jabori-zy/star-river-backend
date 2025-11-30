@@ -134,7 +134,7 @@ impl NodeLifecycle for PositionNode {
                     )
                     .await;
 
-                    self.listen_source_node_events_for_independent_position_op().await;
+                    self.listen_source_node_events().await;
                 }
                 PositionNodeAction::ListenAndHandleStrategyCommand => {
                     tracing::info!("[{node_name}] start to listen strategy command");

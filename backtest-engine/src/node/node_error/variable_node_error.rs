@@ -22,7 +22,10 @@ pub enum VariableNodeError {
     ExchangeModeNotConfigured { node_name: NodeName, backtrace: Backtrace },
 
     #[snafu(display("task failed: {source}"))]
-    TaskFailed { source: tokio::task::JoinError, backtrace: Backtrace },
+    TaskFailed {
+        source: tokio::task::JoinError,
+        backtrace: Backtrace,
+    },
 }
 
 impl StarRiverErrorTrait for VariableNodeError {
@@ -37,7 +40,7 @@ impl StarRiverErrorTrait for VariableNodeError {
             VariableNodeError::VtsError { .. } => 1002,                  // vts error
             VariableNodeError::SysVariableSymbolIsNull { .. } => 1003,   //system variable symbol is null
             VariableNodeError::ExchangeModeNotConfigured { .. } => 1004, //exchange mode not configured
-            VariableNodeError::TaskFailed { .. } => 1005, //task failed
+            VariableNodeError::TaskFailed { .. } => 1005,                //task failed
         };
 
         format!("{}_{:04}", prefix, code)
@@ -59,9 +62,9 @@ impl StarRiverErrorTrait for VariableNodeError {
         match self {
             VariableNodeError::NodeError { source, .. } => generate_error_code_chain(source),
             VariableNodeError::VtsError { source, .. } => generate_error_code_chain(source),
-            VariableNodeError::SysVariableSymbolIsNull { .. } |
-            VariableNodeError::TaskFailed { .. } |
-            VariableNodeError::ExchangeModeNotConfigured { .. } => vec![self.error_code()],
+            VariableNodeError::SysVariableSymbolIsNull { .. }
+            | VariableNodeError::TaskFailed { .. }
+            | VariableNodeError::ExchangeModeNotConfigured { .. } => vec![self.error_code()],
         }
     }
 

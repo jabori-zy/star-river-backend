@@ -17,11 +17,12 @@ use crate::node::{
     },
     node_message::futures_order_node_log_message::ProcessingOrderMsg,
 };
+use strategy_core::node::context_trait::NodeRelationExt;
 
 impl FuturesOrderNodeContext {
     // create a virtual order
-    pub(super) async fn create_order(&mut self, order_config: &FuturesOrderConfig) -> Result<(), FuturesOrderNodeError> {
-        let config_id = order_config.order_config_id;
+    pub(super) async fn create_order(&mut self, config_id: i32) -> Result<(), FuturesOrderNodeError> {
+        tracing::debug!("@[{}] creating order for config: {:?}", self.node_name(), config_id);
         // 如果当前是正在处理订单的状态，或者未成交的订单列表不为空，则不创建订单
         if !self.can_create_order(&config_id).await {
             tracing::warn!("@[{}] config {:?} is processing order, skip", self.node_name(), config_id);
@@ -43,17 +44,24 @@ impl FuturesOrderNodeContext {
                 self.increment_warn_log_send_count(config_id).await;
             }
 
-            return Err(CannotCreateOrderSnafu {
-                node_name: self.node_name().clone(),
-                order_config_id: config_id,
+            if self.is_leaf_node() {
+                self.send_execute_over_event(
+                    Some(config_id),
+                    Some("is processing order".to_string()),
+                    Some(self.strategy_time()),
+                )?;
+            } else {
+                self.independent_order_send_trigger_event(config_id, Some("create order failed".to_string()))
+                    .await?;
             }
-            .build());
+            return Ok(());
         }
         // 将input_handle_id的is_processing_order设置为true
         self.set_is_processing_order(config_id, true).await;
 
         // let mut virtual_trading_system_guard = self.virtual_trading_system.lock().await;
         let exchange = self.node_config.exchange_mode()?.selected_account.exchange.clone();
+        let order_config = self.node_config.find_order_config(config_id)?;
         // 创建订单
         // 获取symbol的point
         let point = self

@@ -17,7 +17,6 @@ pub struct NodeInputHandle<E: Clone> {
     pub from_node_id: String,
     pub from_handle_id: String,
     pub input_handle_id: HandleId, // 对应的input_handle_id
-    pub config_id: i32,
     pub receiver: broadcast::Receiver<E>,
 }
 
@@ -26,14 +25,12 @@ impl<E: Clone> NodeInputHandle<E> {
         from_node_id: String,
         from_handle_id: String,
         input_handle_id: HandleId,
-        config_id: i32,
         receiver: broadcast::Receiver<E>,
     ) -> Self {
         Self {
             from_node_id,
             from_handle_id,
             input_handle_id,
-            config_id,
             receiver,
         }
     }
@@ -49,7 +46,6 @@ impl<E: Clone> Clone for NodeInputHandle<E> {
             from_node_id: self.from_node_id.clone(),
             from_handle_id: self.from_handle_id.clone(),
             input_handle_id: self.input_handle_id.clone(),
-            config_id: self.config_id,
             receiver: self.receiver.resubscribe(),
         }
     }
