@@ -124,7 +124,7 @@ impl PositionNode {
             })?
             .to_owned() as StrategyId;
 
-        let backtest_config_json = node_data
+        let mut backtest_config_json = node_data
             .get("backtestConfig")
             .ok_or_else(|| {
                 ConfigFieldValueNullSnafu {
@@ -133,6 +133,10 @@ impl PositionNode {
                 .build()
             })?
             .to_owned();
+
+        if let Some(obj) = backtest_config_json.as_object_mut() {
+            obj.insert("nodeName".to_string(), serde_json::Value::String(node_name.clone()));
+        }
 
         let backtest_config =
             serde_json::from_value::<PositionNodeBacktestConfig>(backtest_config_json).context(ConfigDeserializationFailedSnafu {

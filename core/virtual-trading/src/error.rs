@@ -4,7 +4,7 @@ use star_river_core::{
     error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode},
 };
 
-use crate::{command::VtsCommand, event::VtsEvent};
+use crate::{command::VtsCommand, event::VtsEvent, types::VirtualOrder};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -83,6 +83,13 @@ pub enum VtsError {
         pos_quantity: f64,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("virtual order serialize failed: {source}"))]
+    VirtualOrderSerializeFailed {
+        virtual_order: VirtualOrder,
+        source: serde_json::Error,
+        backtrace: Backtrace,
+    },
 }
 
 // Implement the StarRiverErrorTrait for IndicatorError
@@ -106,6 +113,7 @@ impl StarRiverErrorTrait for VtsError {
             VtsError::TpOrderQuantityMoreThanPosQuantity { .. } => 1010, // tp order quantity more than pos quantity
             VtsError::SlOrderQuantityMoreThanPosQuantity { .. } => 1011, // sl order quantity more than pos quantity
             VtsError::PositionNotFoundForSymbol { .. } => 1012,          // position not found for symbol and exchange
+            VtsError::VirtualOrderSerializeFailed { .. } => 1013,        // virtual order serialize failed
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -172,6 +180,9 @@ impl StarRiverErrorTrait for VtsError {
                         position_id
                     )
                 }
+                VtsError::VirtualOrderSerializeFailed { source, virtual_order, .. } => {
+                    format!("订单序列化失败: {source}, 订单: {virtual_order:?}")
+                }
             },
         }
     }
@@ -189,6 +200,7 @@ impl StarRiverErrorTrait for VtsError {
             VtsError::TpOrderQuantityMoreThanPosQuantity { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             VtsError::SlOrderQuantityMoreThanPosQuantity { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             VtsError::PositionNotFoundForSymbol { .. } => StatusCode::NOT_FOUND,
+            VtsError::VirtualOrderSerializeFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -205,7 +217,8 @@ impl StarRiverErrorTrait for VtsError {
             | VtsError::OnlyOneDirectionSupported { .. }
             | VtsError::TpOrderQuantityMoreThanPosQuantity { .. }
             | VtsError::SlOrderQuantityMoreThanPosQuantity { .. }
-            | VtsError::PositionNotFoundForSymbol { .. } => vec![self.error_code()],
+            | VtsError::PositionNotFoundForSymbol { .. }
+            | VtsError::VirtualOrderSerializeFailed { .. } => vec![self.error_code()],
         }
     }
 }

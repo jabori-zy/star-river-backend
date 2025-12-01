@@ -152,9 +152,8 @@ where
         sl_type: Option<TpslType>,
         point: Option<f64>,
     ) -> Result<(), VtsError> {
-        let kline_key = self.get_kline_key(&exchange, &symbol)?;
         let current_datetime = self.current_datetime();
-        let kline = self.get_kline_price(&kline_key)?;
+        let kline = self.find_kline_price(&exchange, &symbol)?;
         let current_price = kline.close;
         // order create closure
         let create_order = |price| -> Result<VirtualOrder, VtsError> {
@@ -176,7 +175,6 @@ where
                 point,
                 current_datetime,
             );
-            tracing::debug!("order created: {:?}", order);
             let order_create_event = VtsEvent::FuturesOrderCreated(order.clone());
             self.send_event(order_create_event)?;
             // 插入订单
@@ -236,9 +234,9 @@ where
     }
 
     // 检查未成交订单（包括挂单，止盈止损订单），如果未成交，则立即成交
-    pub fn check_unfilled_orders(&mut self, kline_key: &KlineKey, kline: &Kline) -> Result<(), VtsError> {
+    pub fn check_unfilled_orders(&mut self, exchange: &Exchange, symbol: &String, kline: &Kline) -> Result<(), VtsError> {
         // 获取未成交订单
-        let unfilled_order_ids = self.find_unfilled_order_ids_for(&kline_key.exchange, &kline_key.symbol);
+        let unfilled_order_ids = self.find_unfilled_order_ids_for(exchange, symbol);
 
         if unfilled_order_ids.is_empty() {
             return Ok(());

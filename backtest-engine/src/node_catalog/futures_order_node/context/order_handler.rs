@@ -1,7 +1,7 @@
 use snafu::{OptionExt, ResultExt};
 use strategy_core::{
     event::node_common_event::{CommonEvent, NodeRunningLogEvent},
-    node::context_trait::{NodeCommunicationExt, NodeInfoExt},
+    node::context_trait::{NodeCommunicationExt, NodeInfoExt, NodeRelationExt},
 };
 use tokio::sync::oneshot;
 use virtual_trading::{
@@ -17,7 +17,6 @@ use crate::node::{
     },
     node_message::futures_order_node_log_message::ProcessingOrderMsg,
 };
-use strategy_core::node::context_trait::NodeRelationExt;
 
 impl FuturesOrderNodeContext {
     // create a virtual order
@@ -45,11 +44,7 @@ impl FuturesOrderNodeContext {
             }
 
             if self.is_leaf_node() {
-                self.send_execute_over_event(
-                    Some(config_id),
-                    Some("is processing order".to_string()),
-                    Some(self.strategy_time()),
-                )?;
+                self.send_execute_over_event(Some(config_id), Some("is processing order".to_string()), Some(self.strategy_time()))?;
             } else {
                 self.independent_order_send_trigger_event(config_id, Some("create order failed".to_string()))
                     .await?;

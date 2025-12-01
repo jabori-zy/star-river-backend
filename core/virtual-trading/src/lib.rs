@@ -7,6 +7,9 @@ pub mod types;
 pub(crate) mod utils;
 pub mod vts_trait;
 
+#[cfg(test)]
+mod test;
+
 use std::{fmt::Debug, sync::Arc};
 
 pub use context::VirtualTradingSystemContext;

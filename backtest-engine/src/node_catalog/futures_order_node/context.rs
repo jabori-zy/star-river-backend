@@ -1,9 +1,9 @@
+mod config_filter;
 mod context_util;
 mod event_handler;
 mod node_handles;
 mod order_handler;
 mod status_handler;
-mod config_filter;
 
 use std::{collections::HashMap, sync::Arc};
 

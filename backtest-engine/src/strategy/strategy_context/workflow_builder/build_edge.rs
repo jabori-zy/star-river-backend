@@ -1,7 +1,6 @@
 // third-party
 use snafu::OptionExt;
 use strategy_core::{
-    NodeType,
     error::strategy_error::{EdgeConfigMissFieldSnafu, NodeNotFoundByIdSnafu},
     node::node_handles::NodeInputHandle,
     strategy::context_trait::{StrategyIdentityExt, StrategyWorkflowExt},

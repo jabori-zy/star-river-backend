@@ -8,7 +8,8 @@ use star_river_event::backtest_strategy::node_event::{
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
     event::node_common_event::{CommonEvent, NodeRunningLogEvent},
-    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt}, node_infra::condition_trigger::ConditionTrigger,
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
+    node_infra::condition_trigger::ConditionTrigger,
 };
 use virtual_trading::{
     event::VtsEvent,
@@ -16,15 +17,17 @@ use virtual_trading::{
 };
 
 use super::FuturesOrderNodeContext;
-use crate::node::{
-    node_command::{
-        BacktestNodeCommand, GetFuturesOrderConfigRespPayload, GetFuturesOrderConfigResponse, NodeResetRespPayload, NodeResetResponse,
+use crate::{
+    node::{
+        node_command::{
+            BacktestNodeCommand, GetFuturesOrderConfigRespPayload, GetFuturesOrderConfigResponse, NodeResetRespPayload, NodeResetResponse,
+        },
+        node_error::{FuturesOrderNodeError, futures_order_node_error::OrderConfigNotFoundSnafu},
+        node_event::BacktestNodeEvent,
+        node_message::futures_order_node_log_message::{OrderCanceledMsg, OrderCreatedMsg, OrderFilledMsg},
     },
-    node_error::{FuturesOrderNodeError, futures_order_node_error::OrderConfigNotFoundSnafu},
-    node_event::BacktestNodeEvent,
-    node_message::futures_order_node_log_message::{OrderCanceledMsg, OrderCreatedMsg, OrderFilledMsg},
+    node_catalog::futures_order_node::context::config_filter::{filter_case_trigger_configs, filter_else_trigger_configs},
 };
-use crate::node_catalog::futures_order_node::context::config_filter::{filter_case_trigger_configs, filter_else_trigger_configs};
 
 #[async_trait]
 impl NodeEventHandlerExt for FuturesOrderNodeContext {
@@ -104,8 +107,7 @@ impl FuturesOrderNodeContext {
                 Ok(())
             }
             BacktestNodeEvent::IfElseNode(ifelse_node_event) => {
-                self.handle_ifelse_node_event(ifelse_node_event)
-                    .await?;
+                self.handle_ifelse_node_event(ifelse_node_event).await?;
                 Ok(())
             }
             _ => Ok(()),
@@ -135,10 +137,7 @@ impl FuturesOrderNodeContext {
         Ok(())
     }
 
-    async fn handle_ifelse_node_event(
-        &mut self,
-        ifelse_node_event: IfElseNodeEvent,
-    ) -> Result<(), FuturesOrderNodeError> {
+    async fn handle_ifelse_node_event(&mut self, ifelse_node_event: IfElseNodeEvent) -> Result<(), FuturesOrderNodeError> {
         match ifelse_node_event {
             IfElseNodeEvent::CaseTrue(case_true) => {
                 let mut cycle_tracker = CycleTracker::new(self.cycle_id());
@@ -166,8 +165,6 @@ impl FuturesOrderNodeContext {
                         self.independent_order_send_trigger_event(config_id, Some("create order success".to_string()))
                             .await?;
                     }
-                    
-
                 }
                 cycle_tracker.end_phase(&phase_name);
                 let completed_tracker = cycle_tracker.end();
@@ -176,7 +173,6 @@ impl FuturesOrderNodeContext {
                 Ok(())
             }
             IfElseNodeEvent::CaseFalse(case_false) => {
-
                 let config_ids = filter_case_trigger_configs(
                     self.node_config.futures_order_configs.iter(),
                     case_false.case_id,
@@ -194,10 +190,7 @@ impl FuturesOrderNodeContext {
                         self.independent_order_send_trigger_event(config_id, Some("handle case false event for order".to_string()))
                             .await?;
                     }
-
                 }
-
-
 
                 Ok(())
             }
@@ -208,10 +201,7 @@ impl FuturesOrderNodeContext {
                 cycle_tracker.start_phase(&phase_name);
 
                 // 根据input_handle_id获取订单配置
-                let config_ids = filter_else_trigger_configs(
-                    self.node_config.futures_order_configs.iter(),
-                    else_true.node_id(),
-                );
+                let config_ids = filter_else_trigger_configs(self.node_config.futures_order_configs.iter(), else_true.node_id());
 
                 for config_id in config_ids {
                     // if create order failed, send trigger event, no block strategy loop
@@ -228,8 +218,6 @@ impl FuturesOrderNodeContext {
                     }
                 }
 
-                
-
                 cycle_tracker.end_phase(&phase_name);
                 let completed_tracker = cycle_tracker.end();
                 self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
@@ -237,10 +225,7 @@ impl FuturesOrderNodeContext {
                 Ok(())
             }
             IfElseNodeEvent::ElseFalse(else_false) => {
-                let config_ids = filter_else_trigger_configs(
-                    self.node_config.futures_order_configs.iter(),
-                    else_false.node_id(),
-                );
+                let config_ids = filter_else_trigger_configs(self.node_config.futures_order_configs.iter(), else_false.node_id());
 
                 for config_id in config_ids {
                     if self.is_leaf_node() {
@@ -253,12 +238,9 @@ impl FuturesOrderNodeContext {
                         self.independent_order_send_trigger_event(config_id, Some("handle case false event for order".to_string()))
                             .await?;
                     }
-
                 }
 
-
-
-                Ok(())               
+                Ok(())
             }
         }
     }
@@ -344,7 +326,7 @@ impl FuturesOrderNodeContext {
                             self.node_id().clone(),
                             self.node_name().clone(),
                             message.to_string(),
-                            serde_json::to_value(order).unwrap(),
+                            order.to_value()?,
                             order.create_time,
                         )
                         .into();

@@ -2,6 +2,7 @@ use std::sync::atomic::Ordering;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use snafu::ResultExt;
 use star_river_core::{
     custom_type::*,
     exchange::Exchange,
@@ -10,6 +11,7 @@ use star_river_core::{
 use utoipa::ToSchema;
 
 use super::id_generator::ORDER_ID_COUNTER;
+use crate::error::{VirtualOrderSerializeFailedSnafu, VtsError};
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VirtualOrder {
@@ -33,6 +35,12 @@ pub struct VirtualOrder {
 }
 
 impl VirtualOrder {
+    pub fn to_value(&self) -> Result<serde_json::Value, VtsError> {
+        serde_json::to_value(self).context(VirtualOrderSerializeFailedSnafu {
+            virtual_order: self.clone(),
+        })
+    }
+
     pub fn new(
         position_id: Option<PositionId>,
         strategy_id: StrategyId,

@@ -8,7 +8,10 @@ use star_river_core::{
 use strategy_core::{node_infra::condition_trigger::ConditionTrigger, strategy::SelectedAccount};
 
 use crate::{
-    node::node_error::{FuturesOrderNodeError, futures_order_node_error::{ExchangeModeNotConfiguredSnafu, OrderConfigNotFoundSnafu}},
+    node::node_error::{
+        FuturesOrderNodeError,
+        futures_order_node_error::{ExchangeModeNotConfiguredSnafu, OrderConfigNotFoundSnafu},
+    },
     strategy::strategy_config::BacktestDataSource,
 };
 
@@ -68,9 +71,11 @@ impl FuturesOrderNodeConfig {
 
     pub fn find_order_config(&self, config_id: i32) -> Result<&FuturesOrderConfig, FuturesOrderNodeError> {
         self.futures_order_configs
-        .iter()
-        .find(|config| config.order_config_id == config_id)
-        .context(OrderConfigNotFoundSnafu { order_config_id: config_id })
+            .iter()
+            .find(|config| config.order_config_id == config_id)
+            .context(OrderConfigNotFoundSnafu {
+                order_config_id: config_id,
+            })
     }
 }
 

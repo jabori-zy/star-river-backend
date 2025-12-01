@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use event_center::EventCenterError;
 use snafu::{Backtrace, Snafu};
 use star_river_core::{
     custom_type::NodeName,
@@ -16,6 +17,9 @@ pub enum FuturesOrderNodeError {
 
     #[snafu(transparent)]
     VirtualTradingSystem { source: VtsError, backtrace: Backtrace },
+
+    #[snafu(transparent)]
+    EventCenterError { source: EventCenterError, backtrace: Backtrace },
 
     #[snafu(display("@[{node_name}] config {:?} is processing order, skip", order_config_id))]
     CannotCreateOrder {
@@ -53,10 +57,11 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
             FuturesOrderNodeError::NodeError { .. } => 1000,                 // node error
             FuturesOrderNodeError::VirtualTradingSystem { .. } => 1001,      //虚拟交易系统错误
             FuturesOrderNodeError::CannotCreateOrder { .. } => 1002,         //无法创建订单
-            FuturesOrderNodeError::OrderConfigNotFound { .. } => 1003,       //订单配置未找到
-            FuturesOrderNodeError::GetSymbolInfoFailed { .. } => 1004,       //获取交易对信息失败
-            FuturesOrderNodeError::SymbolInfoNotFound { .. } => 1005,        //交易对信息未找到
-            FuturesOrderNodeError::ExchangeModeNotConfigured { .. } => 1006, //交易所模式未配置
+            FuturesOrderNodeError::EventCenterError { .. } => 1003,          //事件中心错误
+            FuturesOrderNodeError::OrderConfigNotFound { .. } => 1004,       //订单配置未找到
+            FuturesOrderNodeError::GetSymbolInfoFailed { .. } => 1005,       //获取交易对信息失败
+            FuturesOrderNodeError::SymbolInfoNotFound { .. } => 1006,        //交易对信息未找到
+            FuturesOrderNodeError::ExchangeModeNotConfigured { .. } => 1007, //交易所模式未配置
         };
 
         format!("{}_{:04}", prefix, code)
@@ -66,6 +71,7 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
         match self {
             FuturesOrderNodeError::NodeError { source, .. } => generate_error_code_chain(source),
             FuturesOrderNodeError::VirtualTradingSystem { source, .. } => generate_error_code_chain(source),
+            FuturesOrderNodeError::EventCenterError { source, .. } => generate_error_code_chain(source),
             FuturesOrderNodeError::CannotCreateOrder { .. } => vec![self.error_code()],
             FuturesOrderNodeError::OrderConfigNotFound { .. } => vec![self.error_code()],
             FuturesOrderNodeError::GetSymbolInfoFailed { source, .. } => {
@@ -84,6 +90,7 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
             ErrorLanguage::Chinese => match self {
                 FuturesOrderNodeError::NodeError { source, .. } => source.error_message(language),
                 FuturesOrderNodeError::VirtualTradingSystem { source, .. } => source.error_message(language),
+                FuturesOrderNodeError::EventCenterError { source, .. } => source.error_message(language),
                 FuturesOrderNodeError::CannotCreateOrder { .. } => {
                     format!("无法创建订单，因为当前正在处理订单或未成交订单不为空")
                 }

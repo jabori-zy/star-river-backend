@@ -3,7 +3,7 @@ use std::{fmt::Debug, ops::Deref};
 use chrono::{DateTime, Utc};
 use derive_more::From;
 use star_river_core::{
-    custom_type::{NodeId, NodeName, OrderId, StrategyId},
+    custom_type::{NodeId, NodeName, OrderId, PositionId, StrategyId},
     exchange::Exchange,
     order::{FuturesOrderSide, OrderType, TpslType},
 };
@@ -162,13 +162,24 @@ where
 #[derive(Debug, From)]
 pub enum VtsCommand {
     CreateOrder(CreateOrderCommand),
+    ClosePosition(ClosePositionCommand),
+    CloseAllPositions(CloseAllPositionsCommand),
 }
 
-/// Type alias for CreateOrderCommand
+/// CreateOrder
 pub type CreateOrderCommand = GenericVtsCommand<CreateOrderCmdPayload, CreateOrderRespPayload>;
 
-/// Type alias for CreateOrderResponse
 pub type CreateOrderResponse = VtsResponse<CreateOrderRespPayload>;
+
+/// ClosePosition for one symbol
+pub type ClosePositionCommand = GenericVtsCommand<ClosePositionCmdPayload, ClosePositionRespPayload>;
+
+pub type ClosePositionResponse = VtsResponse<ClosePositionRespPayload>;
+
+/// Close All Positions Command Payload
+pub type CloseAllPositionsCommand = GenericVtsCommand<CloseAllPositionsCmdPayload, CloseAllPositionsRespPayload>;
+
+pub type CloseAllPositionsResponse = VtsResponse<CloseAllPositionsRespPayload>;
 
 /// Create Order Command Payload
 #[derive(Debug)]
@@ -238,5 +249,71 @@ pub struct CreateOrderRespPayload {
 impl CreateOrderRespPayload {
     pub fn new(order_id: OrderId) -> Self {
         Self { order_id }
+    }
+}
+
+/// Close Position Command Payload
+#[derive(Debug)]
+pub struct ClosePositionCmdPayload {
+    pub strategy_id: StrategyId,
+    pub node_id: NodeId,
+    pub node_name: NodeName,
+    pub symbol: String,
+    pub exchange: Exchange,
+    pub config_id: i32,
+}
+
+impl ClosePositionCmdPayload {
+    pub fn new(strategy_id: StrategyId, node_id: NodeId, node_name: NodeName, symbol: String, exchange: Exchange, config_id: i32) -> Self {
+        Self {
+            strategy_id,
+            node_id,
+            node_name,
+            symbol,
+            exchange,
+            config_id,
+        }
+    }
+}
+
+/// Close Position Response Payload
+#[derive(Debug)]
+pub struct ClosePositionRespPayload {
+    pub position_id: PositionId,
+}
+
+impl ClosePositionRespPayload {
+    pub fn new(position_id: PositionId) -> Self {
+        Self { position_id }
+    }
+}
+
+/// Close All Positions Command Payload
+#[derive(Debug)]
+pub struct CloseAllPositionsCmdPayload {
+    pub node_id: NodeId,
+    pub node_name: NodeName,
+    pub config_id: i32,
+}
+
+impl CloseAllPositionsCmdPayload {
+    pub fn new(node_id: NodeId, node_name: NodeName, config_id: i32) -> Self {
+        Self {
+            node_id,
+            node_name,
+            config_id,
+        }
+    }
+}
+
+/// Close All Positions Response Payload
+#[derive(Debug)]
+pub struct CloseAllPositionsRespPayload {
+    pub position_ids: Vec<PositionId>,
+}
+
+impl CloseAllPositionsRespPayload {
+    pub fn new(position_ids: Vec<PositionId>) -> Self {
+        Self { position_ids }
     }
 }

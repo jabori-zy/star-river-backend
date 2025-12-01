@@ -6,7 +6,7 @@ use star_river_core::{
     custom_type::*,
     exchange::Exchange,
     order::FuturesOrderSide,
-    position::{PositionSide, PositionState},
+    position::{Position, PositionSide, PositionState},
 };
 use utoipa::ToSchema;
 
@@ -87,46 +87,30 @@ impl VirtualPosition {
         self.force_price = force_price;
     }
 
-    pub fn update_with_new_order(&mut self, order: &VirtualOrder, current_price: Price, datetime: DateTime<Utc>) -> Result<(), VtsError> {
-        // Validate that the order can add to this position
-        // Only open orders with matching side can add to position
-        let can_add = match (&order.order_side, &self.position_side) {
-            (FuturesOrderSide::Long, PositionSide::Long) => true,
-            (FuturesOrderSide::Short, PositionSide::Short) => true,
-            _ => false,
-        };
-
-        // direction mismatch
-        if !can_add {
-            return Err(OnlyOneDirectionSupportedSnafu {
-                order_side: order.order_side.to_string(),
-                position_side: self.position_side.to_string(),
+    pub fn update_with_new_order(
+        &mut self,
+        order: &VirtualOrder,
+        current_price: Price,
+        available_balance: Balance,
+        datetime: DateTime<Utc>,
+    ) -> Result<(VirtualPosition, VirtualTransaction), VtsError> {
+        match (&order.order_side, &self.position_side) {
+            // same direction, add position quantity
+            (FuturesOrderSide::Long, PositionSide::Long) | (FuturesOrderSide::Short, PositionSide::Short) => {
+                let transaction = self.add_position(order, current_price, available_balance, datetime);
+                return Ok((self.clone(), transaction));
             }
-            .build());
+            // opposite direction, subtract position quantity
+            (FuturesOrderSide::Long, PositionSide::Short) | (FuturesOrderSide::Short, PositionSide::Long) => {
+                tracing::debug!(
+                    "update_with_new_order, opposite direction, subtract position quantity: {:#?}",
+                    order
+                );
+                // Use close_partially which handles both partial and full close
+                let transaction = self.close_partially(order, current_price, order.quantity, available_balance, datetime);
+                return Ok((self.clone(), transaction));
+            }
         }
-        // Calculate new total quantity
-        let new_total_quantity = self.quantity + order.quantity;
-
-        // Calculate weighted average open price
-        // Formula: (old_quantity * old_price + new_quantity * new_price) / total_quantity
-        let new_open_price = (self.open_price * self.quantity + current_price * order.quantity) / new_total_quantity;
-
-        // Update position fields
-        self.quantity = new_total_quantity;
-        self.open_price = new_open_price;
-        self.current_price = current_price;
-        self.update_time = datetime;
-
-        // Recalculate unrealized profit with new quantity and average price
-        self.unrealized_profit = match self.position_side {
-            PositionSide::Long => self.quantity * (current_price - self.open_price),
-            PositionSide::Short => self.quantity * (self.open_price - current_price),
-        };
-        self.roi = self.unrealized_profit / (self.open_price * self.quantity);
-
-        // Note: margin, margin_ratio, and force_price need to be updated separately
-        // as they require leverage and available_balance which are not available here
-        Ok(())
     }
 
     // return true if all closed, false if partial closed
@@ -135,101 +119,20 @@ impl VirtualPosition {
         tp_order: &VirtualOrder,
         balance: Balance,
         datetime: DateTime<Utc>,
-    ) -> (bool, VirtualTransaction) {
-        self.current_price = tp_order.open_price;
-        self.update_time = datetime;
-
-        // 检查止盈数量和仓位数量
+    ) -> (VirtualPosition, VirtualTransaction) {
+        // Check quantity and route to appropriate close method
         if (tp_order.quantity - self.quantity).abs() < f64::EPSILON {
-            // 全部平仓
-            self.position_state = PositionState::Closed;
-            self.unrealized_profit = match self.position_side {
-                PositionSide::Long => self.quantity * (self.current_price - self.open_price),
-                PositionSide::Short => self.quantity * (self.open_price - self.current_price),
-            };
-            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
-            self.force_price = 0.0;
-            self.margin = 0.0;
-            self.margin_ratio = 0.0;
-            self.quantity = 0.0;
-
-            let new_transaction = VirtualTransaction::new(
-                tp_order.order_id,
-                self.position_id,
-                tp_order.strategy_id,
-                tp_order.node_id.clone(),
-                tp_order.node_name.clone(),
-                tp_order.order_config_id,
-                tp_order.exchange.clone(),
-                tp_order.symbol.clone(),
-                tp_order.order_side.clone().into(),
-                tp_order.quantity,
-                tp_order.open_price,
-                Some(self.unrealized_profit),
-                datetime,
-            );
-            return (true, new_transaction);
+            // Full close
+            let transaction = self.close_all(tp_order, tp_order.open_price, datetime);
+            return (self.clone(), transaction);
         } else if tp_order.quantity < self.quantity {
-            // 部分平仓
-            self.quantity -= tp_order.quantity;
-            self.unrealized_profit = match self.position_side {
-                PositionSide::Long => self.quantity * (self.current_price - self.open_price),
-                PositionSide::Short => self.quantity * (self.open_price - self.current_price),
-            };
-            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
-            self.margin = Formula::calculate_margin(self.leverage, self.current_price, self.quantity);
-            self.margin_ratio = Formula::calculate_margin_ratio(balance, self.leverage, self.current_price, self.quantity);
-            self.force_price = Formula::calculate_force_price(&self.position_side, self.leverage, self.current_price, self.quantity);
-
-            let realized_profit = match self.position_side {
-                PositionSide::Long => tp_order.quantity * (self.current_price - tp_order.open_price),
-                PositionSide::Short => tp_order.quantity * (tp_order.open_price - self.current_price),
-            };
-            let new_transaction = VirtualTransaction::new(
-                tp_order.order_id,
-                self.position_id,
-                tp_order.strategy_id,
-                tp_order.node_id.clone(),
-                tp_order.node_name.clone(),
-                tp_order.order_config_id,
-                tp_order.exchange.clone(),
-                tp_order.symbol.clone(),
-                tp_order.order_side.clone().into(),
-                tp_order.quantity,
-                tp_order.open_price,
-                Some(realized_profit),
-                datetime,
-            );
-            return (false, new_transaction);
+            // Partial close
+            let transaction = self.close_partially(tp_order, tp_order.open_price, tp_order.quantity, balance, datetime);
+            return (self.clone(), transaction);
         } else {
-            // 止盈订单的数量大于仓位数量，全部平仓并返回错误
-            self.position_state = PositionState::Closed;
-            self.unrealized_profit = match self.position_side {
-                PositionSide::Long => self.quantity * (self.current_price - self.open_price),
-                PositionSide::Short => self.quantity * (self.open_price - self.current_price),
-            };
-            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
-            self.force_price = 0.0;
-            self.margin = 0.0;
-            self.margin_ratio = 0.0;
-
-            self.quantity = 0.0;
-            let new_transaction = VirtualTransaction::new(
-                tp_order.order_id,
-                self.position_id,
-                tp_order.strategy_id,
-                tp_order.node_id.clone(),
-                tp_order.node_name.clone(),
-                tp_order.order_config_id,
-                tp_order.exchange.clone(),
-                tp_order.symbol.clone(),
-                tp_order.order_side.clone().into(),
-                tp_order.quantity,
-                tp_order.open_price,
-                Some(self.unrealized_profit),
-                datetime,
-            );
-            return (true, new_transaction);
+            // Over quantity close - close all
+            let transaction = self.close_all(tp_order, tp_order.open_price, datetime);
+            return (self.clone(), transaction);
         }
     }
 
@@ -239,100 +142,175 @@ impl VirtualPosition {
         sl_order: &VirtualOrder,
         balance: Balance,
         datetime: DateTime<Utc>,
-    ) -> (bool, VirtualTransaction) {
-        self.current_price = sl_order.open_price;
-        self.update_time = datetime;
-
+    ) -> (VirtualPosition, VirtualTransaction) {
+        // Check quantity and route to appropriate close method
         if (sl_order.quantity - self.quantity).abs() < f64::EPSILON {
             // Full close
-            self.position_state = PositionState::Closed;
-            self.unrealized_profit = match self.position_side {
-                PositionSide::Long => self.quantity * (self.current_price - self.open_price),
-                PositionSide::Short => self.quantity * (self.open_price - self.current_price),
-            };
-            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
-            self.force_price = 0.0;
-            self.margin = 0.0;
-            self.margin_ratio = 0.0;
-            self.quantity = 0.0;
-
-            let new_transaction = VirtualTransaction::new(
-                sl_order.order_id,
-                self.position_id,
-                sl_order.strategy_id,
-                sl_order.node_id.clone(),
-                sl_order.node_name.clone(),
-                sl_order.order_config_id,
-                sl_order.exchange.clone(),
-                sl_order.symbol.clone(),
-                sl_order.order_side.clone().into(),
-                sl_order.quantity,
-                sl_order.open_price,
-                Some(self.unrealized_profit),
-                datetime,
-            );
-            return (true, new_transaction);
+            let transaction = self.close_all(sl_order, sl_order.open_price, datetime);
+            return (self.clone(), transaction);
         } else if sl_order.quantity < self.quantity {
             // Partial close
-            self.quantity -= sl_order.quantity;
-            self.unrealized_profit = match self.position_side {
-                PositionSide::Long => self.quantity * (self.current_price - self.open_price),
-                PositionSide::Short => self.quantity * (self.open_price - self.current_price),
-            };
-            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
-            self.margin = Formula::calculate_margin(self.leverage, self.current_price, self.quantity);
-            self.margin_ratio = Formula::calculate_margin_ratio(balance, self.leverage, self.current_price, self.quantity);
-            self.force_price = Formula::calculate_force_price(&self.position_side, self.leverage, self.current_price, self.quantity);
-
-            let realized_profit = match self.position_side {
-                PositionSide::Long => sl_order.quantity * (self.current_price - sl_order.open_price),
-                PositionSide::Short => sl_order.quantity * (sl_order.open_price - self.current_price),
-            };
-            let new_transaction = VirtualTransaction::new(
-                sl_order.order_id,
-                self.position_id,
-                sl_order.strategy_id,
-                sl_order.node_id.clone(),
-                sl_order.node_name.clone(),
-                sl_order.order_config_id,
-                sl_order.exchange.clone(),
-                sl_order.symbol.clone(),
-                sl_order.order_side.clone().into(),
-                sl_order.quantity,
-                sl_order.open_price,
-                Some(realized_profit),
-                datetime,
-            );
-            return (false, new_transaction);
+            let transaction = self.close_partially(sl_order, sl_order.open_price, sl_order.quantity, balance, datetime);
+            return (self.clone(), transaction);
         } else {
-            // SL order quantity exceeds position quantity, close all and return error
-            self.position_state = PositionState::Closed;
-            self.unrealized_profit = match self.position_side {
-                PositionSide::Long => self.quantity * (self.current_price - self.open_price),
-                PositionSide::Short => self.quantity * (self.open_price - self.current_price),
-            };
-            self.roi = self.unrealized_profit / (self.open_price * self.quantity);
-            self.force_price = 0.0;
-            self.margin = 0.0;
-            self.margin_ratio = 0.0;
-
-            self.quantity = 0.0;
-            let new_transaction = VirtualTransaction::new(
-                sl_order.order_id,
-                self.position_id,
-                sl_order.strategy_id,
-                sl_order.node_id.clone(),
-                sl_order.node_name.clone(),
-                sl_order.order_config_id,
-                sl_order.exchange.clone(),
-                sl_order.symbol.clone(),
-                sl_order.order_side.clone().into(),
-                sl_order.quantity,
-                sl_order.open_price,
-                Some(self.unrealized_profit),
-                datetime,
-            );
-            return (true, new_transaction);
+            // Over quantity close - close all
+            let transaction = self.close_all(sl_order, sl_order.open_price, datetime);
+            return (self.clone(), transaction);
         }
+    }
+
+    /// Close all position with the given order
+    /// Returns the realized profit and transaction record
+    fn close_all(&mut self, order: &VirtualOrder, close_price: Price, datetime: DateTime<Utc>) -> VirtualTransaction {
+        self.current_price = close_price;
+        self.update_time = datetime;
+        self.position_state = PositionState::Closed;
+
+        // Calculate realized profit for the entire position
+        let realized_profit = match self.position_side {
+            PositionSide::Long => self.quantity * (close_price - self.open_price),
+            PositionSide::Short => self.quantity * (self.open_price - close_price),
+        };
+
+        // Update unrealized profit (same as realized when fully closed)
+        self.unrealized_profit = realized_profit;
+        self.roi = self.unrealized_profit / (self.open_price * self.quantity);
+
+        // Clear position metrics
+        self.force_price = 0.0;
+        self.margin = 0.0;
+        self.margin_ratio = 0.0;
+        self.quantity = 0.0;
+
+        let transaction = VirtualTransaction::new(
+            order.order_id,
+            self.position_id,
+            order.strategy_id,
+            order.node_id.clone(),
+            order.node_name.clone(),
+            order.order_config_id,
+            order.exchange.clone(),
+            order.symbol.clone(),
+            order.order_side.clone().into(),
+            order.quantity,
+            close_price,
+            Some(realized_profit),
+            datetime,
+        );
+
+        transaction
+    }
+
+    /// Add position with the given order (same direction)
+    /// Returns the transaction record
+    fn add_position(
+        &mut self,
+        order: &VirtualOrder,
+        add_price: Price,
+        available_balance: Balance,
+        datetime: DateTime<Utc>,
+    ) -> VirtualTransaction {
+        let new_total_quantity = self.quantity + order.quantity;
+        let new_open_price = (self.open_price * self.quantity + add_price * order.quantity) / new_total_quantity;
+
+        // Update position quantity and open price
+        self.quantity = new_total_quantity;
+        self.open_price = new_open_price;
+        self.current_price = add_price;
+        self.update_time = datetime;
+
+        // Recalculate unrealized profit
+        self.unrealized_profit = match self.position_side {
+            PositionSide::Long => self.quantity * (add_price - self.open_price),
+            PositionSide::Short => self.quantity * (self.open_price - add_price),
+        };
+        self.roi = self.unrealized_profit / (self.open_price * self.quantity);
+
+        // Recalculate margin metrics
+        self.margin = Formula::calculate_margin(self.leverage, add_price, self.quantity);
+        self.margin_ratio = Formula::calculate_margin_ratio(available_balance, self.leverage, add_price, self.quantity);
+        self.force_price = Formula::calculate_force_price(&self.position_side, self.leverage, add_price, self.quantity);
+
+        let transaction = VirtualTransaction::new(
+            order.order_id,
+            self.position_id,
+            order.strategy_id,
+            order.node_id.clone(),
+            order.node_name.clone(),
+            order.order_config_id,
+            order.exchange.clone(),
+            order.symbol.clone(),
+            order.order_side.clone().into(),
+            order.quantity,
+            add_price,
+            None, // No realized profit for adding position
+            datetime,
+        );
+
+        transaction
+    }
+
+    /// Close part of the position with the given order
+    /// Returns the transaction record
+    /// If close_quantity >= position quantity, will close all position
+    fn close_partially(
+        &mut self,
+        order: &VirtualOrder,
+        close_price: Price,
+        close_quantity: f64,
+        balance: Balance,
+        datetime: DateTime<Utc>,
+    ) -> VirtualTransaction {
+        // Check if we should close all instead
+        if close_quantity >= self.quantity || (close_quantity - self.quantity).abs() < f64::EPSILON {
+            tracing::debug!(
+                "quantity is same, close all position: order_quantity: {:?}, position_quantity: {:?}",
+                order.quantity,
+                self.quantity
+            );
+            return self.close_all(order, close_price, datetime);
+        }
+
+        self.current_price = close_price;
+        self.update_time = datetime;
+
+        // Calculate realized profit for the closed portion
+        let realized_profit = match self.position_side {
+            PositionSide::Long => close_quantity * (close_price - self.open_price),
+            PositionSide::Short => close_quantity * (self.open_price - close_price),
+        };
+
+        // Reduce position quantity
+        self.quantity -= close_quantity;
+
+        // Recalculate unrealized profit for remaining position
+        self.unrealized_profit = match self.position_side {
+            PositionSide::Long => self.quantity * (close_price - self.open_price),
+            PositionSide::Short => self.quantity * (self.open_price - close_price),
+        };
+        self.roi = self.unrealized_profit / (self.open_price * self.quantity);
+
+        // Recalculate margin metrics for remaining position
+        self.margin = Formula::calculate_margin(self.leverage, close_price, self.quantity);
+        self.margin_ratio = Formula::calculate_margin_ratio(balance, self.leverage, close_price, self.quantity);
+        self.force_price = Formula::calculate_force_price(&self.position_side, self.leverage, close_price, self.quantity);
+
+        let transaction = VirtualTransaction::new(
+            order.order_id,
+            self.position_id,
+            order.strategy_id,
+            order.node_id.clone(),
+            order.node_name.clone(),
+            order.order_config_id,
+            order.exchange.clone(),
+            order.symbol.clone(),
+            order.order_side.clone().into(),
+            close_quantity,
+            close_price,
+            Some(realized_profit),
+            datetime,
+        );
+
+        transaction
     }
 }

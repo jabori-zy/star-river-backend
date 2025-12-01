@@ -11,9 +11,8 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
-use key::{KeyTrait, KlineKey};
 use snafu::{OptionExt, ResultExt};
-use star_river_core::{custom_type::*, exchange::Exchange, kline::Kline, order::OrderType};
+use star_river_core::{custom_type::*, exchange::Exchange, kline::Kline};
 use tokio::sync::{Mutex, broadcast, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
@@ -23,7 +22,7 @@ use crate::{
     event::{VirtualTradingSystemEventReceiver, VirtualTradingSystemEventSender, VtsEvent},
 };
 use crate::{
-    error::{EventSendFailedSnafu, KlineKeyNotFoundSnafu, OrderNotFoundSnafu, VtsError},
+    error::{EventSendFailedSnafu, KlineKeyNotFoundSnafu, VtsError},
     types::{
         VirtualOrder, VirtualPosition, VirtualTransaction,
         id_generator::{ORDER_ID_COUNTER, POSITION_ID_COUNTER, TRANSACTION_ID_COUNTER},
@@ -45,7 +44,7 @@ where
     kline_node_event_receiver: Vec<broadcast::Receiver<E>>,
     pub leverage: Leverage, // 杠杆
 
-    pub kline_price: HashMap<KlineKey, Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳) 只获取min_interval_symbols中的k线缓存数据
+    pub kline_price: HashMap<(Exchange, String), Kline>, // k线缓存key，用于获取所有的k线缓存数据 缓存key -> (最新收盘价, 最新时间戳) 只获取min_interval_symbols中的k线缓存数据
 
     // 资金相关
     pub initial_balance: Balance,   // 初始资金
@@ -127,24 +126,28 @@ where
         &self.kline_node_event_receiver
     }
 
-    pub fn get_kline_price(&self, kline_key: &KlineKey) -> Result<&Kline, VtsError> {
-        self.kline_price.get(kline_key).context(KlineKeyNotFoundSnafu {
-            exchange: kline_key.exchange().to_string(),
-            symbol: kline_key.symbol(),
-        })
+    pub fn find_kline_price(&self, exchange: &Exchange, symbol: &String) -> Result<&Kline, VtsError> {
+        self.kline_price
+            .get(&(exchange.clone(), symbol.clone()))
+            .context(KlineKeyNotFoundSnafu {
+                exchange: exchange.to_string(),
+                symbol: symbol,
+            })
     }
 
-    pub fn set_kline_price(&mut self, kline_price: HashMap<KlineKey, Kline>) {
+    pub fn set_kline_price(&mut self, kline_price: HashMap<(Exchange, String), Kline>) {
         self.kline_price = kline_price;
     }
 
-    pub fn handle_kline_update(&mut self, kline_key: KlineKey, kline: Kline) {
+    pub fn handle_kline_update(&mut self, exchange: Exchange, symbol: String, kline: Kline) {
         // if kline_key not in hashmap key, skip
-        if !self.kline_price.contains_key(&kline_key) {
+        if !self.kline_price.contains_key(&(exchange.clone(), symbol.clone())) {
             return;
         }
-        self.kline_price.entry(kline_key.clone()).and_modify(|e| *e = kline.clone());
-        self.update_system(&kline_key, &kline).unwrap();
+        self.kline_price
+            .entry((exchange.clone(), symbol.clone()))
+            .and_modify(|e| *e = kline.clone());
+        self.update_system(&exchange, &symbol, &kline).unwrap();
     }
 
     pub fn add_kline_node_event_receiver(&mut self, kline_node_event_receiver: broadcast::Receiver<E>) {
@@ -152,10 +155,10 @@ where
     }
 
     // 设置k线缓存索引, 并更新所有数据
-    pub fn update_system(&mut self, kline_key: &KlineKey, kline: &Kline) -> Result<(), VtsError> {
-        self.check_unfilled_orders(&kline_key, &kline)?;
+    pub fn update_system(&mut self, exchange: &Exchange, symbol: &String, kline: &Kline) -> Result<(), VtsError> {
+        self.check_unfilled_orders(exchange, symbol, kline)?;
         // 价格更新后，更新仓位
-        self.update_current_positions(&kline_key, &kline)?;
+        self.update_current_positions(exchange, symbol, kline)?;
 
         // 按正确顺序更新余额相关数据
         // 1. 更新已实现盈亏
@@ -196,18 +199,6 @@ where
 
     pub fn set_fee_rate(&mut self, fee_rate: FeeRate) {
         self.fee_rate = fee_rate;
-    }
-
-    // 根据交易所和symbol获取k线缓存key
-    fn get_kline_key(&self, exchange: &Exchange, symbol: &String) -> Result<&KlineKey, VtsError> {
-        // tracing::debug!("kline_price keys: {:?}", self.kline_price.keys());
-        self.kline_price
-            .keys()
-            .find(|kline_key| &kline_key.exchange == exchange && &kline_key.symbol == symbol)
-            .context(KlineKeyNotFoundSnafu {
-                exchange: exchange.to_string(),
-                symbol: symbol.clone(),
-            })
     }
 
     // 重置系统

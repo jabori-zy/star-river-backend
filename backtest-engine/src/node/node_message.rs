@@ -867,15 +867,6 @@ pub mod futures_order_node_log_message {
     );
 
     log_message!(
-        MonitorUnfilledOrderMsg,
-        params: (
-            node_name: String
-        ),
-        en: "@[{node_name}] starting to monitor unfilled orders",
-        zh: "{node_name}  开始监控未成交订单"
-    );
-
-    log_message!(
         OrderCreatedMsg,
         params: (
             order_id: OrderId,

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use event_center::{EventCenterSingleton, event::Event};
-use star_river_core::order::FuturesOrderSide;
+use star_river_core::order::{FuturesOrderSide, OrderType};
 use star_river_event::backtest_strategy::{
     node_event::{FuturesOrderNodeEvent, IndicatorNodeEvent, KlineNodeEvent, VariableNodeEvent},
     strategy_event::BacktestStrategyEvent,
@@ -24,7 +24,10 @@ use crate::{
     strategy::{
         strategy_command::*,
         strategy_error::BacktestStrategyError,
-        strategy_log_message::{LongLimitOrderExecutedDirectlyMsg, ShortLimitOrderExecutedDirectlyMsg},
+        strategy_log_message::{
+            FuturesOrderCanceledMsg, FuturesOrderCreatedMsg, FuturesOrderFilledMsg, LongLimitOrderExecutedDirectlyMsg,
+            ShortLimitOrderExecutedDirectlyMsg,
+        },
     },
 };
 
@@ -303,48 +306,48 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
 
         // 期货订单节点事件
         if let BacktestNodeEvent::FuturesOrderNode(futures_order_node_event) = &node_event {
-            match futures_order_node_event {
-                FuturesOrderNodeEvent::FuturesOrderFilled(futures_order_filled_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderFilled(futures_order_filled_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-                }
-                FuturesOrderNodeEvent::FuturesOrderCreated(futures_order_created_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCreated(futures_order_created_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-                }
-                FuturesOrderNodeEvent::FuturesOrderCanceled(futures_order_canceled_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCanceled(futures_order_canceled_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-                }
-                FuturesOrderNodeEvent::TakeProfitOrderCreated(take_profit_order_created_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCreated(take_profit_order_created_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-                }
-                FuturesOrderNodeEvent::StopLossOrderCreated(stop_loss_order_created_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCreated(stop_loss_order_created_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-                }
-                FuturesOrderNodeEvent::TakeProfitOrderFilled(take_profit_order_filled_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderFilled(take_profit_order_filled_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-                }
-                FuturesOrderNodeEvent::StopLossOrderFilled(stop_loss_order_filled_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderFilled(stop_loss_order_filled_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-                }
-                FuturesOrderNodeEvent::TakeProfitOrderCanceled(take_profit_order_canceled_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCanceled(take_profit_order_canceled_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-                }
-                FuturesOrderNodeEvent::StopLossOrderCanceled(stop_loss_order_canceled_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCanceled(stop_loss_order_canceled_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-                }
-                FuturesOrderNodeEvent::TransactionCreated(transaction_created_event) => {
-                    let backtest_strategy_event = BacktestStrategyEvent::TransactionCreated(transaction_created_event.clone());
-                    EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-                }
-            }
+            // match futures_order_node_event {
+            // FuturesOrderNodeEvent::FuturesOrderFilled(futures_order_filled_event) => {
+            //     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderFilled(futures_order_filled_event.clone());
+            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
+            // }
+            // FuturesOrderNodeEvent::FuturesOrderCreated(futures_order_created_event) => {
+            //     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCreated(futures_order_created_event.clone());
+            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
+            // }
+            // FuturesOrderNodeEvent::FuturesOrderCanceled(futures_order_canceled_event) => {
+            //     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCanceled(futures_order_canceled_event.clone());
+            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
+            // }
+            // FuturesOrderNodeEvent::TakeProfitOrderCreated(take_profit_order_created_event) => {
+            //     let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCreated(take_profit_order_created_event.clone());
+            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
+            // }
+            // FuturesOrderNodeEvent::StopLossOrderCreated(stop_loss_order_created_event) => {
+            //     let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCreated(stop_loss_order_created_event.clone());
+            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
+            // }
+            // FuturesOrderNodeEvent::TakeProfitOrderFilled(take_profit_order_filled_event) => {
+            //     let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderFilled(take_profit_order_filled_event.clone());
+            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
+            // }
+            // FuturesOrderNodeEvent::StopLossOrderFilled(stop_loss_order_filled_event) => {
+            //     let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderFilled(stop_loss_order_filled_event.clone());
+            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
+            // }
+            // FuturesOrderNodeEvent::TakeProfitOrderCanceled(take_profit_order_canceled_event) => {
+            //     let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCanceled(take_profit_order_canceled_event.clone());
+            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
+            // }
+            // FuturesOrderNodeEvent::StopLossOrderCanceled(stop_loss_order_canceled_event) => {
+            //     let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCanceled(stop_loss_order_canceled_event.clone());
+            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
+            // }
+            // FuturesOrderNodeEvent::TransactionCreated(transaction_created_event) => {
+            //     let backtest_strategy_event = BacktestStrategyEvent::TransactionCreated(transaction_created_event.clone());
+            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
+            // }
+            // }
         }
         Ok(())
     }
@@ -391,7 +394,165 @@ impl BacktestStrategyContext {
                 };
                 EventCenterSingleton::publish(event.into()).await?;
             }
-            _ => {}
+            VtsEvent::FuturesOrderCreated(order) => {
+                if let OrderType::Limit = order.order_type {
+                    let log_message = FuturesOrderCreatedMsg::new(
+                        self.strategy_name().clone(),
+                        order.order_id,
+                        order.order_config_id,
+                        order.open_price,
+                        order.order_side.to_string(),
+                    );
+                    let log_event: BacktestStrategyEvent = StrategyRunningLogEvent::info_with_time(
+                        self.cycle_id(),
+                        self.strategy_id().clone(),
+                        log_message.to_string(),
+                        order.to_value()?,
+                        self.strategy_time(),
+                    )
+                    .into();
+                    EventCenterSingleton::publish(log_event.into()).await?;
+                }
+
+                let event = BacktestStrategyEvent::FuturesOrderCreated { futures_order: order };
+
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::FuturesOrderFilled(order) => {
+                let log_message =
+                    FuturesOrderFilledMsg::new(self.strategy_name().clone(), order.order_id, order.quantity, order.open_price);
+                let log_event: BacktestStrategyEvent = StrategyRunningLogEvent::info_with_time(
+                    self.cycle_id(),
+                    self.strategy_id().clone(),
+                    log_message.to_string(),
+                    order.to_value()?,
+                    self.strategy_time(),
+                )
+                .into();
+                let event = BacktestStrategyEvent::FuturesOrderFilled { futures_order: order };
+                EventCenterSingleton::publish(log_event.into()).await?;
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::FuturesOrderCanceled(order) => {
+                let log_message = FuturesOrderCanceledMsg::new(self.strategy_name().clone(), order.order_id);
+                let log_event: BacktestStrategyEvent = StrategyRunningLogEvent::info_with_time(
+                    self.cycle_id(),
+                    self.strategy_id().clone(),
+                    log_message.to_string(),
+                    order.to_value()?,
+                    self.strategy_time(),
+                )
+                .into();
+
+                let event = BacktestStrategyEvent::FuturesOrderCanceled { futures_order: order };
+                EventCenterSingleton::publish(log_event.into()).await?;
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::TakeProfitOrderCreated(order) => {
+                let log_message = FuturesOrderCreatedMsg::new(
+                    self.strategy_name().clone(),
+                    order.order_id,
+                    order.order_config_id,
+                    order.open_price,
+                    order.order_side.to_string(),
+                );
+                let log_event: BacktestStrategyEvent = StrategyRunningLogEvent::info_with_time(
+                    self.cycle_id(),
+                    self.strategy_id().clone(),
+                    log_message.to_string(),
+                    order.to_value()?,
+                    self.strategy_time(),
+                )
+                .into();
+
+                let event = BacktestStrategyEvent::TakeProfitOrderCreated { take_profit_order: order };
+
+                EventCenterSingleton::publish(log_event.into()).await?;
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::TakeProfitOrderFilled(order) => {
+                let log_message =
+                    FuturesOrderFilledMsg::new(self.strategy_name().clone(), order.order_id, order.quantity, order.open_price);
+                let log_event: BacktestStrategyEvent = StrategyRunningLogEvent::info_with_time(
+                    self.cycle_id(),
+                    self.strategy_id().clone(),
+                    log_message.to_string(),
+                    order.to_value()?,
+                    self.strategy_time(),
+                )
+                .into();
+                let event = BacktestStrategyEvent::TakeProfitOrderFilled { take_profit_order: order };
+                EventCenterSingleton::publish(log_event.into()).await?;
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::TakeProfitOrderCanceled(order) => {
+                let log_message = FuturesOrderCanceledMsg::new(self.strategy_name().clone(), order.order_id);
+                let log_event: BacktestStrategyEvent = StrategyRunningLogEvent::info_with_time(
+                    self.cycle_id(),
+                    self.strategy_id().clone(),
+                    log_message.to_string(),
+                    order.to_value()?,
+                    self.strategy_time(),
+                )
+                .into();
+                let event = BacktestStrategyEvent::TakeProfitOrderCanceled { take_profit_order: order };
+                EventCenterSingleton::publish(log_event.into()).await?;
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::StopLossOrderCreated(order) => {
+                let log_message = FuturesOrderCreatedMsg::new(
+                    self.strategy_name().clone(),
+                    order.order_id,
+                    order.order_config_id,
+                    order.open_price,
+                    order.order_side.to_string(),
+                );
+                let log_event: BacktestStrategyEvent = StrategyRunningLogEvent::info_with_time(
+                    self.cycle_id(),
+                    self.strategy_id().clone(),
+                    log_message.to_string(),
+                    order.to_value()?,
+                    self.strategy_time(),
+                )
+                .into();
+                let event = BacktestStrategyEvent::StopLossOrderCreated { stop_loss_order: order };
+                EventCenterSingleton::publish(log_event.into()).await?;
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::StopLossOrderFilled(order) => {
+                let log_message =
+                    FuturesOrderFilledMsg::new(self.strategy_name().clone(), order.order_id, order.quantity, order.open_price);
+                let log_event: BacktestStrategyEvent = StrategyRunningLogEvent::info_with_time(
+                    self.cycle_id(),
+                    self.strategy_id().clone(),
+                    log_message.to_string(),
+                    order.to_value()?,
+                    self.strategy_time(),
+                )
+                .into();
+                let event = BacktestStrategyEvent::StopLossOrderFilled { stop_loss_order: order };
+                EventCenterSingleton::publish(log_event.into()).await?;
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::StopLossOrderCanceled(order) => {
+                let log_message = FuturesOrderCanceledMsg::new(self.strategy_name().clone(), order.order_id);
+                let log_event: BacktestStrategyEvent = StrategyRunningLogEvent::info_with_time(
+                    self.cycle_id(),
+                    self.strategy_id().clone(),
+                    log_message.to_string(),
+                    order.to_value()?,
+                    self.strategy_time(),
+                )
+                .into();
+                let event = BacktestStrategyEvent::StopLossOrderCanceled { stop_loss_order: order };
+                EventCenterSingleton::publish(log_event.into()).await?;
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::TransactionCreated(transaction) => {
+                let event = BacktestStrategyEvent::TransactionCreated { transaction: transaction };
+                EventCenterSingleton::publish(event.into()).await?;
+            }
+            VtsEvent::UpdateFinished => {}
         }
         Ok(())
     }

@@ -61,11 +61,18 @@ impl KlineNodeContext {
         kline_key: &KlineKey,
         should_calculate: bool,
         kline_data: Option<Kline>,
+        is_min_interval: bool,
         context: Option<String>,
     ) -> Result<(), KlineNodeError> {
         if let Some(k) = kline_data {
             let generate_event = |handle_id: String| {
-                let payload = KlineUpdatePayload::new(symbol_info.0.clone(), should_calculate, kline_key.clone(), k.clone());
+                let payload = KlineUpdatePayload::new(
+                    symbol_info.0.clone(),
+                    should_calculate,
+                    kline_key.clone(),
+                    is_min_interval,
+                    k.clone(),
+                );
                 let kline_update_event: KlineNodeEvent = KlineUpdateEvent::new_with_time(
                     self.cycle_id(),
                     self.node_id().clone(),
@@ -127,6 +134,7 @@ impl KlineNodeContext {
                     symbol_key,
                     true,
                     Some(min_interval_kline.clone()),
+                    false,
                     Some("insert first new kline".to_string()),
                 )
                 .await
@@ -144,6 +152,7 @@ impl KlineNodeContext {
                         symbol_key,
                         true,
                         Some(min_interval_kline.clone()),
+                        false,
                         Some("insert cross interval new kline".to_string()),
                     )
                     .await
@@ -158,6 +167,7 @@ impl KlineNodeContext {
                             symbol_key,
                             true,
                             Some(new_kline),
+                            false,
                             Some("update existing kline".to_string()),
                         )
                         .await
@@ -171,8 +181,15 @@ impl KlineNodeContext {
                 }
             }
         } else {
-            self.handle_event_send(symbol_info, symbol_key, false, None, Some("no min interval kline".to_string()))
-                .await?;
+            self.handle_event_send(
+                symbol_info,
+                symbol_key,
+                false,
+                None,
+                false,
+                Some("no min interval kline".to_string()),
+            )
+            .await?;
             Ok(())
         }
     }
@@ -257,8 +274,15 @@ impl KlineNodeContext {
         symbol_info: &(i32, String), // (config_id, handle_id)
     ) -> Result<(), KlineNodeError> {
         let kline = self.get_single_kline_from_strategy(symbol_key, Some(self.strategy_time())).await?;
-        self.handle_event_send(symbol_info, symbol_key, false, kline, Some("handle min interval kline".to_string()))
-            .await?;
+        self.handle_event_send(
+            symbol_info,
+            symbol_key,
+            false,
+            kline,
+            true,
+            Some("handle min interval kline".to_string()),
+        )
+        .await?;
 
         Ok(())
     }

@@ -58,15 +58,17 @@ pub struct KlineUpdatePayload {
     pub should_calculate: bool, // Whether calculation is needed
     #[serde(serialize_with = "serialize_kline_key")]
     pub kline_key: KlineKey,
+    pub is_min_interval: bool,
     pub kline: Kline,
 }
 
 impl KlineUpdatePayload {
-    pub fn new(config_id: i32, should_calculate: bool, kline_key: KlineKey, kline: Kline) -> Self {
+    pub fn new(config_id: i32, should_calculate: bool, kline_key: KlineKey, is_min_interval: bool, kline: Kline) -> Self {
         Self {
             config_id,
             should_calculate,
             kline_key,
+            is_min_interval,
             kline,
         }
     }

@@ -3,6 +3,7 @@ use std::ops::{Deref, DerefMut};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use futures::{StreamExt, stream::select_all};
+use key::KeyTrait;
 use star_river_event::backtest_strategy::node_event::KlineNodeEvent;
 use tokio::sync::watch;
 use tokio_stream::wrappers::BroadcastStream;
@@ -100,7 +101,13 @@ impl VTSEventHandler for BacktestVtsContext {
         match event {
             BacktestNodeEvent::KlineNode(kline_event) => match kline_event {
                 KlineNodeEvent::KlineUpdate(event) => {
-                    self.handle_kline_update(event.kline_key.clone(), event.kline.clone());
+                    if event.is_min_interval {
+                        self.handle_kline_update(
+                            event.kline_key.exchange().clone(),
+                            event.kline_key.symbol().clone(),
+                            event.kline.clone(),
+                        );
+                    }
                 }
             },
             _ => {}

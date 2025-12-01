@@ -20,15 +20,15 @@ pub type PositionNodeStateMachine = NodeStateMachine<NodeRunState, PositionNodeA
 /// Actions to be executed after PositionNode state transitions
 #[derive(Debug, Clone, Display)]
 pub enum PositionNodeAction {
-    ListenAndHandleExternalEvents,            // Handle external events (strategy signals)
-    ListenAndHandleNodeEvents,                // Listen and handle node messages
-    ListenAndHandleStrategyCommand,           // Handle strategy commands
-    ListenAndHandleVirtualTradingSystemEvent, // Handle virtual trading system events
-    RegisterTask,                             // Register task
-    LogNodeState,                             // Log node state
-    LogTransition,                            // Log state transition
-    LogError(String),                         // Log error
-    CancelAsyncTask,                          // Cancel async task
+    ListenAndHandleExternalEvents,  // Handle external events (strategy signals)
+    ListenAndHandleNodeEvents,      // Listen and handle node messages
+    ListenAndHandleStrategyCommand, // Handle strategy commands
+    ListenAndHandleVtsEvent,        // Handle virtual trading system events
+    RegisterTask,                   // Register task
+    LogNodeState,                   // Log node state
+    LogTransition,                  // Log state transition
+    LogError(String),               // Log error
+    CancelAsyncTask,                // Cancel async task
 }
 
 impl StateAction for PositionNodeAction {}
@@ -54,7 +54,7 @@ pub fn position_node_transition(
                 PositionNodeAction::ListenAndHandleExternalEvents,
                 PositionNodeAction::ListenAndHandleNodeEvents,
                 PositionNodeAction::ListenAndHandleStrategyCommand,
-                PositionNodeAction::ListenAndHandleVirtualTradingSystemEvent,
+                PositionNodeAction::ListenAndHandleVtsEvent,
                 PositionNodeAction::RegisterTask,
             ],
         )),

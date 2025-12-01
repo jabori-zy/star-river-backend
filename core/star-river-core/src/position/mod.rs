@@ -33,7 +33,7 @@ pub enum PositionSide {
     Short,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display, ToSchema, PartialEq, Eq)]
 pub enum PositionState {
     #[strum(serialize = "open")]
     Open, // 持仓中

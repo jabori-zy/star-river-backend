@@ -11,12 +11,12 @@ use crate::node::node_error::{FuturesOrderNodeError, futures_order_node_error::G
 impl FuturesOrderNodeContext {
     pub(crate) async fn get_symbol_info(&mut self) -> Result<(), FuturesOrderNodeError> {
         let order_config = self.node_config.futures_order_configs.clone();
-        let account_id = self.node_config.exchange_mode_config.as_ref().unwrap().selected_account.account_id;
+        let account_id = self.node_config.exchange_mode()?.selected_account.account_id;
         for order_cfg in order_config {
             let (tx, rx) = oneshot::channel();
             let payload = GetSymbolInfoCmdPayload::new(account_id, order_cfg.symbol.clone());
             let cmd: MarketEngineCommand = GetSymbolInfoCommand::new(self.node_id().clone(), tx, payload).into();
-            let _ = EventCenterSingleton::send_command(cmd.into()).await;
+            EventCenterSingleton::send_command(cmd.into()).await?;
             let response = rx.await.unwrap();
             match response {
                 Response::Success { payload, .. } => {

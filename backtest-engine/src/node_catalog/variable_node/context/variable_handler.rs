@@ -22,7 +22,7 @@ use strategy_core::{
     },
     variable::{
         custom_variable::VariableValue,
-        sys_varibale::{SysVariable, SysVariableType},
+        sys_varibale::SysVariableType,
     },
 };
 use tokio::sync::oneshot;

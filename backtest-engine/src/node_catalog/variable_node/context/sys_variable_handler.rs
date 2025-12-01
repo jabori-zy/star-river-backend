@@ -169,7 +169,6 @@ impl VariableNodeContext {
                     let current_positions = vts
                         .with_ctx_read(|ctx| ctx.current_positions_count_of_symbol(&symbol, &exchange))
                         .await;
-                    tracing::debug!("current positions count: {}", current_positions);
                     let var_name = SysVariableType::CurrentPositionAmount;
                     let var_value = VariableValue::Number(Decimal::from(current_positions));
                     SysVariable::new(var_name, var_display_name, Some(symbol), var_value)
@@ -353,7 +352,9 @@ impl VariableNodeContext {
                         .with_ctx_read(|ctx| ctx.find_position_for(&symbol, &exchange).map(|p| p.roi))
                         .await;
                     let var_name = SysVariableType::CurrentRoi;
-                    let var_value = current_roi.map(VariableValue::percentage).unwrap_or(VariableValue::Null);
+                    let var_value = current_roi
+                        .map(|roi| VariableValue::percentage(roi * 100.0))
+                        .unwrap_or(VariableValue::Null);
                     SysVariable::new(var_name, var_display_name, None, var_value)
                 })
             })

@@ -21,12 +21,7 @@ pub struct NodeInputHandle<E: Clone> {
 }
 
 impl<E: Clone> NodeInputHandle<E> {
-    pub fn new(
-        from_node_id: String,
-        from_handle_id: String,
-        input_handle_id: HandleId,
-        receiver: broadcast::Receiver<E>,
-    ) -> Self {
+    pub fn new(from_node_id: String, from_handle_id: String, input_handle_id: HandleId, receiver: broadcast::Receiver<E>) -> Self {
         Self {
             from_node_id,
             from_handle_id,

@@ -153,7 +153,7 @@ impl NodeLifecycle for PositionNode {
 
                     self.listen_command().await;
                 }
-                PositionNodeAction::ListenAndHandleVirtualTradingSystemEvent => {
+                PositionNodeAction::ListenAndHandleVtsEvent => {
                     tracing::info!("[{node_name}] start to listen virtual trading system events");
                     let log_message = ListenVirtualTradingSystemEventMsg::new(node_name.clone());
                     NodeUtils::send_run_state_info(
@@ -163,13 +163,11 @@ impl NodeLifecycle for PositionNode {
                         NodeType::PositionNode,
                         log_message.to_string(),
                         current_state,
-                        PositionNodeAction::ListenAndHandleVirtualTradingSystemEvent,
+                        PositionNodeAction::ListenAndHandleVtsEvent,
                         &strategy_output_handle,
                     )
                     .await;
-
-                    // Listen to virtual trading system events implementation (if needed)
-                    // let _ = self.listen_virtual_trading_system_events().await;
+                    self.listen_vts_events().await;
                 }
                 PositionNodeAction::LogError(error) => {
                     tracing::error!("[{node_name}] error occurred: {}", error);

@@ -61,7 +61,7 @@ impl BacktestStrategyContext {
         let mut kline_price = HashMap::with_capacity(min_interval_symbols.len());
         for kline_key in min_interval_symbols {
             kline_price.insert(
-                kline_key,
+                (kline_key.exchange().clone(), kline_key.symbol().clone()),
                 Kline {
                     datetime: Utc::now(),
                     open: 0.0,

@@ -3,7 +3,10 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 
 use super::VirtualTradingSystemContext;
-use crate::command::{CreateOrderRespPayload, CreateOrderResponse, VtsCommand};
+use crate::command::{
+    CloseAllPositionsRespPayload, CloseAllPositionsResponse, ClosePositionRespPayload, ClosePositionResponse, CreateOrderRespPayload,
+    CreateOrderResponse, VtsCommand,
+};
 
 impl<E> VirtualTradingSystemContext<E>
 where
@@ -45,6 +48,34 @@ where
                     }
                     Err(e) => {
                         let response = CreateOrderResponse::fail(e);
+                        cmd.respond(response);
+                    }
+                }
+            }
+            VtsCommand::ClosePosition(cmd) => {
+                let result = self.close_position(&cmd.node_id, &cmd.node_name, cmd.config_id, &cmd.symbol, &cmd.exchange);
+                match result {
+                    Ok(position_id) => {
+                        let payload = ClosePositionRespPayload::new(position_id);
+                        let response = ClosePositionResponse::success(payload);
+                        cmd.respond(response);
+                    }
+                    Err(e) => {
+                        let response = ClosePositionResponse::fail(e);
+                        cmd.respond(response);
+                    }
+                }
+            }
+            VtsCommand::CloseAllPositions(cmd) => {
+                let result = self.close_all_positions(&cmd.node_id, &cmd.node_name, cmd.config_id);
+                match result {
+                    Ok(position_ids) => {
+                        let payload = CloseAllPositionsRespPayload::new(position_ids);
+                        let response = CloseAllPositionsResponse::success(payload);
+                        cmd.respond(response);
+                    }
+                    Err(e) => {
+                        let response = CloseAllPositionsResponse::fail(e);
                         cmd.respond(response);
                     }
                 }
