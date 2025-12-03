@@ -11,7 +11,7 @@ use strategy_core::{
 use super::IfElseNode;
 use crate::{
     node::{
-        node_error::BacktestNodeError,
+        node_error::IfElseNodeError,
         node_message::{
             common_log_message::{ListenNodeEventsMsg, ListenStrategyCommandMsg, NodeStateLogMsg},
             if_else_node_log_message::{InitReceivedDataMsg, ListenStrategySignalMsg, StartConditionEvaluationMsg},
@@ -24,7 +24,7 @@ use crate::{
 
 #[async_trait]
 impl NodeLifecycle for IfElseNode {
-    type Error = BacktestNodeError;
+    type Error = IfElseNodeError;
 
     type Trigger = NodeStateTransTrigger;
 

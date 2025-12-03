@@ -12,7 +12,7 @@ use entity::strategy_config::Model as StrategyConfigModel;
 use serde::{Deserialize, Serialize};
 use star_river_core::{
     custom_type::{StrategyId, StrategyName},
-    exchange::{Exchange, deserialize_exchange, MarketType},
+    exchange::{Exchange, MarketType, deserialize_exchange},
     kline::KlineInterval,
     system::DateTimeUtc,
 };
@@ -95,10 +95,6 @@ pub struct SelectedAccount {
     #[serde(rename = "availableBalance")]
     pub available_balance: f64, // 可用余额
 }
-
-
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -3,7 +3,7 @@ use star_river_core::{
     custom_type::NodeName,
     error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain},
 };
-use strategy_core::error::NodeError;
+use strategy_core::error::{NodeError, NodeStateMachineError};
 use virtual_trading::error::VtsError;
 
 #[derive(Debug, Snafu)]
@@ -14,6 +14,12 @@ pub enum VariableNodeError {
 
     #[snafu(transparent)]
     VtsError { source: VtsError, backtrace: Backtrace },
+
+    #[snafu(transparent)]
+    NodeStateMachineError {
+        source: NodeStateMachineError,
+        backtrace: Backtrace,
+    },
 
     #[snafu(display("the symbol of system variable is null: {sys_var_name}"))]
     SysVariableSymbolIsNull { sys_var_name: String, backtrace: Backtrace },
@@ -38,9 +44,10 @@ impl StarRiverErrorTrait for VariableNodeError {
         let code = match self {
             VariableNodeError::NodeError { .. } => 1001,                 // node error
             VariableNodeError::VtsError { .. } => 1002,                  // vts error
-            VariableNodeError::SysVariableSymbolIsNull { .. } => 1003,   //system variable symbol is null
-            VariableNodeError::ExchangeModeNotConfigured { .. } => 1004, //exchange mode not configured
-            VariableNodeError::TaskFailed { .. } => 1005,                //task failed
+            VariableNodeError::NodeStateMachineError { .. } => 1003,     // node state machine error
+            VariableNodeError::SysVariableSymbolIsNull { .. } => 1004,   //system variable symbol is null
+            VariableNodeError::ExchangeModeNotConfigured { .. } => 1005, //exchange mode not configured
+            VariableNodeError::TaskFailed { .. } => 1006,                //task failed
         };
 
         format!("{}_{:04}", prefix, code)
@@ -50,6 +57,7 @@ impl StarRiverErrorTrait for VariableNodeError {
         match self {
             VariableNodeError::NodeError { source, .. } => source.http_status_code(),
             VariableNodeError::VtsError { source, .. } => source.http_status_code(),
+            VariableNodeError::NodeStateMachineError { source, .. } => source.http_status_code(),
             VariableNodeError::SysVariableSymbolIsNull { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             VariableNodeError::ExchangeModeNotConfigured { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             VariableNodeError::TaskFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
@@ -62,6 +70,7 @@ impl StarRiverErrorTrait for VariableNodeError {
         match self {
             VariableNodeError::NodeError { source, .. } => generate_error_code_chain(source),
             VariableNodeError::VtsError { source, .. } => generate_error_code_chain(source),
+            VariableNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source),
             VariableNodeError::SysVariableSymbolIsNull { .. }
             | VariableNodeError::TaskFailed { .. }
             | VariableNodeError::ExchangeModeNotConfigured { .. } => vec![self.error_code()],
@@ -74,6 +83,7 @@ impl StarRiverErrorTrait for VariableNodeError {
             ErrorLanguage::Chinese => match self {
                 VariableNodeError::NodeError { source, .. } => source.error_message(language),
                 VariableNodeError::VtsError { source, .. } => source.error_message(language),
+                VariableNodeError::NodeStateMachineError { source, .. } => source.error_message(language),
                 VariableNodeError::SysVariableSymbolIsNull { sys_var_name, .. } => {
                     format!("系统变量 [{}] 的交易对为空", sys_var_name)
                 }

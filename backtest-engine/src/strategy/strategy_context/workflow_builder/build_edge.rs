@@ -69,22 +69,21 @@ impl BacktestStrategyContext {
 
         // 先获取源节点的output_handle
         let (_, receiver) = self
-            .node(source_idx)
-            .unwrap()
+            .node(source_idx)?
             .subscribe_output_handle(source_handle_id.to_string(), target_handle_id.to_string())
             .await?;
 
-        if let Some(target_node) = self.node(target_idx) {
-            // 获取接收者数量
-            let input_handle = NodeInputHandle::new(
-                source_node_id.to_string(),
-                source_handle_id.to_string(),
-                target_handle_id.to_string(),
-                receiver,
-            );
-            target_node.add_input_handle(input_handle).await;
-            target_node.add_source_node(source_node_id.to_string()).await;
-        }
+        let target_node = self.node(target_idx)?;
+        // 获取接收者数量
+        let input_handle = NodeInputHandle::new(
+            source_node_id.to_string(),
+            source_handle_id.to_string(),
+            target_handle_id.to_string(),
+            receiver,
+        );
+        target_node.add_input_handle(input_handle).await;
+        target_node.add_source_node(source_node_id.to_string()).await;
+
         // tracing::debug!("添加边: {:?} -> {:?}", from_node_id, to_node_id);
         self.graph_mut().add_edge(source_idx, target_idx, ());
 

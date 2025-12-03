@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use event_center::{EventCenterSingleton, event::Event};
 use star_river_core::order::{FuturesOrderSide, OrderType};
 use star_river_event::backtest_strategy::{
-    node_event::{FuturesOrderNodeEvent, IndicatorNodeEvent, KlineNodeEvent, VariableNodeEvent},
+    node_event::{IndicatorNodeEvent, KlineNodeEvent, VariableNodeEvent},
     strategy_event::BacktestStrategyEvent,
 };
 use strategy_core::{
@@ -53,17 +53,33 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                 cmd.respond(resp);
             }
             BacktestStrategyCommand::InitKlineData(cmd) => {
-                self.init_kline_data(&cmd.kline_key, cmd.init_kline_data.clone()).await;
-                let payload = InitKlineDataRespPayload {};
-                let resp = InitKlineDataResponse::success(payload);
-                cmd.respond(resp);
+                let result = self.init_kline_data(&cmd.kline_key, cmd.init_kline_data.clone()).await;
+                match result {
+                    Ok(()) => {
+                        let payload = InitKlineDataRespPayload {};
+                        let resp = InitKlineDataResponse::success(payload);
+                        cmd.respond(resp);
+                    }
+                    Err(error) => {
+                        let resp = InitKlineDataResponse::fail(Arc::new(error));
+                        cmd.respond(resp);
+                    }
+                }
             }
 
             BacktestStrategyCommand::AppendKlineData(cmd) => {
-                self.append_kline_data(&cmd.kline_key, cmd.kline_series.clone()).await;
-                let payload = AppendKlineDataRespPayload {};
-                let resp = AppendKlineDataResponse::success(payload);
-                cmd.respond(resp);
+                let result = self.append_kline_data(&cmd.kline_key, cmd.kline_series.clone()).await;
+                match result {
+                    Ok(()) => {
+                        let payload = AppendKlineDataRespPayload {};
+                        let resp = AppendKlineDataResponse::success(payload);
+                        cmd.respond(resp);
+                    }
+                    Err(error) => {
+                        let resp = AppendKlineDataResponse::fail(Arc::new(error));
+                        cmd.respond(resp);
+                    }
+                }
             }
 
             BacktestStrategyCommand::GetKlineData(cmd) => {
@@ -302,52 +318,6 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
                 }
             }
-        }
-
-        // 期货订单节点事件
-        if let BacktestNodeEvent::FuturesOrderNode(futures_order_node_event) = &node_event {
-            // match futures_order_node_event {
-            // FuturesOrderNodeEvent::FuturesOrderFilled(futures_order_filled_event) => {
-            //     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderFilled(futures_order_filled_event.clone());
-            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-            // }
-            // FuturesOrderNodeEvent::FuturesOrderCreated(futures_order_created_event) => {
-            //     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCreated(futures_order_created_event.clone());
-            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-            // }
-            // FuturesOrderNodeEvent::FuturesOrderCanceled(futures_order_canceled_event) => {
-            //     let backtest_strategy_event = BacktestStrategyEvent::FuturesOrderCanceled(futures_order_canceled_event.clone());
-            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-            // }
-            // FuturesOrderNodeEvent::TakeProfitOrderCreated(take_profit_order_created_event) => {
-            //     let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCreated(take_profit_order_created_event.clone());
-            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-            // }
-            // FuturesOrderNodeEvent::StopLossOrderCreated(stop_loss_order_created_event) => {
-            //     let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCreated(stop_loss_order_created_event.clone());
-            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-            // }
-            // FuturesOrderNodeEvent::TakeProfitOrderFilled(take_profit_order_filled_event) => {
-            //     let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderFilled(take_profit_order_filled_event.clone());
-            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-            // }
-            // FuturesOrderNodeEvent::StopLossOrderFilled(stop_loss_order_filled_event) => {
-            //     let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderFilled(stop_loss_order_filled_event.clone());
-            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-            // }
-            // FuturesOrderNodeEvent::TakeProfitOrderCanceled(take_profit_order_canceled_event) => {
-            //     let backtest_strategy_event = BacktestStrategyEvent::TakeProfitOrderCanceled(take_profit_order_canceled_event.clone());
-            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-            // }
-            // FuturesOrderNodeEvent::StopLossOrderCanceled(stop_loss_order_canceled_event) => {
-            //     let backtest_strategy_event = BacktestStrategyEvent::StopLossOrderCanceled(stop_loss_order_canceled_event.clone());
-            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-            // }
-            // FuturesOrderNodeEvent::TransactionCreated(transaction_created_event) => {
-            //     let backtest_strategy_event = BacktestStrategyEvent::TransactionCreated(transaction_created_event.clone());
-            //     EventCenterSingleton::publish(backtest_strategy_event.into()).await?;
-            // }
-            // }
         }
         Ok(())
     }

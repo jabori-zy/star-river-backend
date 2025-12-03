@@ -12,7 +12,6 @@ use tokio_stream::wrappers::BroadcastStream;
 use super::PositionNode;
 
 impl PositionNode {
-
     pub(super) async fn listen_vts_events(&self) {
         let (vts_event_receiver, cancel_token, node_name) = self
             .with_ctx_read(|ctx| {

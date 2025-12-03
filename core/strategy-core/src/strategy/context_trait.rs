@@ -31,7 +31,7 @@ use crate::{
     communication::{NodeCommandTrait, StrategyCommandTrait},
     error::{
         StrategyError, StrategyStateMachineError,
-        strategy_error::{CustomVariableNotExistSnafu, NodeCmdSendFailedSnafu, NodeCycleDetectedSnafu},
+        strategy_error::{CustomVariableNotExistSnafu, NodeCmdSendFailedSnafu, NodeCycleDetectedSnafu, NodeNotFoundByIndexSnafu},
     },
     event::node::NodeEventTrait,
     node::NodeTrait,
@@ -215,8 +215,11 @@ pub trait StrategyWorkflowExt: StrategyMetaDataExt + StrategyIdentityExt {
     where
         Self: Sized;
 
-    fn node(&self, node_index: NodeIndex) -> Option<&Self::Node> {
-        self.metadata().graph().node_weight(node_index)
+    fn node(&self, node_index: NodeIndex) -> Result<&Self::Node, StrategyError> {
+        self.metadata().graph().node_weight(node_index).context(NodeNotFoundByIndexSnafu {
+            strategy_name: self.strategy_name().clone(),
+            node_index: node_index.index(),
+        })
     }
 
     fn node_mut(&mut self, node_index: NodeIndex) -> Option<&mut Self::Node> {

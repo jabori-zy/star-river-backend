@@ -3,7 +3,7 @@ use star_river_core::{
     custom_type::NodeName,
     error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain},
 };
-use strategy_core::error::NodeError;
+use strategy_core::error::{NodeError, NodeStateMachineError};
 use virtual_trading::error::VtsError;
 
 #[derive(Debug, Snafu)]
@@ -14,6 +14,12 @@ pub enum PositionNodeError {
 
     #[snafu(transparent)]
     VtsError { source: VtsError, backtrace: Backtrace },
+
+    #[snafu(transparent)]
+    NodeStateMachineError {
+        source: NodeStateMachineError,
+        backtrace: Backtrace,
+    },
 
     #[snafu(display("@[{node_name}] position operation config not found for config id: {config_id}"))]
     OperationConfigNotFound {
@@ -34,10 +40,11 @@ impl StarRiverErrorTrait for PositionNodeError {
     fn error_code(&self) -> ErrorCode {
         let prefix = self.get_prefix();
         let code = match self {
-            PositionNodeError::NodeError { .. } => 1001, // node error
-            PositionNodeError::VtsError { .. } => 1002,  // vts error
-            PositionNodeError::OperationConfigNotFound { .. } => 1003,
-            PositionNodeError::SymbolNotConfigured { .. } => 1004,
+            PositionNodeError::NodeError { .. } => 1001,             // node error
+            PositionNodeError::VtsError { .. } => 1002,              // vts error
+            PositionNodeError::NodeStateMachineError { .. } => 1003, // node state machine error
+            PositionNodeError::OperationConfigNotFound { .. } => 1004,
+            PositionNodeError::SymbolNotConfigured { .. } => 1005,
         };
         format!("{}_{:04}", prefix, code)
     }
@@ -46,6 +53,7 @@ impl StarRiverErrorTrait for PositionNodeError {
         match self {
             PositionNodeError::NodeError { source, .. } => source.http_status_code(),
             PositionNodeError::VtsError { source, .. } => source.http_status_code(),
+            PositionNodeError::NodeStateMachineError { source, .. } => source.http_status_code(),
             PositionNodeError::OperationConfigNotFound { .. } => StatusCode::BAD_REQUEST,
             PositionNodeError::SymbolNotConfigured { .. } => StatusCode::BAD_REQUEST,
         }
@@ -55,6 +63,7 @@ impl StarRiverErrorTrait for PositionNodeError {
         match self {
             PositionNodeError::NodeError { source, .. } => generate_error_code_chain(source),
             PositionNodeError::VtsError { source, .. } => generate_error_code_chain(source),
+            PositionNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source),
             PositionNodeError::OperationConfigNotFound { .. } => vec![self.error_code()],
             PositionNodeError::SymbolNotConfigured { .. } => vec![self.error_code()],
         }
@@ -66,6 +75,7 @@ impl StarRiverErrorTrait for PositionNodeError {
             ErrorLanguage::Chinese => match self {
                 PositionNodeError::NodeError { source, .. } => source.error_message(language),
                 PositionNodeError::VtsError { source, .. } => source.error_message(language),
+                PositionNodeError::NodeStateMachineError { source, .. } => source.error_message(language),
                 PositionNodeError::OperationConfigNotFound { node_name, config_id, .. } => {
                     format!("@[{node_name}] 仓位操作配置未找到: {config_id}")
                 }

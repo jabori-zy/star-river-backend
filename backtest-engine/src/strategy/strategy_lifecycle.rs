@@ -240,7 +240,7 @@ impl StrategyLifecycle for BacktestStrategy {
                     tracing::info!("[{}] start init node", &strategy_name);
 
                     // 传入 context 引用，让 init_node 方法内部控制锁的生命周期
-                    StrategyWorkflowExt::init_node(self.context.clone()).await.unwrap();
+                    StrategyWorkflowExt::init_node(self.context.clone()).await?;
 
                     tracing::info!("#[{}] all nodes initialized.", &strategy_name);
                 }
@@ -248,7 +248,7 @@ impl StrategyLifecycle for BacktestStrategy {
                 BacktestStrategyStateAction::StopNode => {
                     tracing::info!("#[{}] start stop node", &strategy_name);
                     // 传入 context 引用，让 stop_node 方法内部控制锁的生命周期
-                    StrategyWorkflowExt::stop_node(self.context.clone()).await.unwrap();
+                    StrategyWorkflowExt::stop_node(self.context.clone()).await?;
                 }
 
                 BacktestStrategyStateAction::LogTransition => {

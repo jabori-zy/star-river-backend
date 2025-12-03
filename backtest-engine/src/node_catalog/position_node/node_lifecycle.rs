@@ -11,7 +11,7 @@ use strategy_core::{
 use super::PositionNode;
 use crate::{
     node::{
-        node_error::BacktestNodeError,
+        node_error::PositionNodeError,
         node_message::common_log_message::{
             ListenExternalEventsMsg, ListenNodeEventsMsg, ListenStrategyCommandMsg, ListenVirtualTradingSystemEventMsg, NodeStateLogMsg,
             RegisterTaskMsg,
@@ -24,7 +24,7 @@ use crate::{
 
 #[async_trait]
 impl NodeLifecycle for PositionNode {
-    type Error = BacktestNodeError;
+    type Error = PositionNodeError;
     type Trigger = NodeStateTransTrigger;
 
     async fn init(&self) -> Result<(), Self::Error> {

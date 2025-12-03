@@ -210,35 +210,29 @@ mod kline {
         }
 
         pub async fn update_kline_data(&mut self, kline_key: &KlineKey, kline: &Kline) -> Kline {
-            // 先检查键是否存在，释放锁
-            let key_exists = { self.kline_data.read().await.contains_key(kline_key) };
-
-            if !key_exists {
-                // 如果缓存键不存在，先初始化空的Vec
-                let mut kline_data_guard = self.kline_data.write().await;
-                kline_data_guard.insert(kline_key.clone(), Vec::new());
-            }
-
-            // 重新获取锁并更新
             let mut kline_data_guard = self.kline_data.write().await;
-            let kline_data = kline_data_guard.get_mut(kline_key).unwrap();
-
-            if !key_exists || kline_data.len() == 0 {
-                // 判断是否为初始化
-                kline_data.clear();
-                kline_data.push(kline.clone());
-            } else {
-                // 如果最新的一条数据时间戳等于最后一根k线的时间戳，则更新最后一条k线
-                if let Some(last_kline) = kline_data.last() {
-                    if last_kline.datetime() == kline.datetime() {
-                        kline_data.pop();
+            match kline_data_guard.entry(kline_key.clone()) {
+                Entry::Occupied(mut e) => {
+                    let kline_data = e.get_mut();
+                    if kline_data.is_empty() {
+                        // If data is empty, insert directly
                         kline_data.push(kline.clone());
+                    } else if let Some(last_kline) = kline_data.last() {
+                        // If the latest data timestamp equals the last kline timestamp, update the last kline
+                        if last_kline.datetime() == kline.datetime() {
+                            kline_data.pop();
+                            kline_data.push(kline.clone());
+                        } else {
+                            // If the latest data timestamp differs from the last kline timestamp, insert new data
+                            kline_data.push(kline.clone());
+                        }
                     } else {
-                        // 如果最新的一条数据时间戳不等于最后一根k线的时间戳，则插入新数据
                         kline_data.push(kline.clone());
                     }
-                } else {
-                    kline_data.push(kline.clone());
+                }
+                Entry::Vacant(e) => {
+                    // If cache key doesn't exist, create and insert
+                    e.insert(vec![kline.clone()]);
                 }
             }
 
@@ -248,6 +242,8 @@ mod kline {
 }
 
 mod indicator {
+    use std::collections::hash_map::Entry;
+
     use chrono::{DateTime, Utc};
     use snafu::OptionExt;
 
@@ -287,35 +283,29 @@ mod indicator {
         }
 
         pub async fn update_indicator_data(&mut self, indicator_key: &IndicatorKey, indicator: &Indicator) -> Indicator {
-            // 先检查键是否存在，释放锁
-            let key_exists = { self.indicator_data.read().await.contains_key(indicator_key) };
-
-            if !key_exists {
-                // 如果缓存键不存在，先初始化空的Vec
-                let mut indicator_data_guard = self.indicator_data.write().await;
-                indicator_data_guard.insert(indicator_key.clone(), Vec::new());
-            }
-
-            // 重新获取锁并更新
             let mut indicator_data_guard = self.indicator_data.write().await;
-            let indicator_data = indicator_data_guard.get_mut(indicator_key).unwrap();
-
-            if !key_exists || indicator_data.len() == 0 {
-                // 判断是否为初始化
-                indicator_data.clear();
-                indicator_data.push(indicator.clone());
-            } else {
-                // 如果最新的一条数据时间戳等于最后一个指标的时间戳，则更新最后一条指标
-                if let Some(last_indicator) = indicator_data.last() {
-                    if last_indicator.get_datetime() == indicator.get_datetime() {
-                        indicator_data.pop();
+            match indicator_data_guard.entry(indicator_key.clone()) {
+                Entry::Occupied(mut e) => {
+                    let indicator_data = e.get_mut();
+                    if indicator_data.is_empty() {
+                        // If data is empty, insert directly
                         indicator_data.push(indicator.clone());
+                    } else if let Some(last_indicator) = indicator_data.last() {
+                        // If the latest data timestamp equals the last indicator timestamp, update the last indicator
+                        if last_indicator.get_datetime() == indicator.get_datetime() {
+                            indicator_data.pop();
+                            indicator_data.push(indicator.clone());
+                        } else {
+                            // If the latest data timestamp differs from the last indicator timestamp, insert new data
+                            indicator_data.push(indicator.clone());
+                        }
                     } else {
-                        // 如果最新的一条数据时间戳不等于最后一个指标的时间戳，则插入新数据
                         indicator_data.push(indicator.clone());
                     }
-                } else {
-                    indicator_data.push(indicator.clone());
+                }
+                Entry::Vacant(e) => {
+                    // If cache key doesn't exist, create and insert
+                    e.insert(vec![indicator.clone()]);
                 }
             }
 

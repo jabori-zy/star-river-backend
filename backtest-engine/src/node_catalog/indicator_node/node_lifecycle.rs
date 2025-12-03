@@ -12,7 +12,7 @@ use strategy_core::{
 use super::IndicatorNode;
 use crate::{
     node::{
-        node_error::{BacktestNodeError, IndicatorNodeError},
+        node_error::IndicatorNodeError,
         node_message::{
             common_log_message::{ListenExternalEventsMsg, ListenNodeEventsMsg, ListenStrategyCommandMsg, NodeStateLogMsg},
             indicator_node_log_message::{
@@ -27,7 +27,7 @@ use crate::{
 
 #[async_trait]
 impl NodeLifecycle for IndicatorNode {
-    type Error = BacktestNodeError;
+    type Error = IndicatorNodeError;
 
     type Trigger = NodeStateTransTrigger;
 

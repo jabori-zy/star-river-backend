@@ -1,10 +1,9 @@
-use entity::account_config::ActiveModel as AccountConfigActiveModel;
-use entity::account_config::Entity as AccountConfigEntity;
+use chrono::Utc;
+use entity::account_config::{ActiveModel as AccountConfigActiveModel, Entity as AccountConfigEntity};
 use sea_orm_migration::{
     prelude::*,
     sea_orm::{entity::*, query::*},
 };
-use chrono::Utc;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;

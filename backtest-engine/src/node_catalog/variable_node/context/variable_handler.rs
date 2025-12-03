@@ -20,10 +20,7 @@ use strategy_core::{
         },
         variable_config::{get::GetVariableConfig, reset::ResetVariableConfig, update::UpdateVariableConfig},
     },
-    variable::{
-        custom_variable::VariableValue,
-        sys_varibale::SysVariableType,
-    },
+    variable::{custom_variable::VariableValue, sys_varibale::SysVariableType},
 };
 use tokio::sync::oneshot;
 

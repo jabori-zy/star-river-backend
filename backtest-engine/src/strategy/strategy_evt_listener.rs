@@ -7,15 +7,12 @@ use strategy_core::strategy::{
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::vts_trait::VtsCtxAccessor;
 
-use crate::strategy::strategy_error::BacktestStrategyError;
-
 use super::BacktestStrategy;
+use crate::strategy::strategy_error::BacktestStrategyError;
 
 #[async_trait]
 impl StrategyEventListener for BacktestStrategy {
-
     type Error = BacktestStrategyError;
-
 
     async fn listen_node_events(&self) -> Result<(), Self::Error> {
         let (receivers, cancel_token, strategy_name) = self

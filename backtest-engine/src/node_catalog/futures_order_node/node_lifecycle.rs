@@ -11,7 +11,7 @@ use strategy_core::{
 use super::FuturesOrderNode;
 use crate::{
     node::{
-        node_error::BacktestNodeError,
+        node_error::FuturesOrderNodeError,
         node_message::{
             common_log_message::{ListenNodeEventsMsg, ListenStrategyCommandMsg, ListenVirtualTradingSystemEventMsg, NodeStateLogMsg},
             futures_order_node_log_message::{GetSymbolInfoMsg, GetSymbolInfoSuccessMsg},
@@ -24,7 +24,7 @@ use crate::{
 
 #[async_trait]
 impl NodeLifecycle for FuturesOrderNode {
-    type Error = BacktestNodeError;
+    type Error = FuturesOrderNodeError;
     type Trigger = NodeStateTransTrigger;
     async fn init(&self) -> Result<(), Self::Error> {
         NodeUtils::init_node(self, Some(500)).await
@@ -119,6 +119,7 @@ impl NodeLifecycle for FuturesOrderNode {
                                 &strategy_output_handle,
                             )
                             .await;
+                            return Err(err);
                         }
                     }
                 }

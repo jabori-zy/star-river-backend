@@ -9,12 +9,9 @@ use virtual_trading::{
     error::{CommandSendFailedSnafu, ResponseRecvFailedSnafu},
 };
 
-use super::{super::futures_order_node_types::*, FuturesOrderNodeContext};
+use super::FuturesOrderNodeContext;
 use crate::node::{
-    node_error::{
-        FuturesOrderNodeError,
-        futures_order_node_error::{CannotCreateOrderSnafu, SymbolInfoNotFoundSnafu},
-    },
+    node_error::{FuturesOrderNodeError, futures_order_node_error::SymbolInfoNotFoundSnafu},
     node_message::futures_order_node_log_message::ProcessingOrderMsg,
 };
 

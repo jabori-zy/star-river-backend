@@ -6,7 +6,7 @@ use star_river_core::{
     custom_type::NodeName,
     error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait, StatusCode, generate_error_code_chain},
 };
-use strategy_core::error::NodeError;
+use strategy_core::error::{NodeError, NodeStateMachineError};
 use ta_lib::{IndicatorConfig, error::TaLibError};
 
 #[derive(Debug, Snafu)]
@@ -20,6 +20,12 @@ pub enum IndicatorNodeError {
 
     #[snafu(transparent)]
     EventCenterError { source: EventCenterError, backtrace: Backtrace },
+
+    #[snafu(transparent)]
+    NodeStateMachineError {
+        source: NodeStateMachineError,
+        backtrace: Backtrace,
+    },
 
     #[snafu(display("@[{node_name}] indicator engine error: {source}"))]
     IndicatorEngineError {
@@ -73,13 +79,14 @@ impl StarRiverErrorTrait for IndicatorNodeError {
             IndicatorNodeError::NodeError { .. } => 1001,                 // node error
             IndicatorNodeError::TaLibError { .. } => 1002,                // indicator error
             IndicatorNodeError::EventCenterError { .. } => 1003,          // event center error
-            IndicatorNodeError::IndicatorEngineError { .. } => 1004,      // indicator engine error
-            IndicatorNodeError::DataSourceParseFailed { .. } => 1004,     // data source parse failed
-            IndicatorNodeError::GetKlineDataFailed { .. } => 1005,        // get kline data failed
-            IndicatorNodeError::CalculateIndicatorFailed { .. } => 1006,  // calculate indicator failed
-            IndicatorNodeError::CalculateResultEmpty { .. } => 1007,      // calculate result empty
-            IndicatorNodeError::ExchangeModeNotConfigured { .. } => 1008, // exchange mode is not configured
-            IndicatorNodeError::FileModeNotConfigured { .. } => 1009,     // file mode is not configured
+            IndicatorNodeError::NodeStateMachineError { .. } => 1004,     // node state machine error
+            IndicatorNodeError::IndicatorEngineError { .. } => 1005,      // indicator engine error
+            IndicatorNodeError::DataSourceParseFailed { .. } => 1006,     // data source parse failed
+            IndicatorNodeError::GetKlineDataFailed { .. } => 1007,        // get kline data failed
+            IndicatorNodeError::CalculateIndicatorFailed { .. } => 1008,  // calculate indicator failed
+            IndicatorNodeError::CalculateResultEmpty { .. } => 1009,      // calculate result empty
+            IndicatorNodeError::ExchangeModeNotConfigured { .. } => 1010, // exchange mode is not configured
+            IndicatorNodeError::FileModeNotConfigured { .. } => 1011,     // file mode is not configured
         };
 
         format!("{}_{:04}", prefix, code)
@@ -91,6 +98,7 @@ impl StarRiverErrorTrait for IndicatorNodeError {
             IndicatorNodeError::NodeError { source, .. } => source.http_status_code(),
             IndicatorNodeError::TaLibError { source, .. } => source.http_status_code(),
             IndicatorNodeError::EventCenterError { source, .. } => source.http_status_code(),
+            IndicatorNodeError::NodeStateMachineError { source, .. } => source.http_status_code(),
             IndicatorNodeError::IndicatorEngineError { source, .. } => source.http_status_code(),
             IndicatorNodeError::GetKlineDataFailed { source, .. } => source.http_status_code(),
             IndicatorNodeError::CalculateIndicatorFailed { source, .. } => source.http_status_code(),
@@ -111,6 +119,7 @@ impl StarRiverErrorTrait for IndicatorNodeError {
                 chain.push(source.error_code());
                 chain
             }
+            IndicatorNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source),
             IndicatorNodeError::IndicatorEngineError { source, .. }
             | IndicatorNodeError::GetKlineDataFailed { source, .. }
             | IndicatorNodeError::CalculateIndicatorFailed { source, .. } => generate_error_code_chain(source.as_ref()),
@@ -128,6 +137,7 @@ impl StarRiverErrorTrait for IndicatorNodeError {
                 // transparent errors - return source message directly
                 IndicatorNodeError::TaLibError { source, .. } => source.error_message(&language.to_string()),
                 IndicatorNodeError::EventCenterError { source, .. } => source.error_message(language),
+                IndicatorNodeError::NodeStateMachineError { source, .. } => source.error_message(language),
                 IndicatorNodeError::GetKlineDataFailed { source, .. } => source.error_message(language),
                 IndicatorNodeError::IndicatorEngineError { node_name, source, .. } => {
                     format!("@[{node_name}] 指标引擎错误: {}", source.error_message(language))

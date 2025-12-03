@@ -11,7 +11,7 @@ use strategy_core::{
 use super::VariableNode;
 use crate::{
     node::{
-        node_error::BacktestNodeError,
+        node_error::VariableNodeError,
         node_message::{
             common_log_message::{ListenNodeEventsMsg, ListenStrategyCommandMsg, NodeStateLogMsg},
             variable_node_log_message::RegisterVariableRetrievalTaskMsg,
@@ -24,7 +24,7 @@ use crate::{
 
 #[async_trait]
 impl NodeLifecycle for VariableNode {
-    type Error = BacktestNodeError;
+    type Error = VariableNodeError;
     type Trigger = NodeStateTransTrigger;
 
     async fn init(&self) -> Result<(), Self::Error> {

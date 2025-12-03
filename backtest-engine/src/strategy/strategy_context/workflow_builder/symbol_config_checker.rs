@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use chrono::Utc;
 // workspace crate
 use key::{Key, KeyTrait, KlineKey};
-use star_river_core::kline::{Kline, KlineInterval};
+use star_river_core::kline::Kline;
 use strategy_core::strategy::context_trait::StrategyIdentityExt;
 use virtual_trading::vts_trait::VtsCtxAccessor;
 

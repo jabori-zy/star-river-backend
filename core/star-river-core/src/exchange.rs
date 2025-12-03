@@ -9,8 +9,6 @@ use utoipa::ToSchema;
 
 use crate::core_error::{CoreError, ParseExchangeFailedSnafu};
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum MarketType {
@@ -22,7 +20,7 @@ pub enum MarketType {
 #[serde(rename_all = "camelCase")]
 pub enum MarginType {
     U,
-    Coin
+    Coin,
 }
 
 pub type MT5Server = String;
