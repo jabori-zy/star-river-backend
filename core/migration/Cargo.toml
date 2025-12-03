@@ -12,6 +12,7 @@ path = "src/lib.rs"
 tokio.workspace = true
 entity = { path = "../entity" }
 chrono.workspace = true
+serde_json.workspace = true
 
 
 [dependencies.sea-orm-migration]

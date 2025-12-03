@@ -12,7 +12,7 @@ use entity::strategy_config::Model as StrategyConfigModel;
 use serde::{Deserialize, Serialize};
 use star_river_core::{
     custom_type::{StrategyId, StrategyName},
-    exchange::{Exchange, deserialize_exchange},
+    exchange::{Exchange, deserialize_exchange, MarketType},
     kline::KlineInterval,
     system::DateTimeUtc,
 };
@@ -96,11 +96,16 @@ pub struct SelectedAccount {
     pub available_balance: f64, // 可用余额
 }
 
+
+
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SelectedSymbol {
     pub config_id: i32,
     pub output_handle_id: String,
+    // pub market_type: Option<MarketType>,
     pub symbol: String,
     pub interval: KlineInterval,
 }

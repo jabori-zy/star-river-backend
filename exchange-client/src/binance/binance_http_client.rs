@@ -97,7 +97,7 @@ impl BinanceHttpClient {
             format!(
                 "{}{}?symbol={}&interval={}&limit={}",
                 BinanceHttpUrl::BaseUrl,
-                BinanceHttpUrl::Kline,
+                BinanceHttpUrl::SpotKline,
                 symbol,
                 interval,
                 limit
@@ -106,7 +106,7 @@ impl BinanceHttpClient {
             format!(
                 "{}{}?symbol={}&interval={}&limit={}&startTime={}&endTime={}",
                 BinanceHttpUrl::BaseUrl,
-                BinanceHttpUrl::Kline,
+                BinanceHttpUrl::SpotKline,
                 symbol,
                 interval,
                 limit,

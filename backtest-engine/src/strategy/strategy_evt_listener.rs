@@ -7,11 +7,17 @@ use strategy_core::strategy::{
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::vts_trait::VtsCtxAccessor;
 
+use crate::strategy::strategy_error::BacktestStrategyError;
+
 use super::BacktestStrategy;
 
 #[async_trait]
 impl StrategyEventListener for BacktestStrategy {
-    async fn listen_node_events(&self) {
+
+    type Error = BacktestStrategyError;
+
+
+    async fn listen_node_events(&self) -> Result<(), Self::Error> {
         let (receivers, cancel_token, strategy_name) = self
             .with_ctx_write_async(|ctx| {
                 Box::pin(async move {
@@ -31,7 +37,7 @@ impl StrategyEventListener for BacktestStrategy {
 
         if receivers.is_empty() {
             tracing::warn!("{}: 没有消息接收器", strategy_name);
-            return;
+            return Ok(());
         }
 
         // 创建一个流，用于接收节点传递过来的event
@@ -69,6 +75,8 @@ impl StrategyEventListener for BacktestStrategy {
                 }
             }
         });
+
+        Ok(())
     }
 
     async fn listen_strategy_command(&self) {

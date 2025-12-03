@@ -177,12 +177,13 @@ pub trait StrategyLifecycle: StrategyContextAccessor {
 /// Defines methods for listening to various events (node events, strategy commands, stats events)
 /// Depends on `StrategyContextAccessor` to access context
 #[async_trait]
-pub trait StrategyEventListener: StrategyContextAccessor {
+pub trait StrategyEventListener {
+    type Error: StarRiverErrorTrait;
     /// Listen to node events
     ///
     /// Subscribes to events from all nodes in the workflow and handles them in a background task.
     /// All node events are aggregated and processed by the strategy.
-    async fn listen_node_events(&self);
+    async fn listen_node_events(&self) -> Result<(), Self::Error>;
 
     /// Listen to strategy commands
     ///

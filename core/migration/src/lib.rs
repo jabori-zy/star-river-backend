@@ -15,6 +15,7 @@ mod m20250610_024732_create_system_config_table;
 mod m20250610_030125_insert_system_config_init_data;
 // mod m20250907_101341_change_strategy_config_table_status_field;
 // mod m20251117_063612_strategy_config_delete_config_field;
+mod m20251203_014716_insert_exchange_init_data;
 
 pub struct Migrator;
 
@@ -37,6 +38,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250610_030125_insert_system_config_init_data::Migration),
             // Box::new(m20250907_101341_change_strategy_config_table_status_field::Migration),
             // Box::new(m20251117_063612_strategy_config_delete_config_field::Migration),
+            Box::new(m20251203_014716_insert_exchange_init_data::Migration),
         ]
     }
 }

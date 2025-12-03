@@ -7,7 +7,7 @@ pub(crate) enum BinanceHttpUrl {
     #[strum(serialize = "/api/v3/ticker/price")]
     PriceTicker,
     #[strum(serialize = "/api/v3/klines")]
-    Kline,
+    SpotKline,
     #[strum(serialize = "/api/v3/time")]
     ServerTime,
     #[strum(serialize = "/api/v3/exchangeInfo")]
