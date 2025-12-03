@@ -1,11 +1,11 @@
 // #![allow(dead_code, unused_imports)]
-use exchange_core::{error::ExchangeError, exchange_trait::WebSocketClient};
+use exchange_core::exchange_trait::WebSocketClient;
 use futures::SinkExt;
 use snafu::ResultExt;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async,
-    tungstenite::{Error, Message, handshake::client::Response},
+    tungstenite::{Message, handshake::client::Response},
 };
 
 use crate::binance::{

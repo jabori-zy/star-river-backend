@@ -4,10 +4,9 @@ use axum::{
     http::StatusCode,
 };
 use engine_core::EngineContextAccessor;
-use exchange_engine::error::ExchangeEngineError;
 use market_engine::error::MarketEngineError;
 use serde::Deserialize;
-use star_river_core::{custom_type::AccountId, engine::EngineName, error::StarRiverErrorTrait, instrument::Symbol, kline::KlineInterval};
+use star_river_core::{custom_type::AccountId, error::StarRiverErrorTrait, instrument::Symbol, kline::KlineInterval};
 
 use crate::{StarRiver, api::response::NewApiResponse};
 

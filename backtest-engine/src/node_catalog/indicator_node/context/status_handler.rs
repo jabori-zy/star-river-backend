@@ -2,7 +2,7 @@ use event_center::{CmdRespRecvFailedSnafu, EventCenterSingleton};
 use event_center_core::communication::Response;
 use key::KeyTrait;
 use snafu::{IntoError, ResultExt};
-use star_river_event::communication::{GetIndicatorLookbackCmdPayload, GetIndicatorLookbackCommand, IndicatorEngineCommand};
+use star_river_event::communication::{CalculateLookbackCmdPayload, CalculateLookbackCommand, IndicatorEngineCommand};
 use strategy_core::node::context_trait::NodeInfoExt;
 use tokio::sync::oneshot;
 
@@ -13,8 +13,8 @@ impl IndicatorNodeContext {
     pub(crate) async fn init_indicator_lookback(&mut self) -> Result<(), IndicatorNodeError> {
         for keys in self.indicator_keys.keys() {
             let (resp_tx, resp_rx) = oneshot::channel();
-            let payload = GetIndicatorLookbackCmdPayload::new(self.strategy_id().clone(), self.node_id().clone(), keys.clone());
-            let cmd: IndicatorEngineCommand = GetIndicatorLookbackCommand::new(self.node_id().clone(), resp_tx, payload).into();
+            let payload = CalculateLookbackCmdPayload::new(self.strategy_id().clone(), self.node_id().clone(), keys.clone());
+            let cmd: IndicatorEngineCommand = CalculateLookbackCommand::new(self.node_id().clone(), resp_tx, payload).into();
             EventCenterSingleton::send_command(cmd.into()).await?;
             let response = resp_rx.await.context(CmdRespRecvFailedSnafu {})?;
             match response {

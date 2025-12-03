@@ -1,5 +1,4 @@
 // External crate imports
-use key::KlineKey;
 use snafu::OptionExt;
 // Current crate imports
 use star_river_core::{
@@ -9,10 +8,7 @@ use star_river_core::{
     order::{FuturesOrderSide, OrderStatus},
     position::PositionSide,
 };
-use star_river_core::{
-    order::OrderType,
-    position::{self, PositionState},
-};
+use star_river_core::{order::OrderType, position::PositionState};
 
 // Local module imports
 use super::VirtualTradingSystemContext;
@@ -151,7 +147,6 @@ where
         // Get or create position
         if let Some(position_id) = existing_position_id {
             tracing::debug!("existing position: {:#?}", position_id);
-
             let available_balance = self.available_balance;
             let (position, transaction) = {
                 let position = self.find_position_mut(position_id)?;

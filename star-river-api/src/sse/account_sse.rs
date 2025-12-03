@@ -1,15 +1,10 @@
 use std::{convert::Infallible, time::Duration};
 
 use async_stream::stream;
-use axum::{
-    extract::State,
-    response::sse::{Event, Sse},
-};
+use axum::response::sse::{Event, Sse};
 use event_center::{EventCenterSingleton, event::Channel};
 use futures::stream::Stream;
 use tokio_stream::StreamExt;
-
-use crate::StarRiver;
 
 #[utoipa::path(
     get,
@@ -37,7 +32,7 @@ use crate::StarRiver;
     params(),
     security()
 )]
-pub async fn account_sse_handler(State(star_river): State<StarRiver>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+pub async fn account_sse_handler() -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Account SSE连接成功");
 
     // let event_center = star_river.event_center.lock().await;

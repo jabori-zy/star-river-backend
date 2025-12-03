@@ -40,7 +40,7 @@ use crate::{
 impl NodeEventHandlerExt for IndicatorNodeContext {
     type EngineEvent = Event;
 
-    async fn handle_command(&mut self, node_command: Self::NodeCommand) -> Result<(), Self::Error> {
+    async fn handle_command(&mut self, node_command: Self::NodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
@@ -48,12 +48,9 @@ impl NodeEventHandlerExt for IndicatorNodeContext {
                     let payload = NodeResetRespPayload {};
                     let response = NodeResetResponse::success(self.node_id().clone(), self.node_name().clone(), payload);
                     cmd.respond(response);
-                    Ok(())
-                } else {
-                    Ok(())
                 }
             }
-            _ => Ok(()),
+            _ => {}
         }
     }
 

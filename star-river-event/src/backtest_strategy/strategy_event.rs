@@ -13,11 +13,6 @@ use strum::Display;
 use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
 
 use super::node_event::{
-    futures_order_node_event::{
-        FuturesOrderCanceledEvent, FuturesOrderCreatedEvent, FuturesOrderFilledEvent, StopLossOrderCanceledEvent,
-        StopLossOrderCreatedEvent, StopLossOrderFilledEvent, TakeProfitOrderCanceledEvent, TakeProfitOrderCreatedEvent,
-        TakeProfitOrderFilledEvent, TransactionCreatedEvent,
-    },
     indicator_node_event::IndicatorUpdateEvent,
     kline_node_event::KlineUpdateEvent,
     variable_node_event::{CustomVarUpdateEvent, SysVarUpdateEvent},

@@ -1,3 +1,4 @@
+#![allow(unused)]
 use chrono::{DateTime, Duration, Utc};
 use star_river_core::kline::KlineInterval;
 

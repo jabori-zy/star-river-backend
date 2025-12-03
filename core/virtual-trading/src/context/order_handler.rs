@@ -1,5 +1,3 @@
-// External crate imports
-use key::KlineKey;
 use snafu::OptionExt;
 use star_river_core::kline::Kline;
 // Current crate imports

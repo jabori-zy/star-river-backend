@@ -6,13 +6,13 @@ use star_river_core::{
     custom_type::*,
     exchange::Exchange,
     order::FuturesOrderSide,
-    position::{Position, PositionSide, PositionState},
+    position::{PositionSide, PositionState},
 };
 use utoipa::ToSchema;
 
 use super::id_generator::POSITION_ID_COUNTER;
 use crate::{
-    error::{OnlyOneDirectionSupportedSnafu, VtsError},
+    error::VtsError,
     types::{VirtualOrder, VirtualTransaction},
     utils::Formula,
 };

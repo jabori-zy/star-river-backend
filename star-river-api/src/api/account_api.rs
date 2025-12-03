@@ -6,18 +6,13 @@ use axum::{
     response::Json,
 };
 use database::{mutation::account_config_mutation::AccountConfigMutation, query::account_config_query::AccountConfigQuery};
-use event_center::{EventCenterSingleton, event::Event};
 use serde::{Deserialize, Serialize};
 use snafu::{IntoError, Report};
-use star_river_core::{account::AccountConfig, engine::EngineName, error::StarRiverErrorTrait, exchange::Exchange};
+use star_river_core::{account::AccountConfig, error::StarRiverErrorTrait, exchange::Exchange};
 use strum::{Display, EnumString};
 use utoipa::{IntoParams, ToSchema};
 
-use crate::{
-    api::response::{ApiResponse, ApiResponseEnum},
-    error::DeserializeParamsFailedSnafu,
-    star_river::StarRiver,
-};
+use crate::{api::response::ApiResponseEnum, error::DeserializeParamsFailedSnafu, star_river::StarRiver};
 
 // #[derive(Serialize, Deserialize, IntoParams, ToSchema)]
 // #[schema(title = "登录MT5账户参数", description = "登录指定MT5账户")]

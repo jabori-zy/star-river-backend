@@ -4,8 +4,12 @@ use async_trait::async_trait;
 use engine_core::context_trait::{EngineContextTrait, EngineEventHandler};
 use event_center::{EngineCommand, Event};
 use star_river_event::communication::market_engine::{
-    GetKlineHistoryRespPayload, GetKlineHistoryResponse, GetSymbolInfoRespPayload, GetSymbolInfoResponse, MarketEngineCommand,
-    SubscribeKlineStreamRespPayload, SubscribeKlineStreamResponse, UnsubscribeKlineStreamRespPayload, UnsubscribeKlineStreamResponse,
+    GetKlineHistoryRespPayload,
+    GetKlineHistoryResponse,
+    GetSymbolInfoRespPayload,
+    GetSymbolInfoResponse,
+    MarketEngineCommand,
+    // SubscribeKlineStreamRespPayload, SubscribeKlineStreamResponse, UnsubscribeKlineStreamRespPayload, UnsubscribeKlineStreamResponse,
 };
 
 use super::MarketEngineContext;
@@ -61,26 +65,19 @@ impl EngineEventHandler for MarketEngineContext {
                         cmd.interval.clone(),
                         cmd.time_range.clone(),
                     )
-                    .await
-                    .unwrap();
-
-                // 发布k线历史更新事件
-                // let exchange_kline_history_update_event = ExchangeKlineHistoryUpdateEvent::new(
-                //     params.exchange.clone(),
-                //     params.symbol.clone(),
-                //     params.interval.clone(),
-                //     params.time_range.clone(),
-                //     kline_history,
-                // );
-                // let exchange_kline_history_update_event =
-                //     ExchangeEvent::ExchangeKlineHistoryUpdate(exchange_kline_history_update_event);
-                // EventCenterSingleton::publish(exchange_kline_history_update_event.into())
-                //     .await
-                //     .unwrap();
-                let payload =
-                    GetKlineHistoryRespPayload::new(cmd.exchange.clone(), cmd.symbol.clone(), cmd.interval.clone(), kline_history);
-                let resp = GetKlineHistoryResponse::success(payload);
-                cmd.respond(resp);
+                    .await;
+                match kline_history {
+                    Ok(kline_history) => {
+                        let payload =
+                            GetKlineHistoryRespPayload::new(cmd.exchange.clone(), cmd.symbol.clone(), cmd.interval.clone(), kline_history);
+                        let resp = GetKlineHistoryResponse::success(payload);
+                        cmd.respond(resp);
+                    }
+                    Err(e) => {
+                        let resp = GetKlineHistoryResponse::fail(Arc::new(e));
+                        cmd.respond(resp);
+                    }
+                }
             }
             EngineCommand::MarketEngine(MarketEngineCommand::GetSymbolInfo(cmd)) => {
                 let result = self.get_symbol(cmd.account_id, cmd.symbol.clone()).await;

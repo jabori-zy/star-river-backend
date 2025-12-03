@@ -6,7 +6,7 @@ use star_river_core::{
     account::{OriginalAccountInfo, mt5_account::OriginalMt5AccountInfo},
     exchange::{Exchange, MT5Server},
     instrument::Symbol,
-    kline::{Kline, KlineInterval},
+    kline::Kline,
     order::{Order, OriginalOrder},
     position::{OriginalPosition, Position, PositionNumber},
     transaction::OriginalTransaction,

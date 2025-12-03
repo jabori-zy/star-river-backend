@@ -260,10 +260,10 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                                 let mut strategy_benchmark_guard = self.benchmark().write().await;
                                 strategy_benchmark_guard.add_cycle_tracker(tracker);
                             }
-                            let benchmark_clone = self.benchmark().clone();
+                            let benchmark_clone = Arc::clone(&self.benchmark());
 
                             let strategy_id = self.strategy_id();
-                            tokio::task::spawn(async move {
+                            tokio::spawn(async move {
                                 let strategy_benchmark_guard = benchmark_clone.read().await;
                                 let report = strategy_benchmark_guard.report();
                                 let event: BacktestStrategyEvent = StrategyPerformanceUpdateEvent::new(strategy_id, report.clone()).into();

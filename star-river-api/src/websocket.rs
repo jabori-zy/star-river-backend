@@ -1,3 +1,4 @@
+#![allow(unused)]
 use std::{net::SocketAddr, ops::ControlFlow};
 
 use axum::{

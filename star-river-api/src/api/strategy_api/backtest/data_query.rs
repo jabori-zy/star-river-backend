@@ -5,11 +5,10 @@ use axum::{
     http::StatusCode,
 };
 use backtest_engine::engine_error::BacktestEngineError;
-use chrono::{DateTime, NaiveDateTime};
+use chrono::DateTime;
 use engine_core::EngineContextAccessor;
 use key::Key;
 use serde::{Deserialize, Serialize};
-use snafu::IntoError;
 use star_river_core::{custom_type::NodeId, error::StarRiverErrorTrait};
 use strategy_core::{
     benchmark::strategy_benchmark::StrategyPerformanceReport,
@@ -25,7 +24,6 @@ use virtual_trading::types::{VirtualOrder, VirtualPosition, VirtualTransaction};
 use super::BACKTEST_CONTROL_TAG;
 use crate::{
     api::response::{ApiResponseEnum, NewApiResponse},
-    error::ParseDataTimeFailedSnafu,
     star_river::StarRiver,
 };
 

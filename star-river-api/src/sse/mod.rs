@@ -7,27 +7,17 @@ pub mod backtest_strategy_state_log_sse;
 use std::{convert::Infallible, time::Duration};
 
 pub use account_sse::account_sse_handler;
-use async_stream::stream;
-use axum::{
-    extract::{Query, State},
-    response::sse::{Event, Sse},
-};
+use axum::response::sse::{Event, Sse};
 pub use backtest_strategy_event_sse::backtest_strategy_event_sse_handler;
 pub use backtest_strategy_performance_sse::backtest_strategy_performance_sse_handler;
 pub use backtest_strategy_running_log_sse::backtest_strategy_running_log_sse_handler;
 pub use backtest_strategy_state_log_sse::backtest_strategy_state_log_sse_handler;
-use event_center::{
-    EventCenterSingleton,
-    event::{Channel, Event as EventCenterEvent},
-};
+use event_center::{EventCenterSingleton, event::Channel};
 use futures::stream::Stream;
 use serde::Deserialize;
-use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
 use tokio_stream::StreamExt;
 
-use crate::StarRiver;
-
-pub async fn market_sse_handler(State(star_river): State<StarRiver>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+pub async fn market_sse_handler() -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Market SSE连接成功");
 
     // let event_center = star_river.event_center.lock().await;
@@ -53,7 +43,7 @@ pub async fn market_sse_handler(State(star_river): State<StarRiver>) -> Sse<impl
     )
 }
 
-pub async fn indicator_sse_handler(State(star_river): State<StarRiver>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+pub async fn indicator_sse_handler() -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     tracing::info!("Indicator SSE连接成功");
 
     // let event_center = star_river.event_center.lock().await;

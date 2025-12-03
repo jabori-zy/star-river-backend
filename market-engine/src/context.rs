@@ -4,8 +4,7 @@ mod symbol_handler;
 use std::{collections::HashMap, sync::Arc};
 
 use engine_core::{EngineBaseContext, EngineContextAccessor, context_trait::EngineContextTrait, state_machine::EngineRunState};
-use exchange_engine::ExchangeEngine;
-use snafu::Report;
+use exchange_engine::{ExchangeEngine, error::ExchangeEngineError};
 use star_river_core::{
     custom_type::{AccountId, StrategyId},
     engine::EngineName,
@@ -17,7 +16,7 @@ use tokio::sync::Mutex;
 
 use super::{state_machine::MarketEngineAction, subkey::KlineSubKey};
 use crate::{
-    error::MarketEngineError,
+    error::{ExchangeNotRegisteredSnafu, MarketEngineError},
     state_machine::{MarketEngineStateMachine, market_engine_transition},
 };
 
@@ -241,11 +240,11 @@ impl MarketEngineContext {
         symbol: String,
         interval: KlineInterval,
         time_range: TimeRange,
-    ) -> Result<Vec<Kline>, String> {
+    ) -> Result<Vec<Kline>, MarketEngineError> {
         // 1. 先检查注册状态
         let is_registered = self.exchange_is_registered(account_id).await;
         if !is_registered {
-            return Err(format!("交易所 {:?} 未注册", exchange));
+            return Err(ExchangeNotRegisteredSnafu { account_id, exchange }.build());
         }
 
         // 2. 使用 with_ctx_read_async 访问交易所上下文
@@ -257,19 +256,12 @@ impl MarketEngineContext {
                 let interval_clone = interval.clone();
                 Box::pin(async move {
                     // 获取交易所客户端
-                    let exchange_client = ctx.get_exchange_instance(&account_id).await.map_err(|e| e.to_string())?;
+                    let exchange_client = ctx.get_exchange_instance(&account_id).await?;
 
                     // 获取历史 k 线数据
-                    let kline_history = exchange_client
-                        .kline_history(&symbol, interval_clone, time_range)
-                        .await
-                        .map_err(|e| {
-                            let report = Report::from_error(&e);
-                            tracing::error!("{}", report);
-                            e.to_string()
-                        })?;
+                    let kline_history = exchange_client.kline_history(&symbol, interval_clone, time_range).await?;
 
-                    Ok::<Vec<Kline>, String>(kline_history)
+                    Ok::<Vec<Kline>, ExchangeEngineError>(kline_history)
                 })
             })
             .await?;

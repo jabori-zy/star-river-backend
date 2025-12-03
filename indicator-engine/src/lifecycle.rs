@@ -5,7 +5,7 @@ use engine_core::{
     state_machine::EngineStateTransTrigger,
 };
 
-use crate::{IndicatorEngine, error::IndicatorEngineError, state_machine::IndicatorEngineAction};
+use crate::{IndicatorEngine, state_machine::IndicatorEngineAction};
 
 #[async_trait]
 impl EngineLifecycle for IndicatorEngine {

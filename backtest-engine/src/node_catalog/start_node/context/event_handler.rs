@@ -23,7 +23,7 @@ impl NodeEventHandlerExt for StartNodeContext {
         Ok(())
     }
 
-    async fn handle_command(&mut self, node_command: Self::NodeCommand) -> Result<(), StartNodeError> {
+    async fn handle_command(&mut self, node_command: Self::NodeCommand) {
         match node_command {
             BacktestNodeCommand::GetStartNodeConfig(cmd) => {
                 let start_node_config = self.node_config.read().await.clone();
@@ -31,19 +31,15 @@ impl NodeEventHandlerExt for StartNodeContext {
                 let payload = GetStartNodeConfigRespPayload::new(start_node_config);
                 let response = GetStartNodeConfigResponse::success(self.node_id().clone(), self.node_name().clone(), payload);
                 cmd.respond(response);
-                Ok(())
             }
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
                     let payload = NodeResetRespPayload {};
                     let response = NodeResetResponse::success(self.node_id().clone(), self.node_name().clone(), payload);
                     cmd.respond(response);
-                    Ok(())
-                } else {
-                    Ok(())
                 }
             }
-            _ => Ok(()),
+            _ => {}
         }
     }
 }

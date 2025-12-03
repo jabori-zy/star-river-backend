@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use event_center::Event;
-use star_river_core::error::StarRiverErrorTrait;
 use star_river_event::backtest_strategy::node_event::{
     FuturesOrderNodeEvent, IfElseNodeEvent,
     futures_order_node_event::{TransactionCreatedEvent, TransactionCreatedPayload},
@@ -9,7 +8,6 @@ use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
     event::node_common_event::{CommonEvent, NodeRunningLogEvent},
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeHandleExt, NodeInfoExt, NodeRelationExt},
-    node_infra::condition_trigger::ConditionTrigger,
 };
 use virtual_trading::{
     event::VtsEvent,
@@ -22,7 +20,7 @@ use crate::{
         node_command::{
             BacktestNodeCommand, GetFuturesOrderConfigRespPayload, GetFuturesOrderConfigResponse, NodeResetRespPayload, NodeResetResponse,
         },
-        node_error::{FuturesOrderNodeError, futures_order_node_error::OrderConfigNotFoundSnafu},
+        node_error::FuturesOrderNodeError,
         node_event::BacktestNodeEvent,
         node_message::futures_order_node_log_message::{OrderCanceledMsg, OrderCreatedMsg, OrderFilledMsg},
     },
@@ -54,7 +52,7 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
         }
     }
 
-    async fn handle_command(&mut self, node_command: BacktestNodeCommand) -> Result<(), Self::Error> {
+    async fn handle_command(&mut self, node_command: BacktestNodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
@@ -71,7 +69,6 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
                     let response = NodeResetResponse::success(self.node_id().clone(), self.node_name().clone(), payload);
                     cmd.respond(response);
                 }
-                Ok(())
             }
             BacktestNodeCommand::GetFuturesOrderConfig(cmd) => {
                 tracing::debug!("@[{}] received get futures order config command", self.node_name());
@@ -80,12 +77,9 @@ impl NodeEventHandlerExt for FuturesOrderNodeContext {
                     let payload = GetFuturesOrderConfigRespPayload::new(futures_order_node_config);
                     let response = GetFuturesOrderConfigResponse::success(self.node_id().clone(), self.node_name().clone(), payload);
                     cmd.respond(response);
-                    Ok(())
-                } else {
-                    Ok(())
                 }
             }
-            _ => Ok(()),
+            _ => {}
         }
     }
 }

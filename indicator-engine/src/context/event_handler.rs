@@ -4,8 +4,7 @@ use async_trait::async_trait;
 use engine_core::context_trait::EngineEventHandler;
 use event_center::{EngineCommand, Event};
 use star_river_event::communication::indicator_engine::{
-    CalculateIndicatorRespPayload, CalculateIndicatorResponse, GetIndicatorLookbackRespPayload, GetIndicatorLookbackResponse,
-    IndicatorEngineCommand,
+    CalculateIndicatorResponse, CalculateLookbackRespPayload, CalculateLookbackResponse, CalculateRespPayload, IndicatorEngineCommand,
 };
 use ta_lib::TALib;
 
@@ -26,11 +25,11 @@ impl EngineEventHandler for IndicatorEngineContext {
         match command {
             EngineCommand::IndicatorEngine(indicator_engine_command) => {
                 match indicator_engine_command {
-                    IndicatorEngineCommand::GetIndicatorLookback(cmd) => {
+                    IndicatorEngineCommand::CalculateLookback(cmd) => {
                         let lookback = TALib::lookback(&cmd.indicator_key.indicator_config);
-                        let payload = GetIndicatorLookbackRespPayload::new(cmd.indicator_key.clone(), lookback);
+                        let payload = CalculateLookbackRespPayload::new(cmd.indicator_key.clone(), lookback);
 
-                        let response = GetIndicatorLookbackResponse::success(payload);
+                        let response = CalculateLookbackResponse::success(payload);
                         cmd.respond(response);
                     }
                     // 计算指标
@@ -39,8 +38,7 @@ impl EngineEventHandler for IndicatorEngineContext {
                             CalculateIndicatorFunction::calculate_indicator(cmd.kline_series.clone(), cmd.indicator_config.clone()).await;
                         match cal_result {
                             Ok(indicators) => {
-                                let payload =
-                                    CalculateIndicatorRespPayload::new(cmd.kline_key.clone(), cmd.indicator_config.clone(), indicators);
+                                let payload = CalculateRespPayload::new(cmd.kline_key.clone(), cmd.indicator_config.clone(), indicators);
                                 let response = CalculateIndicatorResponse::success(payload);
                                 cmd.respond(response);
                             }

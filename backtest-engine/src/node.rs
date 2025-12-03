@@ -288,6 +288,7 @@ impl BacktestNode {
     }
 }
 
+#[allow(dead_code)]
 static BACKTEST_NODE_EVENT_RECEIVERS: LazyLock<HashMap<NodeType, Vec<Channel>>> = LazyLock::new(|| {
     HashMap::from([
         (NodeType::StartNode, vec![]),
@@ -301,8 +302,10 @@ static BACKTEST_NODE_EVENT_RECEIVERS: LazyLock<HashMap<NodeType, Vec<Channel>>> 
     ])
 });
 
+#[allow(dead_code)]
 pub struct BacktestNodeEventReceiver;
 
+#[allow(dead_code)]
 impl BacktestNodeEventReceiver {
     pub fn get_external_event_receivers(node_kind: &NodeType) -> Vec<Channel> {
         BACKTEST_NODE_EVENT_RECEIVERS.get(node_kind).cloned().unwrap_or_default()

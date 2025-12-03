@@ -1,3 +1,4 @@
+#![allow(unused)]
 mod config_filter;
 mod context_util;
 mod event_handler;
@@ -174,7 +175,7 @@ impl FuturesOrderNodeContext {
         !is_processing_order
     }
 
-    async fn check_order_status(&mut self, order_id: OrderId) -> Result<OrderStatus, String> {
+    async fn check_order_status(&mut self, _order_id: OrderId) -> Result<OrderStatus, String> {
         // let virtual_trading_system_guard = self.virtual_trading_system.lock().await;
         // let order = virtual_trading_system_guard.get_order_by_id(&order_id).unwrap();
         // Ok(order.order_status.clone())

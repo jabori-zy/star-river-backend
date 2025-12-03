@@ -4,7 +4,7 @@ use axum::{
 };
 use database::{mutation::system_config_mutation::SystemConfigMutation, query::system_config_query::SystemConfigQuery};
 use serde::{Deserialize, Serialize};
-use snafu::{IntoError, Report};
+use snafu::Report;
 use star_river_core::system::system_config::{Localization, SystemConfig, SystemConfigManager};
 use tracing::instrument;
 use utoipa::ToSchema;

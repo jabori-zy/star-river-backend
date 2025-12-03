@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 use utoipa::ToSchema;
 
-use crate::{exchange::Exchange, position::PositionSide, system::DateTimeUtc};
+use crate::{exchange::Exchange, system::DateTimeUtc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrderParams {

@@ -114,19 +114,16 @@ impl NodeEventHandlerExt for PositionNodeContext {
         Ok(())
     }
 
-    async fn handle_command(&mut self, node_command: BacktestNodeCommand) -> Result<(), PositionNodeError> {
+    async fn handle_command(&mut self, node_command: BacktestNodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
                     let payload = NodeResetRespPayload;
                     let response = NodeResetResponse::success(self.node_id().clone(), self.node_name().clone(), payload);
                     cmd.respond(response);
-                    Ok(())
-                } else {
-                    Ok(())
                 }
             }
-            _ => Ok(()),
+            _ => {}
         }
     }
 }

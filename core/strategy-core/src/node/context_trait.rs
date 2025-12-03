@@ -557,7 +557,7 @@ pub trait NodeEventHandlerExt: NodeMetaDataExt {
     /// 处理节点命令
     ///
     /// 默认实现仅记录日志，具体节点应该覆盖此方法
-    async fn handle_command(&mut self, node_command: Self::NodeCommand) -> Result<(), Self::Error>;
+    async fn handle_command(&mut self, node_command: Self::NodeCommand);
 }
 
 // 注意：NodeEventHandler 不提供自动实现，因为它需要具体节点类型根据业务逻辑来实现

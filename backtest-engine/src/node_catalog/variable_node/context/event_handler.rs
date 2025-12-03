@@ -178,19 +178,16 @@ impl NodeEventHandlerExt for VariableNodeContext {
         }
     }
 
-    async fn handle_command(&mut self, node_command: BacktestNodeCommand) -> Result<(), VariableNodeError> {
+    async fn handle_command(&mut self, node_command: BacktestNodeCommand) {
         match node_command {
             BacktestNodeCommand::NodeReset(cmd) => {
                 if self.node_id() == cmd.node_id() {
                     let paylod = NodeResetRespPayload;
                     let response = NodeResetResponse::success(self.node_id().clone(), self.node_name().clone(), paylod);
                     cmd.respond(response);
-                    Ok(())
-                } else {
-                    Ok(())
                 }
             }
-            _ => Ok(()),
+            _ => {}
         }
     }
 }

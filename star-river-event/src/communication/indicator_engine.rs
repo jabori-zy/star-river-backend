@@ -11,15 +11,15 @@ use ta_lib::{Indicator, IndicatorConfig};
 #[derive(Debug, From)]
 pub enum IndicatorEngineCommand {
     CalculateIndicator(CalculateIndicatorCommand),
-    GetIndicatorLookback(GetIndicatorLookbackCommand),
+    CalculateLookback(CalculateLookbackCommand),
 }
 
 // ============ Command and Response Type Definitions ============
-pub type CalculateIndicatorCommand = Command<CalculateIndicatorCmdPayload, CalculateIndicatorRespPayload>;
-pub type CalculateIndicatorResponse = Response<CalculateIndicatorRespPayload>;
+pub type CalculateIndicatorCommand = Command<CalculateIndicatorCmdPayload, CalculateRespPayload>;
+pub type CalculateIndicatorResponse = Response<CalculateRespPayload>;
 
-pub type GetIndicatorLookbackCommand = Command<GetIndicatorLookbackCmdPayload, GetIndicatorLookbackRespPayload>;
-pub type GetIndicatorLookbackResponse = Response<GetIndicatorLookbackRespPayload>;
+pub type CalculateLookbackCommand = Command<CalculateLookbackCmdPayload, CalculateLookbackRespPayload>;
+pub type CalculateLookbackResponse = Response<CalculateLookbackRespPayload>;
 
 // ============ Calculate History Indicator Command ============
 #[derive(Debug)]
@@ -50,13 +50,13 @@ impl CalculateIndicatorCmdPayload {
 }
 
 #[derive(Debug)]
-pub struct CalculateIndicatorRespPayload {
+pub struct CalculateRespPayload {
     pub kline_key: KlineKey,
     pub indicator_config: IndicatorConfig,
     pub indicators: Vec<Indicator>,
 }
 
-impl CalculateIndicatorRespPayload {
+impl CalculateRespPayload {
     pub fn new(kline_key: KlineKey, indicator_config: IndicatorConfig, indicators: Vec<Indicator>) -> Self {
         Self {
             kline_key,
@@ -68,13 +68,13 @@ impl CalculateIndicatorRespPayload {
 
 // ============ Get Indicator Lookback Command ============
 #[derive(Debug)]
-pub struct GetIndicatorLookbackCmdPayload {
+pub struct CalculateLookbackCmdPayload {
     pub strategy_id: StrategyId,
     pub node_id: NodeId,
     pub indicator_key: IndicatorKey,
 }
 
-impl GetIndicatorLookbackCmdPayload {
+impl CalculateLookbackCmdPayload {
     pub fn new(strategy_id: StrategyId, node_id: NodeId, indicator_key: IndicatorKey) -> Self {
         Self {
             strategy_id,
@@ -85,12 +85,12 @@ impl GetIndicatorLookbackCmdPayload {
 }
 
 #[derive(Debug)]
-pub struct GetIndicatorLookbackRespPayload {
+pub struct CalculateLookbackRespPayload {
     pub indicator_key: IndicatorKey,
     pub lookback: usize,
 }
 
-impl GetIndicatorLookbackRespPayload {
+impl CalculateLookbackRespPayload {
     pub fn new(indicator_key: IndicatorKey, lookback: usize) -> Self {
         Self { indicator_key, lookback }
     }

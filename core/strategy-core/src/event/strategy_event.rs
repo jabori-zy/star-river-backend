@@ -452,6 +452,7 @@ impl StrategyRunningErrorLog {
         }
     }
 
+    #[allow(unused)]
     pub fn new_with_time(
         cycle_id: CycleId,
         strategy_id: StrategyId,

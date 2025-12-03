@@ -5,7 +5,7 @@ use engine_core::{
     state_machine::EngineStateTransTrigger,
 };
 
-use crate::{MarketEngine, error::MarketEngineError, state_machine::MarketEngineAction};
+use crate::{MarketEngine, state_machine::MarketEngineAction};
 
 #[async_trait]
 impl EngineLifecycle for MarketEngine {

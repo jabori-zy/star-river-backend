@@ -31,7 +31,7 @@ use virtual_trading::vts_trait::VtsCtxAccessor;
 // current crate
 use super::BacktestStrategyContext;
 use crate::{
-    node::node_command::BacktestNodeCommand,
+    node::{node_command::BacktestNodeCommand, node_error::BacktestNodeError},
     strategy::strategy_error::{BacktestStrategyError, MissingDataSourceSnafu, MissingStartNodeSnafu},
 };
 
@@ -82,7 +82,10 @@ impl BacktestStrategyContext {
                     let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
                     let start_node = self.build_start_node(node_config.clone(), node_command_rx).await?;
                     // set output handles
-                    start_node.with_ctx_write(|ctx| ctx.set_output_handles()).await;
+                    start_node
+                        .with_ctx_write(|ctx| ctx.set_output_handles())
+                        .await
+                        .map_err(BacktestNodeError::from)?;
 
                     let node_id = start_node.with_ctx_read(|ctx| ctx.node_id().to_string()).await;
                     self.add_node_command_sender(node_id, node_command_tx);
@@ -92,7 +95,10 @@ impl BacktestStrategyContext {
                     let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
                     let kline_node = self.build_kline_node(node_config.clone(), node_command_rx).await?;
                     // set output handles
-                    kline_node.with_ctx_write(|ctx| ctx.set_output_handles()).await;
+                    kline_node
+                        .with_ctx_write(|ctx| ctx.set_output_handles())
+                        .await
+                        .map_err(BacktestNodeError::from)?;
 
                     let (node_id, selected_symbol_keys) = kline_node
                         .with_ctx_read(|ctx| (ctx.node_id().to_string(), ctx.selected_symbol_keys().clone()))
@@ -121,7 +127,10 @@ impl BacktestStrategyContext {
                     let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
                     let indicator_node = self.build_indicator_node(node_config.clone(), node_command_rx).await?;
                     // set output handles
-                    indicator_node.with_ctx_write(|ctx| ctx.set_output_handles()).await;
+                    indicator_node
+                        .with_ctx_write(|ctx| ctx.set_output_handles())
+                        .await
+                        .map_err(BacktestNodeError::from)?;
 
                     let (node_id, indicator_keys) = indicator_node
                         .with_ctx_read(|ctx| (ctx.node_id().to_string(), ctx.indicator_keys().clone()))
@@ -139,7 +148,10 @@ impl BacktestStrategyContext {
                     let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
                     let ifelse_node = self.build_ifelse_node(node_config.clone(), node_command_rx).await?;
                     // set output handles
-                    ifelse_node.with_ctx_write(|ctx| ctx.set_output_handles()).await;
+                    ifelse_node
+                        .with_ctx_write(|ctx| ctx.set_output_handles())
+                        .await
+                        .map_err(BacktestNodeError::from)?;
 
                     let node_id = ifelse_node.with_ctx_read(|ctx| ctx.node_id().to_string()).await;
                     self.add_node_command_sender(node_id.clone(), node_command_tx);
@@ -165,7 +177,10 @@ impl BacktestStrategyContext {
                         )
                         .await?;
                     // set output handles
-                    futures_order_node.with_ctx_write(|ctx| ctx.set_output_handles()).await;
+                    futures_order_node
+                        .with_ctx_write(|ctx| ctx.set_output_handles())
+                        .await
+                        .map_err(BacktestNodeError::from)?;
 
                     let node_id = futures_order_node.with_ctx_read(|ctx| ctx.node_id().to_string()).await;
                     self.add_node_command_sender(node_id.clone(), node_command_tx);
@@ -191,7 +206,10 @@ impl BacktestStrategyContext {
                         .await?;
                     let node_id = position_node.with_ctx_read(|ctx| ctx.node_id().to_string()).await;
                     // set output handles
-                    position_node.with_ctx_write(|ctx| ctx.set_output_handles()).await;
+                    position_node
+                        .with_ctx_write(|ctx| ctx.set_output_handles())
+                        .await
+                        .map_err(BacktestNodeError::from)?;
                     self.add_node_command_sender(node_id, node_command_tx);
                     self.add_node(position_node.into()).await;
                 }
@@ -201,7 +219,10 @@ impl BacktestStrategyContext {
                         .build_variable_node(node_config.clone(), node_command_rx, self.virtual_trading_system().clone())
                         .await?;
                     // set output handles
-                    variable_node.with_ctx_write(|ctx| ctx.set_output_handles()).await;
+                    variable_node
+                        .with_ctx_write(|ctx| ctx.set_output_handles())
+                        .await
+                        .map_err(BacktestNodeError::from)?;
                     let node_id = variable_node.with_ctx_read(|ctx| ctx.node_id().to_string()).await;
                     self.add_node_command_sender(node_id, node_command_tx);
                     self.add_node(variable_node.into()).await;

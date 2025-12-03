@@ -1,5 +1,4 @@
-use std::str::FromStr;
-
+#![allow(unused)]
 use chrono::{TimeZone, Utc};
 use exchange_core::{error::data_processor_error::*, exchange_trait::DataProcessor};
 use snafu::{OptionExt, ResultExt};
@@ -10,7 +9,6 @@ use super::{
     binance_type::{BinanceKlineRaw, BinanceSymbolRaw},
     data_processor_error::BinanceDataProcessorError,
 };
-use crate::binance::binance_type::BinanceKlineInterval;
 
 #[derive(Debug, Clone, Display, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceStreamEvent {

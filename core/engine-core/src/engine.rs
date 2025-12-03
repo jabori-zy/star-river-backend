@@ -1,6 +1,5 @@
 use std::{fmt::Debug, marker::PhantomData, sync::Arc};
 
-use serde::de::value::Error;
 use star_river_core::error::StarRiverErrorTrait;
 use tokio::sync::RwLock;
 

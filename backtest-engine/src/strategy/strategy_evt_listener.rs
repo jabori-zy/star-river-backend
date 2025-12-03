@@ -1,20 +1,26 @@
 use async_trait::async_trait;
+use event_center::EventCenterSingleton;
 use futures::{StreamExt, stream::select_all};
-use strategy_core::strategy::{
-    context_trait::{StrategyCommunicationExt, StrategyEventHandlerExt, StrategyIdentityExt, StrategyTaskControlExt, StrategyWorkflowExt},
-    strategy_trait::{StrategyContextAccessor, StrategyEventListener},
+use star_river_core::error::StarRiverErrorTrait;
+use star_river_event::backtest_strategy::strategy_event::BacktestStrategyEvent;
+use strategy_core::{
+    event::strategy_event::StrategyRunningLogEvent,
+    strategy::{
+        context_trait::{
+            StrategyCommunicationExt, StrategyEventHandlerExt, StrategyIdentityExt, StrategyInfoExt, StrategyTaskControlExt,
+            StrategyWorkflowExt,
+        },
+        strategy_trait::{StrategyContextAccessor, StrategyEventListener},
+    },
 };
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::vts_trait::VtsCtxAccessor;
 
 use super::BacktestStrategy;
-use crate::strategy::strategy_error::BacktestStrategyError;
 
 #[async_trait]
 impl StrategyEventListener for BacktestStrategy {
-    type Error = BacktestStrategyError;
-
-    async fn listen_node_events(&self) -> Result<(), Self::Error> {
+    async fn listen_node_events(&self) {
         let (receivers, cancel_token, strategy_name) = self
             .with_ctx_write_async(|ctx| {
                 Box::pin(async move {
@@ -34,7 +40,7 @@ impl StrategyEventListener for BacktestStrategy {
 
         if receivers.is_empty() {
             tracing::warn!("{}: 没有消息接收器", strategy_name);
-            return Ok(());
+            return;
         }
 
         // 创建一个流，用于接收节点传递过来的event
@@ -50,7 +56,7 @@ impl StrategyEventListener for BacktestStrategy {
                 tokio::select! {
                     // 如果取消信号被触发，则中止任务
                     _ = cancel_token.cancelled() => {
-                        tracing::info!("{} 节点消息监听任务已中止", strategy_name);
+                        tracing::info!("#[{}] node event listener stopped", strategy_name);
                         break;
                     }
                     // 接收消息
@@ -58,13 +64,21 @@ impl StrategyEventListener for BacktestStrategy {
                         match receive_result {
                             Some(Ok(event)) => {
                                 let mut state_guard = context_clone.write().await;
-                                state_guard.handle_node_event(event).await;
+                                let result = state_guard.handle_node_event(event).await;
+                                if let Err(e) = result {
+                                    e.report_log();
+                                    let current_time = state_guard.strategy_time();
+                                    let running_error_log: BacktestStrategyEvent = StrategyRunningLogEvent::error_with_time(state_guard.cycle_id().clone(), state_guard.strategy_id().clone(), &e, current_time).into();
+                                    if let Err(e) = EventCenterSingleton::publish(running_error_log.into()).await {
+                                        e.report_log();
+                                    };
+                                }
                             }
                             Some(Err(e)) => {
-                                tracing::error!("节点{}接收消息错误: {}", strategy_name, e);
+                                tracing::error!("#[{}] receive node event error: {}", strategy_name, e);
                             }
                             None => {
-                                tracing::warn!("节点{}所有消息流已关闭", strategy_name);
+                                tracing::warn!("#[{}] all node event streams are closed", strategy_name);
                                 break;
                             }
                         }
@@ -72,8 +86,6 @@ impl StrategyEventListener for BacktestStrategy {
                 }
             }
         });
-
-        Ok(())
     }
 
     async fn listen_strategy_command(&self) {
@@ -185,7 +197,15 @@ impl BacktestStrategy {
                     event = stream.next() => {
                         if let Some(Ok(event)) = event {
                             let mut context_guard = context.write().await;
-                            context_guard.handle_vts_event(event).await;
+                            let result = context_guard.handle_vts_event(event).await;
+                            if let Err(e) = result {
+                                e.report_log();
+                                let current_time = context_guard.strategy_time();
+                                let running_error_log: BacktestStrategyEvent = StrategyRunningLogEvent::error_with_time(context_guard.cycle_id().clone(), context_guard.strategy_id().clone(), &e, current_time).into();
+                                if let Err(e) = EventCenterSingleton::publish(running_error_log.into()).await {
+                                    e.report_log();
+                                };
+                            }
                         } else {
                             tracing::warn!("{}: strategy vts event listener closed", strategy_name);
                             break;

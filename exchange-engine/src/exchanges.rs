@@ -50,7 +50,7 @@ impl Exchange {
 
     pub async fn symbol(&self, symbol: String) -> Result<Symbol, ExchangeEngineError> {
         match self {
-            Exchange::Binance(exchange) => Ok(exchange.symbol(symbol).await.map_err(|e| ExchangeEngineError::from(e))?),
+            Exchange::Binance(exchange) => Ok(exchange.symbol(symbol).await?),
             Exchange::MetaTrader5(exchange) => Ok(exchange.symbol(symbol).await?),
         }
     }
