@@ -63,8 +63,8 @@ impl StarRiverErrorTrait for BacktestEngineError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            BacktestEngineError::BacktestStrategyError { source, .. } => generate_error_code_chain(source),
-            BacktestEngineError::EngineStateMachineError { source, .. } => generate_error_code_chain(source),
+            BacktestEngineError::BacktestStrategyError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestEngineError::EngineStateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
 
             _ => vec![self.error_code()],
         }

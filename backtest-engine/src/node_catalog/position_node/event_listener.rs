@@ -51,7 +51,7 @@ impl PositionNode {
                                         current_time,
                                     ).into();
                                     if let Err(e) = context_guard.strategy_bound_handle_send(running_error_log.into()) {
-                                        e.report();
+                                        e.report_log();
                                     }
                                 }
                             }

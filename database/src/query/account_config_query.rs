@@ -23,7 +23,7 @@ impl AccountConfigQuery {
         Ok(account_configs)
     }
 
-    pub async fn get_account_config_by_id(db: &DbConn, account_id: AccountId) -> Result<AccountConfig, DbErr> {
+    pub async fn get_account_config_by_id(db: &DbConn, account_id: AccountId) -> Result<AccountConfig, DatabaseError> {
         let account_config_model = AccountConfigEntity::find_by_id(account_id)
             .filter(account_config::Column::IsDelete.eq(false))
             .one(db)

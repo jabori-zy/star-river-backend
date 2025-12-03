@@ -7,7 +7,7 @@ use star_river_core::{
 };
 use utoipa::ToSchema;
 
-use crate::event::{log_event::NodeStateLogEvent, node::NodeEvent};
+use crate::event::{log_event::NodeRunStateLogEvent, node::NodeEvent};
 
 #[derive(Debug, Clone, Serialize, From)]
 #[serde(tag = "event")]
@@ -15,7 +15,7 @@ pub enum CommonEvent {
     Trigger(TriggerEvent),               // Trigger event
     ExecuteOver(ExecuteOverEvent),       // Execute over
     NodeRunningLog(NodeRunningLogEvent), // Running log
-    RunStateLog(NodeStateLogEvent),      // State log
+    RunStateLog(NodeRunStateLogEvent),   // State log
 }
 
 impl CommonEvent {

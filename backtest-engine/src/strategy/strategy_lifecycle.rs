@@ -19,7 +19,7 @@ use super::{
 };
 use crate::strategy::{
     strategy_error::{BacktestStrategyError, TimeRangeNotConfiguredSnafu},
-    strategy_log_message::StrategyStateLogMsg,
+    strategy_log_message::StrategyRunStateLogMsg,
 };
 
 #[async_trait::async_trait]
@@ -288,7 +288,7 @@ impl StrategyLifecycle for BacktestStrategy {
                         .with_ctx_read_async(|ctx| Box::pin(async move { (ctx.strategy_id(), ctx.run_state().await) }))
                         .await;
 
-                    let log_message = StrategyStateLogMsg::new(strategy_name.clone(), current_state.to_string());
+                    let log_message = StrategyRunStateLogMsg::new(strategy_name.clone(), current_state.to_string());
                     let log_event: BacktestStrategyEvent = StrategyStateLogEvent::info(
                         strategy_id,
                         strategy_name.clone(),

@@ -15,6 +15,8 @@ use state_machine::IndicatorEngineAction;
 pub use ta_lib::TALib;
 use tokio::sync::RwLock;
 
+use crate::error::IndicatorEngineError;
+
 // ============================================================================
 // ExchangeEngine 结构 (newtype 模式)
 // ============================================================================
@@ -22,7 +24,7 @@ use tokio::sync::RwLock;
 /// 交易所引擎
 #[derive(Debug)]
 pub struct IndicatorEngine {
-    inner: EngineBase<IndicatorEngineContext, IndicatorEngineAction>,
+    inner: EngineBase<IndicatorEngineContext, IndicatorEngineAction, IndicatorEngineError>,
 }
 
 impl IndicatorEngine {
@@ -41,7 +43,7 @@ impl IndicatorEngine {
 // ============================================================================
 
 impl std::ops::Deref for IndicatorEngine {
-    type Target = EngineBase<IndicatorEngineContext, IndicatorEngineAction>;
+    type Target = EngineBase<IndicatorEngineContext, IndicatorEngineAction, IndicatorEngineError>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -57,6 +59,7 @@ impl Engine for IndicatorEngine {}
 impl EngineContextAccessor for IndicatorEngine {
     type Context = IndicatorEngineContext;
     type Action = IndicatorEngineAction;
+    type Error = IndicatorEngineError;
     fn context(&self) -> &Arc<RwLock<IndicatorEngineContext>> {
         self.inner.context()
     }

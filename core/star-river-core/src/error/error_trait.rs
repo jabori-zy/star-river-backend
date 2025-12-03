@@ -52,8 +52,13 @@ pub trait StarRiverErrorTrait: Error + Send + Sync + 'static {
         vec![self.error_code()]
     }
 
-    fn report(&self) {
+    fn report(&self) -> String {
         let report = Report::from_error(self);
-        tracing::error!("{}", report.to_string());
+        report.to_string()
+    }
+
+    fn report_log(&self) {
+        let report = self.report();
+        tracing::error!("{:?}\n{}", self.error_code_chain().join(" -> "), report);
     }
 }

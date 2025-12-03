@@ -13,7 +13,10 @@ use star_river_core::engine::EngineName;
 use state_machine::ExchangeEngineAction;
 use tokio::sync::RwLock;
 
-use crate::state_machine::{ExchangeEngineStateMachine, exchange_engine_transition};
+use crate::{
+    error::ExchangeEngineError,
+    state_machine::{ExchangeEngineStateMachine, exchange_engine_transition},
+};
 
 // ============================================================================
 // ExchangeEngine 结构 (newtype 模式)
@@ -22,7 +25,7 @@ use crate::state_machine::{ExchangeEngineStateMachine, exchange_engine_transitio
 /// 交易所引擎
 #[derive(Debug)]
 pub struct ExchangeEngine {
-    inner: EngineBase<ExchangeEngineContext, ExchangeEngineAction>,
+    inner: EngineBase<ExchangeEngineContext, ExchangeEngineAction, ExchangeEngineError>,
 }
 
 impl ExchangeEngine {
@@ -47,7 +50,7 @@ impl ExchangeEngine {
 // ============================================================================
 
 impl std::ops::Deref for ExchangeEngine {
-    type Target = EngineBase<ExchangeEngineContext, ExchangeEngineAction>;
+    type Target = EngineBase<ExchangeEngineContext, ExchangeEngineAction, ExchangeEngineError>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -63,6 +66,7 @@ impl Engine for ExchangeEngine {}
 impl EngineContextAccessor for ExchangeEngine {
     type Context = ExchangeEngineContext;
     type Action = ExchangeEngineAction;
+    type Error = ExchangeEngineError;
 
     fn context(&self) -> &Arc<RwLock<Self::Context>> {
         self.inner.context()

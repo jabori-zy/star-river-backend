@@ -45,7 +45,7 @@ impl StarRiverErrorTrait for EventCenterError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            EventCenterError::EventCenterCommonError { source, .. } => generate_error_code_chain(source),
+            EventCenterError::EventCenterCommonError { source, .. } => generate_error_code_chain(source, self.error_code()),
             EventCenterError::EventSendFailed { .. } => vec![self.error_code()],
             EventCenterError::CommandSendFailed { .. } => vec![self.error_code()],
         }

@@ -33,7 +33,7 @@ impl StarRiverErrorTrait for IndicatorEngineError {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             IndicatorEngineError::TalibError { .. } => vec!["TA_LIB_ERROR".to_string()],
-            IndicatorEngineError::StateMachineError { source, .. } => generate_error_code_chain(source),
+            IndicatorEngineError::StateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
         }
     }
 

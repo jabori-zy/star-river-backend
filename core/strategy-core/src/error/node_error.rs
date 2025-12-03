@@ -218,7 +218,7 @@ impl StarRiverErrorTrait for NodeError {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             // non-transparent errors - return own error code
-            NodeError::StrategyError { source, .. } => generate_error_code_chain(source.as_ref()),
+            NodeError::StrategyError { source, .. } => generate_error_code_chain(source.as_ref(), self.error_code()),
             _ => vec![self.error_code()],
         }
     }

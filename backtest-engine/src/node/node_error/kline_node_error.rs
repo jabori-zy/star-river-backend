@@ -27,9 +27,9 @@ pub enum KlineNodeError {
     #[snafu(transparent)]
     KeyError { source: KeyError, backtrace: Backtrace },
 
-    #[snafu(display("@[{node_name}] register exchange error"))]
+    #[snafu(display("@[{node_name}] Exchange register failed"))]
     RegisterExchangeFailed {
-        node_name: String,
+        node_name: NodeName,
         #[snafu(source)]
         source: Arc<dyn StarRiverErrorTrait>,
         backtrace: Backtrace,
@@ -165,14 +165,15 @@ impl StarRiverErrorTrait for KlineNodeError {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             // For transparent errors, delegate to the inner error's chain
-            KlineNodeError::NodeError { source, .. } => generate_error_code_chain(source),
-            KlineNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source),
-            KlineNodeError::EventCenterError { source, .. } => generate_error_code_chain(source),
-            KlineNodeError::KeyError { source, .. } => generate_error_code_chain(source),
+            KlineNodeError::NodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            KlineNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            KlineNodeError::EventCenterError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            KlineNodeError::KeyError { source, .. } => generate_error_code_chain(source, self.error_code()),
             KlineNodeError::RegisterExchangeFailed { source, .. }
             | KlineNodeError::LoadKlineFromExchangeFailed { source, .. }
-            | KlineNodeError::GetMinIntervalFromStrategyFailed { source, .. } => generate_error_code_chain(source.as_ref()),
-
+            | KlineNodeError::GetMinIntervalFromStrategyFailed { source, .. } => {
+                generate_error_code_chain(source.as_ref(), self.error_code())
+            }
             _ => vec![self.error_code()],
         }
     }
@@ -188,8 +189,8 @@ impl StarRiverErrorTrait for KlineNodeError {
                 KlineNodeError::RegisterExchangeFailed { node_name, .. } => {
                     format!("[{}] 注册交易所错误", node_name)
                 }
-                KlineNodeError::LoadKlineFromExchangeFailed { source, .. } => {
-                    format!("从交易所加载K线历史失败。原因: [{}]", source)
+                KlineNodeError::LoadKlineFromExchangeFailed { .. } => {
+                    format!("从交易所加载K线历史失败.")
                 }
                 KlineNodeError::InsufficientBacktestDataForMetaTrader5 {
                     first_kline_datetime,
@@ -207,8 +208,8 @@ impl StarRiverErrorTrait for KlineNodeError {
                 KlineNodeError::SymbolsIsNotConfiguredSnafu { node_name, .. } => {
                     format!("@[{node_name}] 交易对未配置")
                 }
-                KlineNodeError::GetMinIntervalFromStrategyFailed { node_name, source, .. } => {
-                    format!("@[{node_name}] 获取最小周期交易对失败。原因: [{}]", source)
+                KlineNodeError::GetMinIntervalFromStrategyFailed { node_name, .. } => {
+                    format!("@[{node_name}] 获取最小周期交易对失败.")
                 }
                 KlineNodeError::FirstKlineIsEmpty {
                     node_name,
@@ -219,21 +220,17 @@ impl StarRiverErrorTrait for KlineNodeError {
                 } => {
                     format!("@[{node_name}] {exchange}-{symbol}-{interval}的第一根K线为空")
                 }
-                KlineNodeError::AcquireSemaphoreFailed { source, .. } => {
-                    format!("获取并发请求信号量失败。原因: [{}]", source)
+                KlineNodeError::AcquireSemaphoreFailed { .. } => {
+                    format!("获取并发请求信号量失败.")
                 }
                 KlineNodeError::FetchKlineDataTaskFailed {
                     node_name,
                     exchange,
                     symbol,
                     interval,
-                    source,
                     ..
                 } => {
-                    format!(
-                        "@[{node_name}] 拉取{exchange}-{symbol}-{interval} K线数据任务失败。原因: [{}]",
-                        source
-                    )
+                    format!("@[{node_name}] 拉取{exchange}-{symbol}-{interval} K线数据任务失败.",)
                 }
                 KlineNodeError::InsufficientBacktestData {
                     first_kline_datetime,

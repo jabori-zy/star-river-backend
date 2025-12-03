@@ -49,7 +49,7 @@ impl IfElseNode {
                         )
                         .into();
                         if let Err(e) = ctx_guard.strategy_bound_handle_send(running_error_log.into()) {
-                            e.report();
+                            e.report_log();
                         }
                     }
                     ctx_guard.reset_received_flag();

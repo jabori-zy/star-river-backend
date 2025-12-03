@@ -1,4 +1,5 @@
 use database::query::strategy_config_query::StrategyConfigQuery;
+use star_river_core::error::StarRiverErrorTrait;
 use strategy_core::strategy::{StrategyConfig, TradeMode};
 
 use super::BacktestEngineContext;
@@ -20,11 +21,12 @@ impl BacktestEngineContext {
                 tracing::info!("backtest strategy [{}] instance is removed", strategy_id);
             }
             _ => {
-                tracing::error!("backtest strategy engine not support trade mode: {}", trade_mode);
-                return Err(UnsupportedTradeModeSnafu {
+                let error = UnsupportedTradeModeSnafu {
                     trade_mode: trade_mode.to_string(),
                 }
-                .build());
+                .build();
+                error.report_log();
+                return Err(error);
             }
         }
         Ok(())

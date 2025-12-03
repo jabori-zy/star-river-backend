@@ -92,7 +92,7 @@ impl StarRiverErrorTrait for KeyError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            KeyError::CoreError { source, .. } => generate_error_code_chain(source),
+            KeyError::CoreError { source, .. } => generate_error_code_chain(source, self.error_code()),
             KeyError::InvalidKeyType { .. }
             | KeyError::InvalidIndicatorType { .. }
             | KeyError::InvalidKeyFormat { .. }

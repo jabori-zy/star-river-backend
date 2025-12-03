@@ -259,7 +259,7 @@ pub async fn get_strategy_run_state(
     match result {
         Ok(status) => (StatusCode::OK, Json(ApiResponseEnum::success(status))),
         Err(e) => {
-            e.report();
+            e.report_log();
             (e.http_status_code(), Json(ApiResponseEnum::error(e)))
         }
     }

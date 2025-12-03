@@ -8,11 +8,10 @@ use engine_core::{
 };
 
 // Current crate imports
-use crate::{BacktestEngine, engine_error::BacktestEngineError, engine_state_machine::BacktestEngineAction};
+use crate::{BacktestEngine, engine_state_machine::BacktestEngineAction};
 
 #[async_trait]
 impl EngineLifecycle for BacktestEngine {
-    type Error = BacktestEngineError;
     async fn start(&self) -> Result<(), Self::Error> {
         let engine_name = self.with_ctx_read(|ctx| ctx.engine_name().to_string()).await;
         tracing::info!("=================start engine [{engine_name}]====================");

@@ -50,8 +50,8 @@ impl StarRiverErrorTrait for StartNodeError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            StartNodeError::NodeError { source, .. } => generate_error_code_chain(source),
-            StartNodeError::StateMachineError { source, .. } => generate_error_code_chain(source),
+            StartNodeError::NodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            StartNodeError::StateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
         }
     }
 }

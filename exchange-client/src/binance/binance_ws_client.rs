@@ -1,21 +1,28 @@
 // #![allow(dead_code, unused_imports)]
-use exchange_core::exchange_trait::WebSocketClient;
+use exchange_core::{error::ExchangeError, exchange_trait::WebSocketClient};
 use futures::SinkExt;
+use snafu::ResultExt;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async,
     tungstenite::{Error, Message, handshake::client::Response},
 };
 
-use crate::binance::{url::BinanceWsUrl, websocket::Stream};
+use crate::binance::{
+    error::{BinanceError, WebSocketConnectionFailedSnafu},
+    url::BinanceWsUrl,
+    websocket::Stream,
+};
 
 #[derive(Debug)]
 pub struct BinanceWsBuilder;
 
 impl BinanceWsBuilder {
-    pub async fn connect(url: &str) -> Result<(BinanceWebSocket, Response), Error> {
+    pub async fn connect(url: &str) -> Result<(BinanceWebSocket, Response), BinanceError> {
         let start = std::time::Instant::now();
-        let (socket, response) = connect_async(url).await?;
+        let (socket, response) = connect_async(url)
+            .await
+            .context(WebSocketConnectionFailedSnafu { url: url.to_string() })?;
         let duration = start.elapsed();
         tracing::info!(
             "连接至币安websocket服务器成功, 耗时: {:?}。 响应状态: {:?}",
@@ -26,7 +33,7 @@ impl BinanceWsBuilder {
         Ok((BinanceWebSocket::new(socket), response))
     }
 
-    pub async fn connect_default() -> Result<(BinanceWebSocket, Response), Error> {
+    pub async fn connect_default() -> Result<(BinanceWebSocket, Response), BinanceError> {
         BinanceWsBuilder::connect(BinanceWsUrl::BaseUrl.to_string().as_str()).await
     }
 }

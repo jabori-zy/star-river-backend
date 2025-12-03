@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use star_river_core::custom_type::OrderId;
 use strategy_core::{log_message, log_message::*};
 log_message!(
-    StrategyStateLogMsg,
+    StrategyRunStateLogMsg,
     params: (
         strategy_name: String,
         strategy_state: String,

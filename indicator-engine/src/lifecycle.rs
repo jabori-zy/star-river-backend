@@ -9,8 +9,6 @@ use crate::{IndicatorEngine, error::IndicatorEngineError, state_machine::Indicat
 
 #[async_trait]
 impl EngineLifecycle for IndicatorEngine {
-    type Error = IndicatorEngineError;
-
     async fn start(&self) -> Result<(), Self::Error> {
         let engine_name = self.with_ctx_read(|ctx| ctx.engine_name().to_string()).await;
         tracing::info!("=================start engine [{engine_name}]====================");

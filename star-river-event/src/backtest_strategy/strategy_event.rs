@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use star_river_core::system::DateTimeUtc;
 // use log_event::{NodeStateLogEvent, StrategyRunningLogEvent, LogLevel};
 use strategy_core::event::{
-    log_event::NodeStateLogEvent,
+    log_event::NodeRunStateLogEvent,
     node_common_event::NodeRunningLogEvent,
     strategy_event::{StrategyPerformanceUpdateEvent, StrategyRunningLogEvent, StrategyStateLogEvent},
 };
@@ -153,7 +153,7 @@ pub enum BacktestStrategyEvent {
 
     #[strum(serialize = "node-state-log-update-event")]
     #[serde(rename = "node-state-log-update-event")]
-    NodeStateLog(NodeStateLogEvent), // 节点状态日志事件
+    NodeStateLog(NodeRunStateLogEvent), // 节点状态日志事件
 
     #[strum(serialize = "strategy-state-log-update-event")]
     #[serde(rename = "strategy-state-log-update-event")]

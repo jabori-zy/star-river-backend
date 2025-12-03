@@ -24,7 +24,7 @@ impl StarRiverErrorTrait for BinanceDataProcessorError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            BinanceDataProcessorError::DataProcessorError { source, .. } => generate_error_code_chain(source),
+            BinanceDataProcessorError::DataProcessorError { source, .. } => generate_error_code_chain(source, self.error_code()),
         }
     }
 

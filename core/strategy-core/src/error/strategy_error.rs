@@ -326,10 +326,10 @@ impl StarRiverErrorTrait for StrategyError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            StrategyError::StrategyBenchmarkError { source, .. } => generate_error_code_chain(source),
+            StrategyError::StrategyBenchmarkError { source, .. } => generate_error_code_chain(source, self.error_code()),
             // Errors with source - append self to source chain
-            StrategyError::NodeCheckFailed { source, .. } => generate_error_code_chain(source),
-            StrategyError::NodeInitFailed { source, .. } => generate_error_code_chain(source),
+            StrategyError::NodeCheckFailed { source, .. } => generate_error_code_chain(source, self.error_code()),
+            StrategyError::NodeInitFailed { source, .. } => generate_error_code_chain(source, self.error_code()),
 
             _ => vec![self.error_code()],
         }

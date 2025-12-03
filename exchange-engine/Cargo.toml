@@ -21,6 +21,7 @@ tracing-subscriber.workspace = true
 tracing.workspace = true
 snafu.workspace = true
 enum_dispatch.workspace = true
+derive_more.workspace = true
 
 [lints]
 workspace = true

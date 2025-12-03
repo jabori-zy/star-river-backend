@@ -1014,6 +1014,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "database",
+ "derive_more",
  "engine-core",
  "enum_dispatch",
  "event-center",

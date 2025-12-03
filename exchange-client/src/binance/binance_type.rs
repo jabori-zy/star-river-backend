@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use star_river_core::kline::KlineInterval;
 use strum::{Display, EnumString};
 
+use crate::binance::error::{BinanceError, UnsupportedKlineIntervalSnafu};
+
 #[derive(Clone, Display, Serialize, Deserialize, Debug, EnumString, Eq, PartialEq, Hash)]
 pub enum BinanceKlineInterval {
     #[strum(serialize = "1m")]
@@ -53,26 +55,31 @@ impl From<BinanceKlineInterval> for KlineInterval {
     }
 }
 
-impl From<KlineInterval> for BinanceKlineInterval {
-    fn from(interval: KlineInterval) -> Self {
+impl TryFrom<KlineInterval> for BinanceKlineInterval {
+    type Error = BinanceError;
+    fn try_from(interval: KlineInterval) -> Result<Self, Self::Error> {
         match interval {
-            KlineInterval::Minutes1 => BinanceKlineInterval::Minutes1,
-            KlineInterval::Minutes5 => BinanceKlineInterval::Minutes5,
-            KlineInterval::Minutes15 => BinanceKlineInterval::Minutes15,
-            KlineInterval::Minutes30 => BinanceKlineInterval::Minutes30,
-            KlineInterval::Hours1 => BinanceKlineInterval::Hours1,
-            KlineInterval::Hours2 => BinanceKlineInterval::Hours2,
-            KlineInterval::Hours4 => BinanceKlineInterval::Hours4,
-            KlineInterval::Hours6 => BinanceKlineInterval::Hours6,
-            KlineInterval::Hours8 => BinanceKlineInterval::Hours8,
-            KlineInterval::Hours12 => BinanceKlineInterval::Hours12,
-            KlineInterval::Days1 => BinanceKlineInterval::Days1,
-            KlineInterval::Weeks1 => BinanceKlineInterval::Weeks1,
-            KlineInterval::Months1 => BinanceKlineInterval::Months1,
-            _ => panic!("Invalid KlineInterval: {:?}", interval),
+            KlineInterval::Minutes1 => Ok(BinanceKlineInterval::Minutes1),
+            KlineInterval::Minutes5 => Ok(BinanceKlineInterval::Minutes5),
+            KlineInterval::Minutes15 => Ok(BinanceKlineInterval::Minutes15),
+            KlineInterval::Minutes30 => Ok(BinanceKlineInterval::Minutes30),
+            KlineInterval::Hours1 => Ok(BinanceKlineInterval::Hours1),
+            KlineInterval::Hours2 => Ok(BinanceKlineInterval::Hours2),
+            KlineInterval::Hours4 => Ok(BinanceKlineInterval::Hours4),
+            KlineInterval::Hours6 => Ok(BinanceKlineInterval::Hours6),
+            KlineInterval::Hours8 => Ok(BinanceKlineInterval::Hours8),
+            KlineInterval::Hours12 => Ok(BinanceKlineInterval::Hours12),
+            KlineInterval::Days1 => Ok(BinanceKlineInterval::Days1),
+            KlineInterval::Weeks1 => Ok(BinanceKlineInterval::Weeks1),
+            KlineInterval::Months1 => Ok(BinanceKlineInterval::Months1),
+            _ => Err(UnsupportedKlineIntervalSnafu {
+                interval: interval.clone(),
+            }
+            .build()),
         }
     }
 }
+
 impl BinanceKlineInterval {
     pub const ALL: &'static [BinanceKlineInterval] = &[
         BinanceKlineInterval::Minutes1,

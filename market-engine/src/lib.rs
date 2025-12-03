@@ -12,6 +12,8 @@ use exchange_engine::ExchangeEngine;
 use state_machine::MarketEngineAction;
 use tokio::sync::{Mutex, RwLock};
 
+use crate::error::MarketEngineError;
+
 // ============================================================================
 // ExchangeEngine 结构 (newtype 模式)
 // ============================================================================
@@ -19,7 +21,7 @@ use tokio::sync::{Mutex, RwLock};
 /// 交易所引擎
 #[derive(Debug)]
 pub struct MarketEngine {
-    inner: EngineBase<MarketEngineContext, MarketEngineAction>,
+    inner: EngineBase<MarketEngineContext, MarketEngineAction, MarketEngineError>,
 }
 
 impl MarketEngine {
@@ -38,7 +40,7 @@ impl MarketEngine {
 // ============================================================================
 
 impl std::ops::Deref for MarketEngine {
-    type Target = EngineBase<MarketEngineContext, MarketEngineAction>;
+    type Target = EngineBase<MarketEngineContext, MarketEngineAction, MarketEngineError>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -54,6 +56,7 @@ impl Engine for MarketEngine {}
 impl EngineContextAccessor for MarketEngine {
     type Context = MarketEngineContext;
     type Action = MarketEngineAction;
+    type Error = MarketEngineError;
 
     fn context(&self) -> &Arc<RwLock<MarketEngineContext>> {
         self.inner.context()

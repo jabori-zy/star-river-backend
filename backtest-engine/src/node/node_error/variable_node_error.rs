@@ -68,9 +68,9 @@ impl StarRiverErrorTrait for VariableNodeError {
         // All GetVariableNodeError variants either have no source or
         // have external sources (serde_json::Error) that don't implement our trait
         match self {
-            VariableNodeError::NodeError { source, .. } => generate_error_code_chain(source),
-            VariableNodeError::VtsError { source, .. } => generate_error_code_chain(source),
-            VariableNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source),
+            VariableNodeError::NodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            VariableNodeError::VtsError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            VariableNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
             VariableNodeError::SysVariableSymbolIsNull { .. }
             | VariableNodeError::TaskFailed { .. }
             | VariableNodeError::ExchangeModeNotConfigured { .. } => vec![self.error_code()],

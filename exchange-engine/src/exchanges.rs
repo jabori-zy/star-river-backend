@@ -1,4 +1,5 @@
-use exchange_client::{binance::Binance, exchange_error::ExchangeError, metatrader5::MetaTrader5};
+use derive_more::From;
+use exchange_client::{binance::Binance, metatrader5::MetaTrader5};
 use exchange_core::{
     exchange_trait::{Exchange as ExchangeTrait, ExchangeMarketDataExt, ExchangeSymbolExt},
     state_machine::ExchangeRunState,
@@ -12,22 +13,10 @@ use star_river_core::{
 
 use crate::error::ExchangeEngineError;
 
-#[derive(Debug)]
+#[derive(Debug, From)]
 pub enum Exchange {
     Binance(Binance),
     MetaTrader5(MetaTrader5),
-}
-
-impl From<Binance> for Exchange {
-    fn from(binance: Binance) -> Self {
-        Exchange::Binance(binance)
-    }
-}
-
-impl From<MetaTrader5> for Exchange {
-    fn from(metatrader5: MetaTrader5) -> Self {
-        Exchange::MetaTrader5(metatrader5)
-    }
 }
 
 impl Exchange {

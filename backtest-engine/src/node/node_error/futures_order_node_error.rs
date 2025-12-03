@@ -76,10 +76,10 @@ impl StarRiverErrorTrait for FuturesOrderNodeError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            FuturesOrderNodeError::NodeError { source, .. } => generate_error_code_chain(source),
-            FuturesOrderNodeError::VirtualTradingSystem { source, .. } => generate_error_code_chain(source),
-            FuturesOrderNodeError::EventCenterError { source, .. } => generate_error_code_chain(source),
-            FuturesOrderNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source),
+            FuturesOrderNodeError::NodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            FuturesOrderNodeError::VirtualTradingSystem { source, .. } => generate_error_code_chain(source, self.error_code()),
+            FuturesOrderNodeError::EventCenterError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            FuturesOrderNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
             FuturesOrderNodeError::CannotCreateOrder { .. } => vec![self.error_code()],
             FuturesOrderNodeError::OrderConfigNotFound { .. } => vec![self.error_code()],
             FuturesOrderNodeError::GetSymbolInfoFailed { source, .. } => {

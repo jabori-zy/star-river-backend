@@ -113,16 +113,16 @@ impl StarRiverErrorTrait for IndicatorNodeError {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             // For transparent errors, delegate to the inner error's chain
-            IndicatorNodeError::NodeError { source, .. } => generate_error_code_chain(source),
+            IndicatorNodeError::NodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
             IndicatorNodeError::TaLibError { source, .. } => {
                 let mut chain = source.error_code_chain();
                 chain.push(source.error_code());
                 chain
             }
-            IndicatorNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source),
+            IndicatorNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
             IndicatorNodeError::IndicatorEngineError { source, .. }
             | IndicatorNodeError::GetKlineDataFailed { source, .. }
-            | IndicatorNodeError::CalculateIndicatorFailed { source, .. } => generate_error_code_chain(source.as_ref()),
+            | IndicatorNodeError::CalculateIndicatorFailed { source, .. } => generate_error_code_chain(source.as_ref(), self.error_code()),
 
             // For errors with external sources that don't implement our trait
             _ => vec![self.error_code()],

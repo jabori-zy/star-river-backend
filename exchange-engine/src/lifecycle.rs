@@ -5,12 +5,10 @@ use engine_core::{
     state_machine::EngineStateTransTrigger,
 };
 
-use crate::{ExchangeEngine, context::ExchangeEngineContext, error::ExchangeEngineError, state_machine::ExchangeEngineAction};
+use crate::{ExchangeEngine, state_machine::ExchangeEngineAction};
 
 #[async_trait]
 impl EngineLifecycle for ExchangeEngine {
-    type Error = ExchangeEngineError;
-
     async fn start(&self) -> Result<(), Self::Error> {
         let engine_name = self.with_ctx_read(|ctx| ctx.engine_name().to_string()).await;
         tracing::info!("=================start engine [{engine_name}]====================");
@@ -72,7 +70,6 @@ impl EngineLifecycle for ExchangeEngine {
                 ExchangeEngineAction::LogError(error) => {
                     tracing::error!("[{engine_name}] error: {:?}", error);
                 }
-                _ => {}
             }
         }
         Ok(())

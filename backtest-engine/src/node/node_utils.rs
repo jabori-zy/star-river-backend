@@ -9,7 +9,7 @@ use strategy_core::{
     NodeType,
     benchmark::node_benchmark::CompletedCycle,
     error::node_error::{NodeError, StrategyCmdRespRecvFailedSnafu, StrategyCommandSendFailedSnafu},
-    event::{log_event::NodeStateLogEvent, node_common_event::CommonEvent},
+    event::{log_event::NodeRunStateLogEvent, node_common_event::CommonEvent},
     node::{
         context_trait::{NodeInfoExt, NodeStateMachineExt},
         node_handles::NodeOutputHandle,
@@ -80,7 +80,7 @@ impl NodeUtils {
         action: impl StateAction,
         strategy_output_handle: &NodeOutputHandle<BacktestNodeEvent>,
     ) {
-        let log_event: CommonEvent = NodeStateLogEvent::info(
+        let log_event: CommonEvent = NodeRunStateLogEvent::info(
             strategy_id,
             node_id,
             node_name,
@@ -102,7 +102,7 @@ impl NodeUtils {
         error: &impl StarRiverErrorTrait,
         strategy_output_handle: &NodeOutputHandle<BacktestNodeEvent>,
     ) {
-        let log_event: CommonEvent = NodeStateLogEvent::error(
+        let log_event: CommonEvent = NodeRunStateLogEvent::error(
             strategy_id,
             node_id,
             node_name,

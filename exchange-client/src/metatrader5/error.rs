@@ -499,7 +499,7 @@ impl StarRiverErrorTrait for Mt5Error {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             // Errors with source that implement our trait
-            Mt5Error::DataProcessorError { source, .. } => generate_error_code_chain(source),
+            Mt5Error::DataProcessorError { source, .. } => generate_error_code_chain(source, self.error_code()),
 
             // Errors with source that don't implement our trait - start chain here
             Mt5Error::Network { .. } | Mt5Error::Response { .. } | Mt5Error::Json { .. } | Mt5Error::WebSocket { .. } => {

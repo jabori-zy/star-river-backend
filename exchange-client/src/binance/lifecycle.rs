@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use exchange_core::{ExchangeLifecycle, MetadataAccessor, state_machine::ExchangeStateTransTrigger};
 
 use super::{Binance, error::BinanceError};
-use crate::binance::{BinanceAction, BinanceMetadata, binance_ws_client::BinanceWsBuilder};
+use crate::binance::{BinanceAction, binance_ws_client::BinanceWsBuilder};
 
 #[async_trait]
 impl ExchangeLifecycle for Binance {
@@ -55,7 +55,7 @@ impl ExchangeLifecycle for Binance {
 
                 BinanceAction::InitWsClient => {
                     tracing::info!("[{account_name}] starting to initialize websocket client");
-                    let (websocket_state, _) = BinanceWsBuilder::connect_default().await.unwrap();
+                    let (websocket_state, _) = BinanceWsBuilder::connect_default().await?;
                     self.set_ws_client(websocket_state).await;
                     tracing::info!("[{account_name}] websocket client initialized successfully");
                 }

@@ -9,46 +9,46 @@ use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, ToSchema, From)]
 #[serde(tag = "logLevel")]
-pub enum NodeStateLogEvent {
+pub enum NodeRunStateLogEvent {
     Info(NodeStateInfoLog),
     Warn(NodeStateWarnLog),
     Error(NodeStateErrorLog),
 }
 
-impl NodeStateLogEvent {
+impl NodeRunStateLogEvent {
     pub fn node_id(&self) -> &NodeId {
         match self {
-            NodeStateLogEvent::Info(event) => &event.node_id,
-            NodeStateLogEvent::Warn(event) => &event.node_id,
-            NodeStateLogEvent::Error(event) => &event.node_id,
+            NodeRunStateLogEvent::Info(event) => &event.node_id,
+            NodeRunStateLogEvent::Warn(event) => &event.node_id,
+            NodeRunStateLogEvent::Error(event) => &event.node_id,
         }
     }
 
     pub fn node_name(&self) -> &NodeName {
         match self {
-            NodeStateLogEvent::Info(event) => &event.node_name,
-            NodeStateLogEvent::Warn(event) => &event.node_name,
-            NodeStateLogEvent::Error(event) => &event.node_name,
+            NodeRunStateLogEvent::Info(event) => &event.node_name,
+            NodeRunStateLogEvent::Warn(event) => &event.node_name,
+            NodeRunStateLogEvent::Error(event) => &event.node_name,
         }
     }
 
     pub fn output_handle_id(&self) -> &HandleId {
         match self {
-            NodeStateLogEvent::Info(event) => &event.output_handle_id,
-            NodeStateLogEvent::Warn(event) => &event.output_handle_id,
-            NodeStateLogEvent::Error(event) => &event.output_handle_id,
+            NodeRunStateLogEvent::Info(event) => &event.output_handle_id,
+            NodeRunStateLogEvent::Warn(event) => &event.output_handle_id,
+            NodeRunStateLogEvent::Error(event) => &event.output_handle_id,
         }
     }
     pub fn datetime(&self) -> DateTime<Utc> {
         match self {
-            NodeStateLogEvent::Info(event) => event.datetime,
-            NodeStateLogEvent::Warn(event) => event.datetime,
-            NodeStateLogEvent::Error(event) => event.datetime,
+            NodeRunStateLogEvent::Info(event) => event.datetime,
+            NodeRunStateLogEvent::Warn(event) => event.datetime,
+            NodeRunStateLogEvent::Error(event) => event.datetime,
         }
     }
 }
 
-impl NodeStateLogEvent {
+impl NodeRunStateLogEvent {
     pub fn info(
         strategy_id: i32,
         node_id: String,
@@ -209,6 +209,7 @@ pub struct NodeStateErrorLog {
     pub message: String,
     pub error_code: String,
     pub error_code_chain: Vec<String>,
+    pub report: String,
     pub datetime: DateTime<Utc>,
 }
 
@@ -225,6 +226,7 @@ impl NodeStateErrorLog {
         let message = error.error_message(ErrorLanguage::Chinese);
         let error_code = error.error_code().to_string();
         let error_code_chain = error.error_code_chain();
+        let report = error.report();
         Self {
             strategy_id,
             node_id: node_id.clone(),
@@ -236,6 +238,7 @@ impl NodeStateErrorLog {
             message,
             error_code,
             error_code_chain,
+            report,
             datetime: Utc::now(),
         }
     }

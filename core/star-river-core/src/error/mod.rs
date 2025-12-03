@@ -12,8 +12,8 @@ pub use reqwest::Error as ReqwestError;
 
 // pub use exchange_client_error::*;
 
-pub fn generate_error_code_chain(source: &dyn StarRiverErrorTrait) -> Vec<ErrorCode> {
+pub fn generate_error_code_chain(source: &dyn StarRiverErrorTrait, error_code: ErrorCode) -> Vec<ErrorCode> {
     let mut chain = source.error_code_chain();
-    chain.push(source.error_code());
+    chain.push(error_code);
     chain
 }

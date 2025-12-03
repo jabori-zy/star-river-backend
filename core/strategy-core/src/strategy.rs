@@ -12,7 +12,7 @@ use entity::strategy_config::Model as StrategyConfigModel;
 use serde::{Deserialize, Serialize};
 use star_river_core::{
     custom_type::{StrategyId, StrategyName},
-    exchange::{Exchange, MarketType, deserialize_exchange},
+    exchange::{Exchange, deserialize_exchange},
     kline::KlineInterval,
     system::DateTimeUtc,
 };

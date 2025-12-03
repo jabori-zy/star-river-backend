@@ -18,13 +18,12 @@ impl ExchangeSymbolExt for Binance {
     }
 
     async fn symbol(&self, symbol: String) -> Result<Symbol, Self::Error> {
-        let symbol_info = self.http_client().get_symbol_info(&symbol).await?;
+        let symbol_info = self.http_client().get_spot_symbol_info(&symbol).await?;
 
         // Use processor accessor to process symbol
         let symbol = self
             .with_processor_read_async(|processor| Box::pin(async move { processor.process_symbol(symbol_info) }))
             .await?;
-        tracing::debug!("symbol: {:?}", symbol);
         Ok(symbol)
     }
 

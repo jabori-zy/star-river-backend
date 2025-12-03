@@ -6,7 +6,7 @@ use tokio::time::Duration;
 use super::BacktestEngineContext;
 use crate::{
     engine_error::{BacktestEngineError, StrategyIsExistSnafu},
-    strategy::{BacktestStrategy, strategy_error::BacktestStrategyError},
+    strategy::BacktestStrategy,
 };
 
 impl BacktestEngineContext {
@@ -36,12 +36,12 @@ impl BacktestEngineContext {
                 tokio::time::sleep(Duration::from_millis(500)).await;
 
                 if let Err(e) = strategy.check_strategy().await {
-                    e.report();
+                    e.report_log();
                     return;
                 }
 
                 if let Err(e) = strategy.init_strategy().await {
-                    e.report();
+                    e.report_log();
                     return;
                 }
 

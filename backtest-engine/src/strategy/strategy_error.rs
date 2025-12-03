@@ -296,11 +296,11 @@ impl StarRiverErrorTrait for BacktestStrategyError {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             // Transparent errors - delegate to source
-            BacktestStrategyError::StrategyError { source, .. } => generate_error_code_chain(source),
-            BacktestStrategyError::StrategyStateMachineError { source, .. } => generate_error_code_chain(source),
-            BacktestStrategyError::BacktestNodeError { source, .. } => generate_error_code_chain(source),
-            BacktestStrategyError::EventCenterError { source, .. } => generate_error_code_chain(source),
-            BacktestStrategyError::VtsError { source, .. } => generate_error_code_chain(source),
+            BacktestStrategyError::StrategyError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestStrategyError::StrategyStateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestStrategyError::BacktestNodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestStrategyError::EventCenterError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestStrategyError::VtsError { source, .. } => generate_error_code_chain(source, self.error_code()),
             // Non-transparent errors - return own error code
             _ => vec![self.error_code()],
         }

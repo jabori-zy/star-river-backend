@@ -41,24 +41,24 @@ impl BinanceHttpClient {
         }
     }
 
-    pub async fn get_server_time(&self) -> Result<i64, BinanceError> {
-        let url = format!("{}{}", BinanceHttpUrl::BaseUrl, BinanceHttpUrl::ServerTime);
-        let result = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .context(NetworkSnafu { url: url.clone() })?
-            .text()
-            .await
-            .context(ResponseSnafu { url: url.clone() })?;
+    // pub async fn get_server_time(&self) -> Result<i64, BinanceError> {
+    //     let url = format!("{}{}", BinanceHttpUrl::BaseUrl, BinanceHttpUrl::ServerTime);
+    //     let result = self
+    //         .client
+    //         .get(&url)
+    //         .send()
+    //         .await
+    //         .context(NetworkSnafu { url: url.clone() })?
+    //         .text()
+    //         .await
+    //         .context(ResponseSnafu { url: url.clone() })?;
 
-        // 解析JSON字符串
-        let result: serde_json::Value = serde_json::from_str(&result).context(ParseServerTimeFailedSnafu {})?;
+    //     // 解析JSON字符串
+    //     let result: serde_json::Value = serde_json::from_str(&result).context(ParseServerTimeFailedSnafu {})?;
 
-        // 提取时间戳
-        Ok(result.get("serverTime").and_then(|v| v.as_i64()).unwrap())
-    }
+    //     // 提取时间戳
+    //     Ok(result.get("serverTime").and_then(|v| v.as_i64()).unwrap())
+    // }
 
     // pub async fn get_ticker_price(&self, symbol: &str) -> Result<serde_json::Value, String> {
     //     // 构建url
@@ -81,7 +81,7 @@ impl BinanceHttpClient {
     //     Ok(tick_price)
     // }
 
-    pub async fn get_kline(
+    pub async fn get_spot_kline(
         &self,
         symbol: &str,
         interval: BinanceKlineInterval,
@@ -90,19 +90,10 @@ impl BinanceHttpClient {
         end_time: Option<u64>,
     ) -> Result<Vec<serde_json::Value>, BinanceError> {
         // 如果limit为空，则设置为1000
-        let limit = limit.unwrap_or(1000);
+        let limit = limit.unwrap_or(1000).min(1000);
         // 如果start_time或end_time为空，则不传时间参数
 
-        let url = if start_time.is_none() && end_time.is_none() {
-            format!(
-                "{}{}?symbol={}&interval={}&limit={}",
-                BinanceHttpUrl::BaseUrl,
-                BinanceHttpUrl::SpotKline,
-                symbol,
-                interval,
-                limit
-            )
-        } else {
+        let url = if let (Some(start_time), Some(end_time)) = (start_time, end_time) {
             format!(
                 "{}{}?symbol={}&interval={}&limit={}&startTime={}&endTime={}",
                 BinanceHttpUrl::BaseUrl,
@@ -110,8 +101,17 @@ impl BinanceHttpClient {
                 symbol,
                 interval,
                 limit,
-                start_time.unwrap(),
-                end_time.unwrap()
+                start_time,
+                end_time
+            )
+        } else {
+            format!(
+                "{}{}?symbol={}&interval={}&limit={}",
+                BinanceHttpUrl::BaseUrl,
+                BinanceHttpUrl::SpotKline,
+                symbol,
+                interval,
+                limit,
             )
         };
 
@@ -145,7 +145,7 @@ impl BinanceHttpClient {
         Ok(response)
     }
 
-    pub async fn get_symbol_info(&self, symbol: &str) -> Result<serde_json::Value, BinanceError> {
+    pub async fn get_spot_symbol_info(&self, symbol: &str) -> Result<serde_json::Value, BinanceError> {
         let url = format!("{}{}?symbol={}", BinanceHttpUrl::BaseUrl, BinanceHttpUrl::ExchangeInfo, symbol);
         let response = self
             .client

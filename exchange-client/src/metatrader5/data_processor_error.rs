@@ -24,7 +24,7 @@ impl StarRiverErrorTrait for Mt5DataProcessorError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            Mt5DataProcessorError::DataProcessorError { source, .. } => generate_error_code_chain(source),
+            Mt5DataProcessorError::DataProcessorError { source, .. } => generate_error_code_chain(source, self.error_code()),
         }
     }
 

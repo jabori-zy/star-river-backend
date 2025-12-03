@@ -9,8 +9,6 @@ use crate::{MarketEngine, error::MarketEngineError, state_machine::MarketEngineA
 
 #[async_trait]
 impl EngineLifecycle for MarketEngine {
-    type Error = MarketEngineError;
-
     async fn start(&self) -> Result<(), Self::Error> {
         let engine_name = self.with_ctx_read(|ctx| ctx.engine_name().to_string()).await;
         tracing::info!("=================start engine [{engine_name}]====================");

@@ -48,8 +48,8 @@ impl StarRiverErrorTrait for IfElseNodeError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            IfElseNodeError::NodeError { source, .. } => generate_error_code_chain(source),
-            IfElseNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source),
+            IfElseNodeError::NodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            IfElseNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
             IfElseNodeError::EvaluateResultSerializationFailed { .. } => vec![self.error_code()],
         }
     }

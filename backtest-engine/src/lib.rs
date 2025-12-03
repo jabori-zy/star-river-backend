@@ -21,13 +21,14 @@ use tokio::sync::{Mutex, RwLock};
 // Current crate imports
 use crate::{
     context::BacktestEngineContext,
+    engine_error::BacktestEngineError,
     engine_state_machine::{BacktestEngineAction, BacktestEngineStateMachine, backtest_engine_transition},
 };
 
 /// 回测引擎
 #[derive(Debug)]
 pub struct BacktestEngine {
-    inner: EngineBase<BacktestEngineContext, BacktestEngineAction>,
+    inner: EngineBase<BacktestEngineContext, BacktestEngineAction, BacktestEngineError>,
 }
 
 impl BacktestEngine {
@@ -47,7 +48,7 @@ impl BacktestEngine {
 }
 
 impl std::ops::Deref for BacktestEngine {
-    type Target = EngineBase<BacktestEngineContext, BacktestEngineAction>;
+    type Target = EngineBase<BacktestEngineContext, BacktestEngineAction, BacktestEngineError>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -59,6 +60,7 @@ impl Engine for BacktestEngine {}
 impl EngineContextAccessor for BacktestEngine {
     type Context = BacktestEngineContext;
     type Action = BacktestEngineAction;
+    type Error = BacktestEngineError;
     fn context(&self) -> &Arc<RwLock<BacktestEngineContext>> {
         self.inner.context()
     }

@@ -34,6 +34,8 @@ pub trait EngineContextAccessor: Send + Sync {
     /// 引擎动作类型
     type Action: EngineAction;
 
+    type Error: StarRiverErrorTrait;
+
     /// 获取上下文的引用
     fn context(&self) -> &Arc<RwLock<Self::Context>>;
 
@@ -127,9 +129,6 @@ pub trait EngineContextAccessor: Send + Sync {
 /// - `Error`: 引擎特定的错误类型，必须实现 `StarRiverErrorTrait`
 #[async_trait]
 pub trait EngineLifecycle: EngineContextAccessor {
-    /// 引擎特定的错误类型
-    type Error: StarRiverErrorTrait;
-
     /// 启动引擎
     ///
     /// 在引擎开始运行前调用，用于执行必要的初始化操作

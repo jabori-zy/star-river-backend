@@ -110,15 +110,15 @@ impl StarRiverErrorTrait for BacktestNodeError {
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
             // All errors are transparent - delegate to source
-            BacktestNodeError::NodeError { source, .. } => generate_error_code_chain(source),
-            BacktestNodeError::StateMachineError { source, .. } => generate_error_code_chain(source),
-            BacktestNodeError::StartNodeError { source, .. } => generate_error_code_chain(source),
-            BacktestNodeError::KlineNodeError { source, .. } => generate_error_code_chain(source),
-            BacktestNodeError::IndicatorNodeError { source, .. } => generate_error_code_chain(source),
-            BacktestNodeError::IfElseNodeError { source, .. } => generate_error_code_chain(source),
-            BacktestNodeError::VariableNodeError { source, .. } => generate_error_code_chain(source),
-            BacktestNodeError::FuturesOrderNodeError { source, .. } => generate_error_code_chain(source),
-            BacktestNodeError::PositionNodeError { source, .. } => generate_error_code_chain(source),
+            BacktestNodeError::NodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestNodeError::StateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestNodeError::StartNodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestNodeError::KlineNodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestNodeError::IndicatorNodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestNodeError::IfElseNodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestNodeError::VariableNodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestNodeError::FuturesOrderNodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            BacktestNodeError::PositionNodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
         }
     }
 }

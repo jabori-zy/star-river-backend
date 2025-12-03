@@ -35,8 +35,8 @@ impl StarRiverErrorTrait for ExchangeError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            ExchangeError::Binance { source, .. } => generate_error_code_chain(source),
-            ExchangeError::Mt5 { source, .. } => generate_error_code_chain(source),
+            ExchangeError::Binance { source, .. } => generate_error_code_chain(source, self.error_code()),
+            ExchangeError::Mt5 { source, .. } => generate_error_code_chain(source, self.error_code()),
         }
     }
 

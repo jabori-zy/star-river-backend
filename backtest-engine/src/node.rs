@@ -267,11 +267,11 @@ impl BacktestNode {
         Ok(match self {
             BacktestNode::Start(node) => node.init().await?,
             BacktestNode::Kline(node) => node.init().await?,
-            BacktestNode::Indicator(node) => node.init().await.unwrap(),
-            BacktestNode::IfElse(node) => node.init().await.unwrap(),
-            BacktestNode::FuturesOrder(node) => node.init().await.unwrap(),
-            BacktestNode::Position(node) => node.init().await.unwrap(),
-            BacktestNode::Variable(node) => node.init().await.unwrap(),
+            BacktestNode::Indicator(node) => node.init().await?,
+            BacktestNode::IfElse(node) => node.init().await?,
+            BacktestNode::FuturesOrder(node) => node.init().await?,
+            BacktestNode::Position(node) => node.init().await?,
+            BacktestNode::Variable(node) => node.init().await?,
         })
     }
 
@@ -279,11 +279,11 @@ impl BacktestNode {
         Ok(match self {
             BacktestNode::Start(node) => node.stop().await?,
             BacktestNode::Kline(node) => node.stop().await?,
-            BacktestNode::Indicator(node) => node.stop().await.unwrap(),
+            BacktestNode::Indicator(node) => node.stop().await?,
             BacktestNode::IfElse(node) => node.stop().await.unwrap(),
-            BacktestNode::FuturesOrder(node) => node.stop().await.unwrap(),
-            BacktestNode::Position(node) => node.stop().await.unwrap(),
-            BacktestNode::Variable(node) => node.stop().await.unwrap(),
+            BacktestNode::FuturesOrder(node) => node.stop().await?,
+            BacktestNode::Position(node) => node.stop().await?,
+            BacktestNode::Variable(node) => node.stop().await?,
         })
     }
 }

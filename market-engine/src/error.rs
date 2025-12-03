@@ -34,8 +34,8 @@ impl StarRiverErrorTrait for MarketEngineError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            MarketEngineError::ExchangeEngineError { source, .. } => generate_error_code_chain(source),
-            MarketEngineError::StateMachineError { source, .. } => generate_error_code_chain(source),
+            MarketEngineError::ExchangeEngineError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            MarketEngineError::StateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
         }
     }
 

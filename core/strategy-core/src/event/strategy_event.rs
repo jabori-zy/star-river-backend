@@ -428,15 +428,17 @@ pub struct StrategyRunningErrorLog {
     pub detail: serde_json::Value,
     pub error_code: String,
     pub error_code_chain: Vec<String>,
+    pub report: String,
     pub datetime: DateTime<Utc>,
 }
 
 impl StrategyRunningErrorLog {
     pub fn new(cycle_id: CycleId, strategy_id: StrategyId, error: &impl StarRiverErrorTrait, datetime: Option<DateTime<Utc>>) -> Self {
         let datetime = datetime.unwrap_or(Utc::now());
-        let message = error.error_message(ErrorLanguage::Chinese);
+        let message = error.error_message(ErrorLanguage::English);
         let error_code = error.error_code().to_string();
         let error_code_chain = error.error_code_chain();
+        let report = error.report();
         Self {
             _type: (),
             cycle_id,
@@ -445,6 +447,7 @@ impl StrategyRunningErrorLog {
             detail: serde_json::Value::Null,
             error_code,
             error_code_chain,
+            report,
             datetime,
         }
     }
@@ -456,15 +459,6 @@ impl StrategyRunningErrorLog {
         error: &impl StarRiverErrorTrait,
         datetime: DateTime<Utc>,
     ) -> Self {
-        Self {
-            _type: (),
-            cycle_id,
-            strategy_id,
-            message: error.error_message(language),
-            detail: serde_json::Value::Null,
-            error_code: error.error_code().to_string(),
-            error_code_chain: error.error_code_chain(),
-            datetime,
-        }
+        Self::new(cycle_id, strategy_id, error, Some(datetime))
     }
 }

@@ -61,9 +61,9 @@ impl StarRiverErrorTrait for PositionNodeError {
 
     fn error_code_chain(&self) -> Vec<ErrorCode> {
         match self {
-            PositionNodeError::NodeError { source, .. } => generate_error_code_chain(source),
-            PositionNodeError::VtsError { source, .. } => generate_error_code_chain(source),
-            PositionNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source),
+            PositionNodeError::NodeError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            PositionNodeError::VtsError { source, .. } => generate_error_code_chain(source, self.error_code()),
+            PositionNodeError::NodeStateMachineError { source, .. } => generate_error_code_chain(source, self.error_code()),
             PositionNodeError::OperationConfigNotFound { .. } => vec![self.error_code()],
             PositionNodeError::SymbolNotConfigured { .. } => vec![self.error_code()],
         }
