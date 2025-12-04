@@ -22,7 +22,7 @@ pub fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
 
     let file_appender = RollingFileAppender::new(Rotation::DAILY, log_dir, "star-river.log");
     let (non_blocking_appender, _guard) = tracing_appender::non_blocking(file_appender);
-    let stdout = std::io::stdout.with_max_level(tracing::Level::DEBUG);
+    let stdout = std::io::stdout.with_max_level(tracing::Level::INFO);
     let filter = EnvFilter::new("debug,hyper=error,hyper_util=error,reqwest=error");
 
     // 设置本地时区

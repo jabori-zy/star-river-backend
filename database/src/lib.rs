@@ -19,7 +19,6 @@ pub struct DatabaseManager {
 impl DatabaseManager {
     pub async fn new() -> Self {
         let path = Self::get_database_path().unwrap();
-        tracing::info!("get_database_path数据库路径: {}", path.display());
         // 初始化数据库
         let conn = Self::create_database(&path).await.unwrap();
         Self { path, conn }
@@ -49,13 +48,13 @@ impl DatabaseManager {
     pub async fn migrate(conn: &DatabaseConnection) {
         let pending_migrations = Migrator::get_pending_migrations(conn).await.unwrap();
         if !pending_migrations.is_empty() {
-            tracing::info!("发现 {} 个待应用的迁移", pending_migrations.len());
+            tracing::info!("found {} pending migrations", pending_migrations.len());
 
             // 应用迁移
             Migrator::up(conn, None).await.unwrap();
-            tracing::info!("所有迁移已成功应用");
+            tracing::info!("all migrations applied successfully");
         } else {
-            tracing::info!("数据库已是最新版本，无需迁移");
+            tracing::info!("database is up to date, no migrations needed");
         }
     }
 
@@ -71,6 +70,7 @@ impl DatabaseManager {
             // 查找 workspace 根目录（包含顶层 Cargo.toml 的目录）
             let root_path = Self::find_workspace_root()?;
             let db_path = root_path.join("db");
+            tracing::info!("dev environment database path: {}", db_path.display());
 
             // 检查是否存在db目录,如果没有则创建
             if !db_path.exists() {
@@ -82,7 +82,12 @@ impl DatabaseManager {
         #[cfg(not(debug_assertions))]
         {
             let exe_path = env::current_exe()?;
-            let db_path = PathBuf::from(&exe_path);
+            tracing::info!("exe path: {}", exe_path.display());
+            let db_path = exe_path
+                .parent()
+                .ok_or("无法获取可执行文件所在目录")?
+                .to_path_buf();
+            tracing::info!("prod environment database path: {}", db_path.display());
             Ok(db_path)
         }
     }
@@ -138,8 +143,8 @@ impl DatabaseManager {
         // 创建数据库文件
         let db_path = path.join("db.sqlite");
         let database_url = format!("sqlite:{}?mode=rwc", db_path.display());
-        tracing::info!("数据库路径: {}", database_url);
 
+        tracing::info!("database url: {}", database_url);
         let mut opt = ConnectOptions::new(database_url);
         opt.sqlx_logging(false).sqlx_logging_level(LevelFilter::Debug);
         let conn = Database::connect(opt).await.unwrap();
