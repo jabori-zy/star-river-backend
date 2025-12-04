@@ -422,7 +422,7 @@ impl NodeRunningErrorLog {
         datetime: Option<DateTime<Utc>>,
     ) -> Self {
         let datetime = datetime.unwrap_or(Utc::now());
-        let message = error.error_message(ErrorLanguage::Chinese);
+        let message = error.error_message(ErrorLanguage::English);
         let error_code = error.error_code().to_string();
         let error_code_chain = error.error_code_chain();
         Self {

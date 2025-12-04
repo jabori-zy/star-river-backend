@@ -5,10 +5,11 @@ use chrono::{DateTime, Utc};
 use futures::{StreamExt, stream::select_all};
 use key::KeyTrait;
 use star_river_event::backtest_strategy::node_event::KlineNodeEvent;
-use tokio::sync::watch;
+use tokio::sync::{broadcast, watch};
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::{
-    VirtualTradingSystem, VirtualTradingSystemContext,
+    Vts, VtsContext,
+    event::VtsEvent,
     vts_trait::{VTSEventHandler, VTSEventListener, VtsCtxAccessor},
 };
 
@@ -16,11 +17,11 @@ use crate::node::node_event::BacktestNodeEvent;
 
 #[derive(Debug)]
 pub struct BacktestVtsContext {
-    inner: VirtualTradingSystemContext<BacktestNodeEvent>,
+    inner: VtsContext<BacktestNodeEvent>,
 }
 
 impl Deref for BacktestVtsContext {
-    type Target = VirtualTradingSystemContext<BacktestNodeEvent>;
+    type Target = VtsContext<BacktestNodeEvent>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -35,11 +36,11 @@ impl DerefMut for BacktestVtsContext {
 
 #[derive(Debug)]
 pub struct BacktestVts {
-    inner: VirtualTradingSystem<BacktestVtsContext>,
+    inner: Vts<BacktestVtsContext>,
 }
 
 impl Deref for BacktestVts {
-    type Target = VirtualTradingSystem<BacktestVtsContext>;
+    type Target = Vts<BacktestVtsContext>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -54,9 +55,7 @@ impl DerefMut for BacktestVts {
 
 impl BacktestVts {
     pub fn new(context: BacktestVtsContext) -> Self {
-        Self {
-            inner: VirtualTradingSystem::new(context),
-        }
+        Self { inner: Vts::new(context) }
     }
 
     pub async fn start(&self) {
@@ -72,7 +71,7 @@ impl BacktestVts {
 impl BacktestVtsContext {
     pub fn new(strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>) -> Self {
         Self {
-            inner: VirtualTradingSystemContext::new(strategy_time_watch_rx),
+            inner: VtsContext::new(strategy_time_watch_rx),
         }
     }
 }

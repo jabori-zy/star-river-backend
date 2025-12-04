@@ -61,9 +61,8 @@ impl VariableNodeContext {
             // let var_name = SysVariableType::from_str(system_var_config.var_name()).unwrap();
 
             // 使用异步闭包计算变量值
-            let virtual_trading_system_guard = virtual_trading_system.lock().await;
-            let sys_variable = value_calculator(&virtual_trading_system_guard).await;
-            drop(virtual_trading_system_guard);
+            let vts = virtual_trading_system.as_ref();
+            let sys_variable = value_calculator(vts).await;
 
             let (resp_tx, resp_rx) = oneshot::channel();
             let update_sys_variable_cmd_payload = UpdateSysVarCmdPayload::new(sys_variable.clone());

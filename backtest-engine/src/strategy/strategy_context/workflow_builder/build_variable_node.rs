@@ -15,7 +15,7 @@ impl BacktestStrategyContext {
         &mut self,
         node_config: serde_json::Value,
         node_command_rx: mpsc::Receiver<BacktestNodeCommand>,
-        virtual_trading_system: Arc<Mutex<BacktestVts>>,
+        virtual_trading_system: Arc<BacktestVts>,
     ) -> Result<VariableNode, BacktestNodeError> {
         let strategy_command_sender = self.strategy_command_sender().clone();
         let strategy_time_watch_rx = self.strategy_time_watch_rx();

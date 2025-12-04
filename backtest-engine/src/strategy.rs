@@ -43,5 +43,3 @@ impl BacktestStrategy {
         }
     }
 }
-
-impl BacktestStrategy {}

@@ -7,7 +7,7 @@ mod state_machine;
 use std::sync::Arc;
 
 use context::ExchangeEngineContext;
-use engine_core::{EngineBase, EngineBaseContext, EngineContextAccessor, engine_trait::Engine, state_machine::EngineRunState};
+use engine_core::{EngineBase, EngineContextAccessor, EngineMetadata, engine_trait::Engine, state_machine::EngineRunState};
 use sea_orm::DatabaseConnection;
 use star_river_core::engine::EngineName;
 use state_machine::ExchangeEngineAction;
@@ -36,7 +36,7 @@ impl ExchangeEngine {
             EngineRunState::Created,
             exchange_engine_transition,
         );
-        let base_context = EngineBaseContext::new(EngineName::ExchangeEngine, state_machine);
+        let base_context = EngineMetadata::new(EngineName::ExchangeEngine, state_machine);
         let context = ExchangeEngineContext::new(base_context, database);
 
         Self {

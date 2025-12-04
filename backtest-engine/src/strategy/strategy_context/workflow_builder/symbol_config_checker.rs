@@ -72,11 +72,7 @@ impl BacktestStrategyContext {
                 },
             );
         }
-        self.virtual_trading_system()
-            .lock()
-            .await
-            .with_ctx_write(|ctx| ctx.set_kline_price(kline_price))
-            .await;
+        self.vts.with_ctx_write(|ctx| ctx.set_kline_price(kline_price)).await;
         Ok(())
     }
 }

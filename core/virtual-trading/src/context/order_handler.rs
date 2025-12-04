@@ -9,14 +9,14 @@ use star_river_core::{
 };
 
 // Local module imports
-use super::VirtualTradingSystemContext;
+use super::VtsContext;
 use crate::{
     error::{OrderNotFoundSnafu, UnsupportedOrderTypeSnafu, VtsError},
     event::VtsEvent,
     types::{VirtualOrder, VirtualPosition},
 };
 
-impl<E> VirtualTradingSystemContext<E>
+impl<E> VtsContext<E>
 where
     E: Clone + Send + Sync + 'static,
 {
@@ -127,7 +127,7 @@ where
     }
 }
 
-impl<E> VirtualTradingSystemContext<E>
+impl<E> VtsContext<E>
 where
     E: Clone + Send + Sync + 'static,
 {

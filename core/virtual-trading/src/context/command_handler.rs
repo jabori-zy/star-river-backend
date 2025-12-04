@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use tokio::sync::{Mutex, mpsc};
 
-use super::VirtualTradingSystemContext;
+use super::VtsContext;
 use crate::command::{
     CloseAllPositionsRespPayload, CloseAllPositionsResponse, ClosePositionRespPayload, ClosePositionResponse, CreateOrderRespPayload,
     CreateOrderResponse, VtsCommand,
 };
 
-impl<E> VirtualTradingSystemContext<E>
+impl<E> VtsContext<E>
 where
     E: Clone + Send + Sync + 'static,
 {

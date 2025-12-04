@@ -51,7 +51,7 @@ impl VariableNode {
         node_config: serde_json::Value,
         strategy_command_sender: mpsc::Sender<BacktestStrategyCommand>,
         node_command_receiver: Arc<Mutex<mpsc::Receiver<BacktestNodeCommand>>>,
-        virtual_trading_system: Arc<Mutex<BacktestVts>>,
+        virtual_trading_system: Arc<BacktestVts>,
         strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
     ) -> Result<Self, BacktestNodeError> {
         let (strategy_id, node_id, node_name, node_config) = Self::check_variable_node_config(node_config)?;

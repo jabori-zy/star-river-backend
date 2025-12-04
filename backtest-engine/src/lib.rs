@@ -5,13 +5,14 @@ mod engine_state_machine;
 mod node;
 mod node_catalog;
 pub(crate) mod strategy;
+mod strategy_stats;
 mod virtual_trading_system;
 
 // Standard library imports
 use std::sync::Arc;
 
 // Workspace crate imports
-use engine_core::{EngineBase, EngineBaseContext, EngineContextAccessor, engine_trait::Engine, state_machine::EngineRunState};
+use engine_core::{EngineBase, EngineContextAccessor, EngineMetadata, engine_trait::Engine, state_machine::EngineRunState};
 // External crate imports
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
@@ -38,7 +39,7 @@ impl BacktestEngine {
             EngineRunState::Created,
             backtest_engine_transition,
         );
-        let base_context = EngineBaseContext::new(EngineName::BacktestEngine, state_machine);
+        let base_context = EngineMetadata::new(EngineName::BacktestEngine, state_machine);
 
         let context = BacktestEngineContext::new(base_context, database, heartbeat);
         Self {

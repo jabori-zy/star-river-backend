@@ -12,16 +12,16 @@ mod test;
 
 use std::{fmt::Debug, sync::Arc};
 
-pub use context::VirtualTradingSystemContext;
+pub use context::VtsContext;
 use tokio::sync::RwLock;
 use vts_trait::{VTSEventListener, VtsCtxAccessor};
 
 #[derive(Debug, Clone)]
-pub struct VirtualTradingSystem<C: Debug + Send + Sync + 'static> {
+pub struct Vts<C: Debug + Send + Sync + 'static> {
     pub context: Arc<RwLock<C>>,
 }
 
-impl<C> VirtualTradingSystem<C>
+impl<C> Vts<C>
 where
     C: Debug + Send + Sync + 'static,
 {
@@ -34,7 +34,7 @@ where
 
 // VTSAccessor trait implementation
 
-impl<C> vts_trait::VtsCtxAccessor for VirtualTradingSystem<C>
+impl<C> vts_trait::VtsCtxAccessor for Vts<C>
 where
     C: Debug + Send + Sync + 'static,
 {
@@ -45,7 +45,7 @@ where
     }
 }
 
-impl<C> VirtualTradingSystem<C>
+impl<C> Vts<C>
 where
     C: Debug + Send + Sync + 'static + VTSEventListener,
 {

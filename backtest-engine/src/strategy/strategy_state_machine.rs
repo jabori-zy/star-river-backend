@@ -152,6 +152,10 @@ pub enum BacktestStrategyStateAction {
     /// Log error
     #[strum(serialize = "LogError")]
     LogError(String),
+
+    /// Cancel async task
+    #[strum(serialize = "CancelAsyncTask")]
+    CancelAsyncTask,
 }
 
 impl StrategyStateAction for BacktestStrategyStateAction {}
@@ -225,16 +229,15 @@ pub fn backtest_strategy_transition(
             ))
         }
 
-        // Ready -> Stopping: Stop strategy
-        (BacktestStrategyRunState::Ready, BacktestStrategyStateTransTrigger::Stop) => Ok(StrategyStateChangeActions::new(
-            BacktestStrategyRunState::Stopping,
-            vec![
-                BacktestStrategyStateAction::LogTransition,
-                BacktestStrategyStateAction::LogStrategyState,
-                BacktestStrategyStateAction::StopNode,
-            ],
-        )),
-
+        // // Ready -> Stopping: Stop strategy
+        // (BacktestStrategyRunState::Ready, BacktestStrategyStateTransTrigger::Stop) => Ok(StrategyStateChangeActions::new(
+        //     BacktestStrategyRunState::Stopping,
+        //     vec![
+        //         BacktestStrategyStateAction::LogTransition,
+        //         BacktestStrategyStateAction::LogStrategyState,
+        //         BacktestStrategyStateAction::StopNode,
+        //     ],
+        // )),
         (BacktestStrategyRunState::Ready, BacktestStrategyStateTransTrigger::Play) => Ok(StrategyStateChangeActions::new(
             BacktestStrategyRunState::Playing,
             vec![
@@ -262,11 +265,13 @@ pub fn backtest_strategy_transition(
             ],
         )),
 
-        (BacktestStrategyRunState::PlayComplete, BacktestStrategyStateTransTrigger::Stop) => Ok(StrategyStateChangeActions::new(
+        (_, BacktestStrategyStateTransTrigger::Stop) => Ok(StrategyStateChangeActions::new(
             BacktestStrategyRunState::Stopping,
             vec![
                 BacktestStrategyStateAction::LogTransition,
                 BacktestStrategyStateAction::LogStrategyState,
+                BacktestStrategyStateAction::CancelAsyncTask,
+                BacktestStrategyStateAction::StopNode,
                 BacktestStrategyStateAction::StoreStrategyStatus,
             ],
         )),

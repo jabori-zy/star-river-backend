@@ -184,7 +184,7 @@ impl NodeUtils {
         N::Context: NodeInfoExt,
     {
         let node_name = node.with_ctx_read(|ctx| ctx.node_name().to_string()).await;
-        tracing::info!("[{node_name}] start stop");
+        tracing::info!("@[{node_name}] start stop");
 
         // 开始停止 Ready/Running -> Stopping
         node.update_node_state(NodeStateTransTrigger::StartStop).await?;

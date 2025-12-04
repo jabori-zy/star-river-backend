@@ -6,7 +6,7 @@ use star_river_core::engine::EngineName;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
-use super::context::EngineBaseContext;
+use super::context::EngineMetadata;
 use crate::{
     state_machine::{EngineAction, EngineRunState, EngineStateMachine, EngineStateTransTrigger, StateChangeActions},
     state_machine_error::EngineStateMachineError,
@@ -28,10 +28,10 @@ pub trait EngineContextTrait: Debug + Send + Sync + 'static {
     type Action: EngineAction;
 
     /// 获取基础上下文的不可变引用
-    fn base_context(&self) -> &EngineBaseContext<Self::Action>;
+    fn base_context(&self) -> &EngineMetadata<Self::Action>;
 
     /// 获取基础上下文的可变引用
-    fn base_context_mut(&mut self) -> &mut EngineBaseContext<Self::Action>;
+    fn base_context_mut(&mut self) -> &mut EngineMetadata<Self::Action>;
 
     /// 获取引擎名称
     #[inline]

@@ -1,7 +1,7 @@
-use super::VirtualTradingSystemContext;
+use super::VtsContext;
 use crate::utils::Formula;
 
-impl<E> VirtualTradingSystemContext<E>
+impl<E> VtsContext<E>
 where
     E: Clone + Send + Sync + 'static,
 {

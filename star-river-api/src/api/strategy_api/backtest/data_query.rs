@@ -144,11 +144,11 @@ pub async fn get_virtual_transactions(
     title = "获取播放索引之前的策略统计历史",
     description = "获取播放索引之前的策略统计历史",
     example = json!({
-        "play_index": 1
+        "datetime": "2024-01-01T00:00:00.000Z"
     })
 )]
 pub struct GetStatsHistoryQuery {
-    pub play_index: i32,
+    pub datetime: String,
 }
 
 #[utoipa::path(
@@ -175,12 +175,14 @@ pub async fn get_stats_history(
     let engine = engine_manager.backtest_engine().await;
     let engine_guard = engine.lock().await;
 
-    let play_index = params.play_index;
+    // tracing::info!("get stats history: {}", params.datetime);
+    let datetime = DateTime::parse_from_rfc3339(&params.datetime).unwrap().to_utc();
+
     let result: Result<Vec<StatsSnapshot>, BacktestEngineError> = engine_guard
         .with_ctx_read_async(|ctx| {
             Box::pin(async move {
                 ctx.with_strategy_ctx_read_async(strategy_id, move |ctx| {
-                    Box::pin(async move { ctx.get_stats_history(play_index).await })
+                    Box::pin(async move { ctx.get_stats_history(datetime).await })
                 })
                 .await
             })
@@ -342,7 +344,12 @@ pub async fn get_strategy_data(
     let engine_guard = engine.lock().await;
 
     let datetime = match params.datetime {
-        Some(dt) => Some(DateTime::parse_from_rfc3339(&dt).unwrap().to_utc()),
+        Some(dt) => {
+            // tracing::info!("get strategy data datetime: {}", dt);
+            let datetime = DateTime::parse_from_rfc3339(&dt).unwrap().to_utc();
+
+            Some(datetime)
+        }
         None => None,
     };
 

@@ -61,8 +61,7 @@ impl BacktestEngineContext {
         self.with_strategy_mut_async(strategy_id, |strategy| Box::pin(async move { strategy.stop_strategy().await }))
             .await?
             .map_err(|e| {
-                let report = Report::from_error(&e);
-                tracing::error!("{}", report);
+                e.report_log();
                 e
             })?;
 

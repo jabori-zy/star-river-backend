@@ -9,7 +9,7 @@ use std::{
 };
 
 // Workspace crate imports
-use engine_core::{EngineBaseContext, context_trait::EngineContextTrait};
+use engine_core::{EngineMetadata, context_trait::EngineContextTrait};
 // External crate imports
 use heartbeat::Heartbeat;
 use sea_orm::DatabaseConnection;
@@ -25,7 +25,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct BacktestEngineContext {
-    pub base_context: EngineBaseContext<BacktestEngineAction>,
+    pub base_context: EngineMetadata<BacktestEngineAction>,
     pub database: DatabaseConnection,
     pub heartbeat: Arc<Mutex<Heartbeat>>,
     pub strategy_list: Arc<Mutex<HashMap<StrategyId, BacktestStrategy>>>, // 回测策略列表
@@ -33,11 +33,7 @@ pub struct BacktestEngineContext {
 }
 
 impl BacktestEngineContext {
-    pub fn new(
-        base_context: EngineBaseContext<BacktestEngineAction>,
-        database: DatabaseConnection,
-        heartbeat: Arc<Mutex<Heartbeat>>,
-    ) -> Self {
+    pub fn new(base_context: EngineMetadata<BacktestEngineAction>, database: DatabaseConnection, heartbeat: Arc<Mutex<Heartbeat>>) -> Self {
         Self {
             base_context,
             database,
@@ -207,11 +203,11 @@ impl BacktestEngineContext {
 impl EngineContextTrait for BacktestEngineContext {
     type Action = BacktestEngineAction;
 
-    fn base_context(&self) -> &EngineBaseContext<BacktestEngineAction> {
+    fn base_context(&self) -> &EngineMetadata<BacktestEngineAction> {
         &self.base_context
     }
 
-    fn base_context_mut(&mut self) -> &mut EngineBaseContext<BacktestEngineAction> {
+    fn base_context_mut(&mut self) -> &mut EngineMetadata<BacktestEngineAction> {
         &mut self.base_context
     }
 }

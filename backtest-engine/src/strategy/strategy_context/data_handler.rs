@@ -1,8 +1,11 @@
 use chrono::{DateTime, Utc};
 // workspace crate
 use key::{Key, KeyTrait};
-use strategy_core::strategy::context_trait::StrategyIdentityExt;
-use strategy_stats::StatsSnapshot;
+use strategy_core::strategy::context_trait::{StrategyIdentityExt, StrategyInfoExt};
+use strategy_stats::{
+    StatsSnapshot,
+    strategy_stats::{StrategyStatsAccessor, StrategyStatsInfoExt},
+};
 use virtual_trading::{
     types::{VirtualOrder, VirtualPosition, VirtualTransaction},
     vts_trait::VtsCtxAccessor,
@@ -15,35 +18,34 @@ use crate::strategy::strategy_error::{BacktestStrategyError, GetDataFailedSnafu}
 impl BacktestStrategyContext {
     // 获取所有的virtual order
     pub async fn get_virtual_orders(&self) -> Vec<VirtualOrder> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let virtual_orders = virtual_trading_system
+        let virtual_orders = self
+            .vts
             .with_ctx_read(|ctx| ctx.unfilled_orders.clone().into_iter().chain(ctx.history_orders.clone()).collect())
             .await;
         virtual_orders
     }
 
     pub async fn get_current_positions(&self) -> Vec<VirtualPosition> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let current_positions = virtual_trading_system.with_ctx_read(|ctx| ctx.current_positions.clone()).await;
+        let current_positions = self.vts.with_ctx_read(|ctx| ctx.current_positions.clone()).await;
         current_positions
     }
 
     pub async fn get_history_positions(&self) -> Vec<VirtualPosition> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let history_positions = virtual_trading_system.with_ctx_read(|ctx| ctx.history_positions.clone()).await;
+        let history_positions = self.vts.with_ctx_read(|ctx| ctx.history_positions.clone()).await;
         history_positions
     }
 
     pub async fn get_transactions(&self) -> Vec<VirtualTransaction> {
-        let virtual_trading_system = self.virtual_trading_system.lock().await;
-        let transactions = virtual_trading_system.with_ctx_read(|ctx| ctx.transactions.clone()).await;
+        let transactions = self.vts.with_ctx_read(|ctx| ctx.transactions.clone()).await;
         transactions
     }
 
-    pub async fn get_stats_history(&self, play_index: i32) -> Vec<StatsSnapshot> {
-        // let strategy_stats = self.strategy_stats.read().await;
-        // strategy_stats.get_stats_history(play_index).await
-        vec![]
+    pub async fn get_stats_history(&self, datetime: DateTime<Utc>) -> Vec<StatsSnapshot> {
+        let stats_history = self
+            .strategy_stats()
+            .with_ctx_read(|ctx| ctx.asset_snapshot_history().get_snapshots_before_datetime(datetime))
+            .await;
+        stats_history
     }
 
     pub async fn get_strategy_data(

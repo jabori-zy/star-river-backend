@@ -6,7 +6,7 @@ mod regist_manage;
 use std::collections::HashMap;
 
 use database::query::account_config_query::AccountConfigQuery;
-use engine_core::{EngineBaseContext, context_trait::EngineContextTrait};
+use engine_core::{EngineMetadata, context_trait::EngineContextTrait};
 use exchange_core::state_machine::ExchangeRunState;
 use sea_orm::DatabaseConnection;
 use star_river_core::custom_type::AccountId;
@@ -16,13 +16,13 @@ use crate::error::{ExchangeClientNotRegisteredSnafu, ExchangeEngineError};
 
 #[derive(Debug)]
 pub struct ExchangeEngineContext {
-    pub base_context: EngineBaseContext<ExchangeEngineAction>,
+    pub base_context: EngineMetadata<ExchangeEngineAction>,
     pub exchanges: HashMap<AccountId, Exchange>, // 交易所的账户id -> 交易所 每个交易所对应一个账户
     pub database: DatabaseConnection,
 }
 
 impl ExchangeEngineContext {
-    pub fn new(base_context: EngineBaseContext<ExchangeEngineAction>, database: DatabaseConnection) -> Self {
+    pub fn new(base_context: EngineMetadata<ExchangeEngineAction>, database: DatabaseConnection) -> Self {
         Self {
             base_context,
             exchanges: HashMap::new(),
@@ -34,11 +34,11 @@ impl ExchangeEngineContext {
 impl EngineContextTrait for ExchangeEngineContext {
     type Action = ExchangeEngineAction;
 
-    fn base_context(&self) -> &EngineBaseContext<Self::Action> {
+    fn base_context(&self) -> &EngineMetadata<Self::Action> {
         &self.base_context
     }
 
-    fn base_context_mut(&mut self) -> &mut EngineBaseContext<Self::Action> {
+    fn base_context_mut(&mut self) -> &mut EngineMetadata<Self::Action> {
         &mut self.base_context
     }
 }

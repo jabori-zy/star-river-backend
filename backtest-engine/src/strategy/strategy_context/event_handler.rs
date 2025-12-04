@@ -16,6 +16,7 @@ use strategy_core::{
         StrategyBenchmarkExt, StrategyEventHandlerExt, StrategyIdentityExt, StrategyInfoExt, StrategyVariableExt, StrategyWorkflowExt,
     },
 };
+use strategy_stats::{StrategyStatsEvent, event::StrategyStatsUpdatedEvent};
 use virtual_trading::event::VtsEvent;
 
 use super::BacktestStrategyContext;
@@ -47,7 +48,7 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
             }
             // 获取最小interval
             BacktestStrategyCommand::GetMinInterval(cmd) => {
-                let min_interval = self.min_interval().clone();
+                let min_interval = self.min_interval.clone();
                 let payload = GetMinIntervalRespPayload::new(min_interval);
                 let resp = GetMinIntervalResponse::success(payload);
                 cmd.respond(resp);
@@ -523,6 +524,16 @@ impl BacktestStrategyContext {
                 EventCenterSingleton::publish(event.into()).await?;
             }
             VtsEvent::UpdateFinished => {}
+        }
+        Ok(())
+    }
+
+    pub async fn handle_strategy_stats_event(&mut self, event: StrategyStatsEvent) -> Result<(), BacktestStrategyError> {
+        match event {
+            StrategyStatsEvent::StrategyStatsUpdated(snp_event) => {
+                let event: BacktestStrategyEvent = snp_event.into();
+                EventCenterSingleton::publish(event.into()).await?;
+            }
         }
         Ok(())
     }

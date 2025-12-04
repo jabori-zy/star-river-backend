@@ -5,9 +5,9 @@ use tokio::sync::broadcast;
 use crate::types::{order::VirtualOrder, position::VirtualPosition, transaction::VirtualTransaction};
 
 // 虚拟交易系统事件发送器
-pub type VirtualTradingSystemEventSender = broadcast::Sender<VtsEvent>;
+pub type VtsEventSender = broadcast::Sender<VtsEvent>;
 // 虚拟交易系统事件接收器
-pub type VirtualTradingSystemEventReceiver = broadcast::Receiver<VtsEvent>;
+pub type VtsEventReceiver = broadcast::Receiver<VtsEvent>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "event")]

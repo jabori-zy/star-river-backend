@@ -3,7 +3,7 @@ mod symbol_handler;
 
 use std::{collections::HashMap, sync::Arc};
 
-use engine_core::{EngineBaseContext, EngineContextAccessor, context_trait::EngineContextTrait, state_machine::EngineRunState};
+use engine_core::{EngineContextAccessor, EngineMetadata, context_trait::EngineContextTrait, state_machine::EngineRunState};
 use exchange_engine::{ExchangeEngine, error::ExchangeEngineError};
 use star_river_core::{
     custom_type::{AccountId, StrategyId},
@@ -22,7 +22,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct MarketEngineContext {
-    pub base_context: EngineBaseContext<MarketEngineAction>,
+    pub base_context: EngineMetadata<MarketEngineAction>,
     pub exchange_engine: Arc<Mutex<ExchangeEngine>>,                         // 交易所引擎
     pub subscribe_klines: Arc<Mutex<HashMap<KlineSubKey, Vec<StrategyId>>>>, // 已订阅的k线
 }
@@ -34,7 +34,7 @@ impl MarketEngineContext {
             EngineRunState::Created,
             market_engine_transition,
         );
-        let base_context = EngineBaseContext::new(EngineName::MarketEngine, state_machine);
+        let base_context = EngineMetadata::new(EngineName::MarketEngine, state_machine);
 
         Self {
             base_context,
@@ -46,11 +46,11 @@ impl MarketEngineContext {
 
 impl EngineContextTrait for MarketEngineContext {
     type Action = MarketEngineAction;
-    fn base_context(&self) -> &EngineBaseContext<MarketEngineAction> {
+    fn base_context(&self) -> &EngineMetadata<MarketEngineAction> {
         &self.base_context
     }
 
-    fn base_context_mut(&mut self) -> &mut EngineBaseContext<MarketEngineAction> {
+    fn base_context_mut(&mut self) -> &mut EngineMetadata<MarketEngineAction> {
         &mut self.base_context
     }
 }

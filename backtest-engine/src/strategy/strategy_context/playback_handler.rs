@@ -17,6 +17,7 @@ use strategy_core::{
         cycle::Cycle,
     },
 };
+use strategy_stats::strategy_stats::StrategyStatsAccessor;
 // third-party
 use tokio::sync::{Mutex, Notify, RwLock, oneshot, watch};
 use tokio_util::sync::CancellationToken;
@@ -118,16 +119,15 @@ impl BacktestStrategyContext {
             // Get next signal
             let (signal_index, signal_time) = signal_generator_guard.next().unwrap();
             let is_finished_after_next = signal_generator_guard.is_finished();
-            let progress = signal_generator_guard.progress();
             drop(signal_generator_guard);
 
-            tracing::debug!(
-                "[{}]: playing signal_index: {}, signal_time: {}, progress: {}",
-                context.strategy_name,
-                signal_index,
-                signal_time,
-                progress
-            );
+            // tracing::debug!(
+            //     "[{}]: playing signal_index: {}, signal_time: {}, progress: {}",
+            //     context.strategy_name,
+            //     signal_index,
+            //     signal_time,
+            //     progress
+            // );
 
             // 单次逻辑开始
             let mut strategy_cycle_tracker = StrategyCycleTracker::new(signal_index);
@@ -298,8 +298,9 @@ impl BacktestStrategyContext {
         let mut signal_generator_guard = self.signal_generator.lock().await;
         signal_generator_guard.reset();
 
-        let vts_guard = self.virtual_trading_system.lock().await;
-        vts_guard.with_ctx_write(|ctx| ctx.reset()).await;
+        self.vts.with_ctx_write(|ctx| ctx.reset()).await;
+
+        self.strategy_stats().with_ctx_write(|stats| stats.clear_asset_snapshots()).await;
 
         self.send_reset_node_event().await?;
         // 替换已经取消的令牌
@@ -335,7 +336,6 @@ impl BacktestStrategyContext {
 
         let (signal_index, signal_time) = signal_generator_guard.next().unwrap();
         let is_finished_after_next = signal_generator_guard.is_finished();
-        let progress = signal_generator_guard.progress();
         let mut strategy_cycle_tracker = StrategyCycleTracker::new(signal_index);
         strategy_cycle_tracker.start_phase("increment play index");
         drop(signal_generator_guard);
@@ -352,12 +352,12 @@ impl BacktestStrategyContext {
                 before_reset_batch_id
             );
         }
-        tracing::debug!(
-            "playing signal_index: {}, signal_time: {}, progress: {}",
-            signal_index,
-            signal_time,
-            progress
-        );
+        // tracing::debug!(
+        //     "playing signal_index: {}, signal_time: {}, progress: {}",
+        //     signal_index,
+        //     signal_time,
+        //     progress
+        // );
 
         // 单次逻辑开始
         self.cycle_watch_tx().send(Cycle::Id(signal_index)).unwrap();

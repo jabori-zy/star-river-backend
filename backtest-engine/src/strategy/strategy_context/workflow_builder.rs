@@ -10,7 +10,7 @@ mod build_variable_node;
 mod symbol_config_checker;
 
 // std
-use std::str::FromStr;
+use std::{str::FromStr, sync::Arc};
 
 // third-party
 use snafu::OptionExt;
@@ -116,8 +116,7 @@ impl BacktestStrategyContext {
                         .with_ctx_write(|ctx| ctx.subscribe_strategy_bound_handle("virtual_trading_system".to_string()))
                         .await;
                     {
-                        let virtual_trading_system = self.virtual_trading_system().lock().await;
-                        virtual_trading_system
+                        self.vts
                             .with_ctx_write(|ctx| ctx.add_kline_node_event_receiver(kline_node_event_receiver))
                             .await;
                     }
@@ -161,9 +160,7 @@ impl BacktestStrategyContext {
                 NodeType::FuturesOrderNode => {
                     let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
                     let (vts_command_sender, vts_event_receiver) = self
-                        .virtual_trading_system()
-                        .lock()
-                        .await
+                        .vts
                         .with_ctx_read(|ctx| (ctx.get_command_sender().clone(), ctx.vts_event_receiver()))
                         .await;
                     let futures_order_node = self
@@ -189,9 +186,7 @@ impl BacktestStrategyContext {
                 NodeType::PositionNode => {
                     let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
                     let (vts_command_sender, vts_event_receiver) = self
-                        .virtual_trading_system()
-                        .lock()
-                        .await
+                        .vts
                         .with_ctx_read(|ctx| (ctx.get_command_sender().clone(), ctx.vts_event_receiver()))
                         .await;
                     let position_node = self
@@ -216,7 +211,7 @@ impl BacktestStrategyContext {
                 NodeType::VariableNode => {
                     let (node_command_tx, node_command_rx) = mpsc::channel::<BacktestNodeCommand>(100);
                     let variable_node = self
-                        .build_variable_node(node_config.clone(), node_command_rx, self.virtual_trading_system().clone())
+                        .build_variable_node(node_config.clone(), node_command_rx, Arc::clone(&self.vts))
                         .await?;
                     // set output handles
                     variable_node

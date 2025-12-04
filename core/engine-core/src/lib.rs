@@ -13,7 +13,7 @@ pub mod state_machine_error;
 // ============================================================================
 use std::{collections::HashMap, sync::LazyLock};
 
-pub use context::EngineBaseContext;
+pub use context::EngineMetadata;
 pub use engine::EngineBase;
 pub use engine_trait::{EngineContextAccessor, EngineEventListener, EngineLifecycle};
 use event_center::event::Channel;

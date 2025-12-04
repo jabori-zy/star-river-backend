@@ -8,7 +8,7 @@ use super::state_machine::EngineStateMachine;
 use crate::state_machine::EngineAction;
 
 #[derive(Debug, Clone)]
-pub struct EngineBaseContext<Action>
+pub struct EngineMetadata<Action>
 where
     Action: EngineAction,
 {
@@ -17,7 +17,7 @@ where
     state_machine: Arc<RwLock<EngineStateMachine<Action>>>,
 }
 
-impl<Action> EngineBaseContext<Action>
+impl<Action> EngineMetadata<Action>
 where
     Action: EngineAction,
 {

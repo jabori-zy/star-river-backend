@@ -1,3 +1,3 @@
-use super::VirtualTradingSystemContext;
+use super::VtsContext;
 
-impl<E> VirtualTradingSystemContext<E> where E: Clone + Send + Sync + 'static {}
+impl<E> VtsContext<E> where E: Clone + Send + Sync + 'static {}

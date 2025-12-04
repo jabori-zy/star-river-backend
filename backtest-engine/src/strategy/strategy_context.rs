@@ -8,6 +8,7 @@ mod workflow_builder;
 
 use std::{collections::HashMap, sync::Arc};
 
+use chrono::{DateTime, Utc};
 use heartbeat::Heartbeat;
 use key::{IndicatorKey, Key, KlineKey};
 use sea_orm::DatabaseConnection;
@@ -20,7 +21,7 @@ use strategy_core::{
     strategy::{StrategyConfig, context_trait::StrategyMetaDataExt, metadata::StrategyMetadata},
 };
 use ta_lib::indicator::Indicator;
-use tokio::sync::{Mutex, Notify, RwLock};
+use tokio::sync::{Mutex, Notify, RwLock, watch};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -31,11 +32,17 @@ use super::{
 use crate::{
     node::{BacktestNode, node_command::BacktestNodeCommand, node_event::BacktestNodeEvent},
     strategy::{strategy_command::BacktestStrategyCommand, strategy_error::BacktestStrategyError},
+    strategy_stats::BacktestStrategyStats,
     virtual_trading_system::{BacktestVts, BacktestVtsContext},
 };
-
-pub type BacktestStrategyMetadata =
-    StrategyMetadata<BacktestNode, BacktestStrategyStateMachine, BacktestStrategyCommand, BacktestNodeCommand, BacktestNodeEvent>;
+pub type BacktestStrategyMetadata = StrategyMetadata<
+    BacktestNode,
+    BacktestStrategyStateMachine,
+    BacktestStrategyCommand,
+    BacktestNodeCommand,
+    BacktestNodeEvent,
+    BacktestStrategyStats,
+>;
 
 #[derive(Debug)]
 pub struct BacktestStrategyContext {
@@ -43,15 +50,15 @@ pub struct BacktestStrategyContext {
     is_playing: Arc<RwLock<bool>>,
     initial_play_speed: Arc<RwLock<u32>>,
     cancel_play_token: CancellationToken,
-    batch_id: Uuid,
+    pub(crate) batch_id: Uuid,
     running_log: Arc<RwLock<Vec<NodeRunningLogEvent>>>,
     execute_over_node_ids: Arc<RwLock<Vec<NodeId>>>,
     execute_over_notify: Arc<Notify>,
-    min_interval: KlineInterval,
+    pub(crate) min_interval: KlineInterval,
     pub(crate) kline_data: Arc<RwLock<HashMap<KlineKey, Vec<Kline>>>>,
     pub(crate) indicator_data: Arc<RwLock<HashMap<IndicatorKey, Vec<Indicator>>>>,
     keys: Arc<RwLock<HashMap<Key, NodeId>>>,
-    virtual_trading_system: Arc<Mutex<BacktestVts>>,
+    pub(crate) vts: Arc<BacktestVts>,
     pub(crate) signal_generator: Arc<Mutex<SignalGenerator>>,
 }
 
@@ -64,10 +71,24 @@ impl BacktestStrategyContext {
             backtest_strategy_transition,
         );
 
-        let metadata = BacktestStrategyMetadata::new("backtest", strategy_config, state_machine, database, heartbeat);
+        let (strategy_time_watch_tx, strategy_time_watch_rx) = watch::channel::<DateTime<Utc>>(Utc::now());
 
-        let strategy_time_watch_rx = metadata.strategy_time_watch_rx();
-        let virtual_trading_system = BacktestVts::new(BacktestVtsContext::new(strategy_time_watch_rx));
+        let vts = Arc::new(BacktestVts::new(BacktestVtsContext::new(strategy_time_watch_rx)));
+        let strategy_stats = BacktestStrategyStats::new(
+            strategy_config.id,
+            strategy_name,
+            strategy_time_watch_tx.subscribe(),
+            Arc::clone(&vts),
+        );
+
+        let metadata = BacktestStrategyMetadata::new(
+            strategy_config,
+            state_machine,
+            database,
+            heartbeat,
+            strategy_stats,
+            strategy_time_watch_tx,
+        );
 
         Self {
             metadata,
@@ -82,7 +103,7 @@ impl BacktestStrategyContext {
             kline_data: Arc::new(RwLock::new(HashMap::new())),
             indicator_data: Arc::new(RwLock::new(HashMap::new())),
             keys: Arc::new(RwLock::new(HashMap::new())),
-            virtual_trading_system: Arc::new(Mutex::new(virtual_trading_system)),
+            vts,
             signal_generator: Arc::new(Mutex::new(SignalGenerator::new())),
         }
     }
@@ -94,15 +115,20 @@ impl StrategyMetaDataExt for BacktestStrategyContext {
     type StrategyCommand = BacktestStrategyCommand;
     type NodeCommand = BacktestNodeCommand;
     type NodeEvent = BacktestNodeEvent;
+    type StrategyStats = BacktestStrategyStats;
     type Error = BacktestStrategyError;
 
-    fn metadata(&self) -> &StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent> {
+    fn metadata(
+        &self,
+    ) -> &StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent, Self::StrategyStats>
+    {
         &self.metadata
     }
 
     fn metadata_mut(
         &mut self,
-    ) -> &mut StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent> {
+    ) -> &mut StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent, Self::StrategyStats>
+    {
         &mut self.metadata
     }
 }
@@ -112,15 +138,6 @@ impl StrategyMetaDataExt for BacktestStrategyContext {
 // ============================================================================
 
 impl BacktestStrategyContext {
-    // ========================================================================
-    // 1. 核心信息 (Core Information)
-    // ========================================================================
-
-    /// 获取批次ID
-    pub fn batch_id(&self) -> Uuid {
-        self.batch_id
-    }
-
     // ========================================================================
     // 2. 执行追踪 (Execution Tracking)
     // ========================================================================
@@ -200,11 +217,6 @@ impl BacktestStrategyContext {
     // 9. 交易对管理 (Symbol Management)
     // ========================================================================
 
-    /// 获取最小周期
-    pub fn min_interval(&self) -> &KlineInterval {
-        &self.min_interval
-    }
-
     /// 设置最小周期
     pub fn set_min_interval(&mut self, interval: KlineInterval) {
         self.min_interval = interval;
@@ -227,9 +239,5 @@ impl BacktestStrategyContext {
     /// 清空运行日志
     pub async fn clear_running_log(&self) {
         self.running_log.write().await.clear();
-    }
-
-    pub fn virtual_trading_system(&self) -> &Arc<Mutex<BacktestVts>> {
-        &self.virtual_trading_system
     }
 }

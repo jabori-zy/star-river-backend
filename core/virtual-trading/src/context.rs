@@ -19,7 +19,7 @@ use tokio_util::sync::CancellationToken;
 // 外部的utils，不是当前crate的utils
 use crate::{
     command::VtsCommand,
-    event::{VirtualTradingSystemEventReceiver, VirtualTradingSystemEventSender, VtsEvent},
+    event::{VtsEvent, VtsEventReceiver, VtsEventSender},
 };
 use crate::{
     error::{EventSendFailedSnafu, KlineKeyNotFoundSnafu, VtsError},
@@ -32,13 +32,13 @@ use crate::{
 /// 虚拟交易系统
 ///
 #[derive(Debug)]
-pub struct VirtualTradingSystemContext<E>
+pub struct VtsContext<E>
 where
     E: Clone + Send + Sync + 'static,
 {
     strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>,
 
-    event_transceiver: (broadcast::Sender<VtsEvent>, broadcast::Receiver<VtsEvent>),
+    event_sender: broadcast::Sender<VtsEvent>,
     command_transceiver: (mpsc::Sender<VtsCommand>, Arc<Mutex<mpsc::Receiver<VtsCommand>>>),
     cancel_token: CancellationToken,
     kline_node_event_receiver: Vec<broadcast::Receiver<E>>,
@@ -73,12 +73,12 @@ where
 }
 
 // 虚拟交易系统get方法
-impl<E> VirtualTradingSystemContext<E>
+impl<E> VtsContext<E>
 where
     E: Clone + Send + Sync + 'static,
 {
     pub fn new(strategy_time_watch_rx: watch::Receiver<DateTime<Utc>>) -> Self {
-        let (tx, rx) = broadcast::channel::<VtsEvent>(100);
+        let (tx, _) = broadcast::channel::<VtsEvent>(100);
         let (command_tx, command_rx) = mpsc::channel::<VtsCommand>(100);
         Self {
             strategy_time_watch_rx,
@@ -100,7 +100,7 @@ where
             unfilled_orders: vec![],
             history_orders: vec![],
             transactions: vec![],
-            event_transceiver: (tx, rx),
+            event_sender: tx,
             command_transceiver: (command_tx, Arc::new(Mutex::new(command_rx))),
             cancel_token: CancellationToken::new(),
         }
@@ -110,12 +110,12 @@ where
         *self.strategy_time_watch_rx.borrow()
     }
 
-    pub fn vts_event_receiver(&self) -> VirtualTradingSystemEventReceiver {
-        self.event_transceiver.1.resubscribe()
+    pub fn vts_event_receiver(&self) -> VtsEventReceiver {
+        self.event_sender.subscribe()
     }
 
-    pub fn vts_event_publisher(&self) -> VirtualTradingSystemEventSender {
-        self.event_transceiver.0.clone()
+    pub fn vts_event_publisher(&self) -> VtsEventSender {
+        self.event_sender.clone()
     }
 
     pub fn cancel_token(&self) -> CancellationToken {
@@ -184,7 +184,7 @@ where
     }
 
     pub fn send_event(&self, event: VtsEvent) -> Result<usize, VtsError> {
-        self.event_transceiver.0.send(event).context(EventSendFailedSnafu {})
+        self.event_sender.send(event).context(EventSendFailedSnafu {})
     }
 
     // 设置初始资金

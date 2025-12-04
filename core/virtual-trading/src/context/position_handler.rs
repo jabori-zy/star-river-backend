@@ -11,7 +11,7 @@ use star_river_core::{
 use star_river_core::{order::OrderType, position::PositionState};
 
 // Local module imports
-use super::VirtualTradingSystemContext;
+use super::VtsContext;
 use crate::{
     error::{MarginNotEnoughSnafu, PositionNotFoundForSymbolSnafu, PositionNotFoundSnafu, VtsError},
     event::VtsEvent,
@@ -19,7 +19,7 @@ use crate::{
     utils::Formula,
 };
 
-impl<E> VirtualTradingSystemContext<E>
+impl<E> VtsContext<E>
 where
     E: Clone + Send + Sync + 'static,
 {
@@ -75,7 +75,7 @@ where
     }
 }
 
-impl<E> VirtualTradingSystemContext<E>
+impl<E> VtsContext<E>
 where
     E: Clone + Send + Sync + 'static,
 {

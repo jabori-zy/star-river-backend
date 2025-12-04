@@ -1,11 +1,12 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use heartbeat::Heartbeat;
 use petgraph::{Directed, Graph, graph::NodeIndex};
 use sea_orm::DatabaseConnection;
 use star_river_core::custom_type::{CycleId, NodeId, StrategyId, StrategyName};
-use strategy_stats::StrategyStats;
+use strategy_stats::strategy_stats::StrategyStatsAccessor;
+// use strategy_stats::StrategyStats;
 use tokio::sync::{Mutex, RwLock, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
@@ -23,13 +24,14 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct StrategyMetadata<N, M, X, Y, E>
+pub struct StrategyMetadata<N, M, X, Y, E, S>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
     E: NodeEventTrait,
+    S: StrategyStatsAccessor,
 {
     cycle_watch_tx: watch::Sender<Cycle>,
     strategy_time_watch_tx: watch::Sender<DateTime<Utc>>,
@@ -44,35 +46,36 @@ where
     sys_variable: Arc<RwLock<HashMap<SysVariableType, SysVariable>>>,
     benchmark: Arc<RwLock<StrategyBenchmark>>,
     cycle_tracker: Arc<RwLock<Option<StrategyCycleTracker>>>,
-    strategy_stats: Arc<RwLock<StrategyStats<E>>>,
+    strategy_stats: S,
     strategy_command_transceiver: (mpsc::Sender<X>, Arc<Mutex<mpsc::Receiver<X>>>),
     node_command_sender: HashMap<NodeId, mpsc::Sender<Y>>,
     leaf_node_execution_tracker: LeafNodeExecutionTracker,
+    _phantom: PhantomData<E>,
 }
 
-impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
+impl<N, M, X, Y, E, S> StrategyMetadata<N, M, X, Y, E, S>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
     E: NodeEventTrait,
+    S: StrategyStatsAccessor,
 {
     pub fn new(
-        mode: &'static str,
         strategy_config: StrategyConfig,
         state_machine: M,
         database: DatabaseConnection,
         heartbeat: Arc<Mutex<Heartbeat>>,
+        strategy_stats: S,
+        strategy_time_watch_tx: watch::Sender<DateTime<Utc>>,
     ) -> Self {
         let (strategy_command_tx, strategy_command_rx) = mpsc::channel::<X>(100);
 
         let strategy_id = strategy_config.id;
         let strategy_name = strategy_config.name.clone();
 
-        let strategy_stats = Arc::new(RwLock::new(StrategyStats::new(mode, strategy_id)));
         let (cycle_watch_tx, _) = watch::channel::<Cycle>(Cycle::new());
-        let (strategy_time_watch_tx, _) = watch::channel::<DateTime<Utc>>(Utc::now());
         Self {
             cycle_watch_tx,
             strategy_time_watch_tx,
@@ -91,6 +94,7 @@ where
             cycle_tracker: Arc::new(RwLock::new(None)),
             strategy_stats,
             leaf_node_execution_tracker: LeafNodeExecutionTracker::new(),
+            _phantom: PhantomData,
         }
     }
 }
@@ -98,13 +102,14 @@ where
 // ============================================================================
 // Basic Information Accessors
 // ============================================================================
-impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
+impl<N, M, X, Y, E, S> StrategyMetadata<N, M, X, Y, E, S>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
     E: NodeEventTrait,
+    S: StrategyStatsAccessor,
 {
     pub fn strategy_config(&self) -> &StrategyConfig {
         &self.strategy_config
@@ -124,13 +129,14 @@ where
 // ============================================================================
 // State Machine Accessors
 // ============================================================================
-impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
+impl<N, M, X, Y, E, S> StrategyMetadata<N, M, X, Y, E, S>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
     E: NodeEventTrait,
+    S: StrategyStatsAccessor,
 {
     /// Get reference to state machine
     pub fn state_machine(&self) -> Arc<RwLock<M>> {
@@ -141,13 +147,14 @@ where
 // ============================================================================
 // Graph Accessors
 // ============================================================================
-impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
+impl<N, M, X, Y, E, S> StrategyMetadata<N, M, X, Y, E, S>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
     E: NodeEventTrait,
+    S: StrategyStatsAccessor,
 {
     pub fn cycle_id(&self) -> CycleId {
         self.cycle_watch_tx.borrow().id()
@@ -171,6 +178,10 @@ where
 
     pub fn strategy_time_watch_rx(&self) -> watch::Receiver<DateTime<Utc>> {
         self.strategy_time_watch_tx.subscribe()
+    }
+
+    pub fn strategy_stats(&self) -> &S {
+        &self.strategy_stats
     }
 
     /// Get reference to graph
@@ -224,13 +235,14 @@ where
 // ============================================================================
 // Communication Accessors (Command Sender/Receiver)
 // ============================================================================
-impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
+impl<N, M, X, Y, E, S> StrategyMetadata<N, M, X, Y, E, S>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
     E: NodeEventTrait,
+    S: StrategyStatsAccessor,
 {
     /// Get strategy command sender
     pub fn strategy_command_sender(&self) -> &mpsc::Sender<X> {
@@ -255,13 +267,14 @@ where
 // ============================================================================
 // Variable Management Accessors
 // ============================================================================
-impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
+impl<N, M, X, Y, E, S> StrategyMetadata<N, M, X, Y, E, S>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
     E: NodeEventTrait,
+    S: StrategyStatsAccessor,
 {
     /// Get custom variables
     pub fn custom_variable(&self) -> Arc<RwLock<HashMap<String, CustomVariable>>> {
@@ -277,13 +290,14 @@ where
 // ============================================================================
 // Benchmark Accessors
 // ============================================================================
-impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
+impl<N, M, X, Y, E, S> StrategyMetadata<N, M, X, Y, E, S>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
     E: NodeEventTrait,
+    S: StrategyStatsAccessor,
 {
     /// Get benchmark
     pub fn benchmark(&self) -> &Arc<RwLock<StrategyBenchmark>> {
@@ -304,13 +318,14 @@ where
 // ============================================================================
 // Cancellation Token Accessors
 // ============================================================================
-impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
+impl<N, M, X, Y, E, S> StrategyMetadata<N, M, X, Y, E, S>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
     E: NodeEventTrait,
+    S: StrategyStatsAccessor,
 {
     /// Get cancellation token
     pub fn cancel_token(&self) -> &CancellationToken {
@@ -321,13 +336,14 @@ where
 // ============================================================================
 // Other Accessors
 // ============================================================================
-impl<N, M, X, Y, E> StrategyMetadata<N, M, X, Y, E>
+impl<N, M, X, Y, E, S> StrategyMetadata<N, M, X, Y, E, S>
 where
     N: NodeTrait,
     M: StrategyStateMachine,
     X: StrategyCommandTrait,
     Y: NodeCommandTrait,
     E: NodeEventTrait,
+    S: StrategyStatsAccessor,
 {
     /// Get heartbeat
     pub fn heartbeat(&self) -> &Arc<Mutex<Heartbeat>> {

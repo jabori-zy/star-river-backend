@@ -14,6 +14,7 @@ use star_river_core::{
     custom_type::{CycleId, NodeId, NodeName, StrategyId, StrategyName},
     error::StarRiverErrorTrait,
 };
+use strategy_stats::strategy_stats::StrategyStatsAccessor;
 use tokio::sync::{Mutex, RwLock, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
@@ -62,15 +63,18 @@ pub trait StrategyMetaDataExt: Debug + Send + Sync + 'static {
     type StrategyCommand: StrategyCommandTrait;
     type NodeCommand: NodeCommandTrait;
     type NodeEvent: NodeEventTrait;
+    type StrategyStats: StrategyStatsAccessor;
     type Error: StarRiverErrorTrait;
 
     /// Get immutable reference to base context
-    fn metadata(&self) -> &StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent>;
+    fn metadata(
+        &self,
+    ) -> &StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent, Self::StrategyStats>;
 
     /// Get mutable reference to base context
     fn metadata_mut(
         &mut self,
-    ) -> &mut StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent>;
+    ) -> &mut StrategyMetadata<Self::Node, Self::StateMachine, Self::StrategyCommand, Self::NodeCommand, Self::NodeEvent, Self::StrategyStats>;
 }
 
 // ============================================================================
@@ -127,6 +131,10 @@ pub trait StrategyInfoExt: StrategyMetaDataExt {
 
     fn strategy_time_watch_rx(&self) -> watch::Receiver<DateTime<Utc>> {
         self.metadata().strategy_time_watch_rx()
+    }
+
+    fn strategy_stats(&self) -> &Self::StrategyStats {
+        self.metadata().strategy_stats()
     }
 }
 

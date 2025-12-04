@@ -2,7 +2,7 @@ mod event_handler;
 
 use std::{collections::HashMap, sync::Arc};
 
-use engine_core::{EngineBaseContext, context_trait::EngineContextTrait, state_machine::EngineRunState};
+use engine_core::{EngineMetadata, context_trait::EngineContextTrait, state_machine::EngineRunState};
 use star_river_core::{custom_type::StrategyId, engine::EngineName};
 use tokio::sync::Mutex;
 
@@ -13,7 +13,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct IndicatorEngineContext {
-    pub base_context: EngineBaseContext<IndicatorEngineAction>,
+    pub base_context: EngineMetadata<IndicatorEngineAction>,
     pub subscribe_indicators: Arc<Mutex<HashMap<IndicatorSubKey, Vec<StrategyId>>>>, // 已订阅的指标
 }
 
@@ -24,7 +24,7 @@ impl IndicatorEngineContext {
             EngineRunState::Created,
             indicator_engine_transition,
         );
-        let base_context = EngineBaseContext::new(EngineName::IndicatorEngine, state_machine);
+        let base_context = EngineMetadata::new(EngineName::IndicatorEngine, state_machine);
         Self {
             base_context,
             subscribe_indicators: Arc::new(Mutex::new(HashMap::new())),
@@ -34,11 +34,11 @@ impl IndicatorEngineContext {
 
 impl EngineContextTrait for IndicatorEngineContext {
     type Action = IndicatorEngineAction;
-    fn base_context(&self) -> &EngineBaseContext<IndicatorEngineAction> {
+    fn base_context(&self) -> &EngineMetadata<IndicatorEngineAction> {
         &self.base_context
     }
 
-    fn base_context_mut(&mut self) -> &mut EngineBaseContext<IndicatorEngineAction> {
+    fn base_context_mut(&mut self) -> &mut EngineMetadata<IndicatorEngineAction> {
         &mut self.base_context
     }
 }

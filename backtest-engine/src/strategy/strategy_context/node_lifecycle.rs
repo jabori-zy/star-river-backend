@@ -97,7 +97,6 @@ impl StrategyWorkflowExt for BacktestStrategyContext {
         }; // 读锁在这里释放
 
         for n in nodes {
-            tracing::debug!("@[{}] 1111", n.node_name().await);
             let node_clone = n.clone();
             let node_handle: tokio::task::JoinHandle<Result<(), BacktestStrategyError>> = tokio::spawn(async move {
                 node_clone.stop().await?;

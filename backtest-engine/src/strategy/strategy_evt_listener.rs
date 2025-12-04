@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use event_center::EventCenterSingleton;
 use futures::{StreamExt, stream::select_all};
@@ -13,6 +15,7 @@ use strategy_core::{
         strategy_trait::{StrategyContextAccessor, StrategyEventListener},
     },
 };
+use strategy_stats::strategy_stats::{StrategyStatsAccessor, StrategyStatsCommunicationExt};
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::vts_trait::VtsCtxAccessor;
 
@@ -119,48 +122,6 @@ impl StrategyEventListener for BacktestStrategy {
             }
         });
     }
-
-    // async fn listen_strategy_stats_event(&self) {
-    //     let (strategy_name, cancel_token, strategy_stats_event_receiver) = self
-    //         .with_ctx_read_async(|ctx| {
-    //             Box::pin(async move {
-    //                 let strategy_name = ctx.strategy_name();
-    //                 let cancel_token = ctx.cancel_task_token();
-    //                 let strategy_stats_event_receiver = ctx.strategy_stats_event_receiver();
-    //                 (strategy_name.clone(), cancel_token, strategy_stats_event_receiver)
-    //             })
-    //         })
-    //         .await;
-
-    //     let mut stream = BroadcastStream::new(strategy_stats_event_receiver);
-
-    //     let context = self.context.clone();
-    //     tokio::spawn(async move {
-    //         loop {
-    //             tokio::select! {
-    //                 _ = cancel_token.cancelled() => {
-    //                     tracing::info!("{}: 策略统计事件监听任务已中止", strategy_name);
-    //                     break;
-    //                 }
-    //                 event = stream.next() => {
-    //                     match event {
-    //                         Some(Ok(event)) => {
-    //                             let mut context_guard = context.write().await;
-    //                             context_guard.handle_strategy_stats_event(event).await.unwrap();
-    //                         }
-    //                     Some(Err(e)) => {
-    //                         tracing::error!("{}: 策略统计事件接收错误: {}", strategy_name, e);
-    //                     }
-    //                     None => {
-    //                         tracing::warn!("{}: 策略统计事件流已关闭", strategy_name);
-    //                         break;
-    //                     }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     });
-    // }
 }
 
 impl BacktestStrategy {
@@ -171,12 +132,7 @@ impl BacktestStrategy {
                     let strategy_name = ctx.strategy_name();
 
                     let cancel_token = ctx.cancel_token().clone();
-                    let vts = ctx
-                        .virtual_trading_system()
-                        .lock()
-                        .await
-                        .with_ctx_read(|vts_ctx| vts_ctx.vts_event_receiver())
-                        .await;
+                    let vts = ctx.vts.with_ctx_read(|vts_ctx| vts_ctx.vts_event_receiver()).await;
 
                     (strategy_name.clone(), cancel_token, vts)
                 })
@@ -191,7 +147,7 @@ impl BacktestStrategy {
             loop {
                 tokio::select! {
                     _ = cancel_token.cancelled() => {
-                        tracing::info!("{}: strategy vts event listener stopped", strategy_name);
+                        tracing::info!("#[{}] vts event listener stopped", strategy_name);
                         break;
                     }
                     event = stream.next() => {
@@ -207,8 +163,53 @@ impl BacktestStrategy {
                                 };
                             }
                         } else {
-                            tracing::warn!("{}: strategy vts event listener closed", strategy_name);
+                            tracing::warn!("#[{}] strategy vts event listener closed", strategy_name);
                             break;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    pub async fn listen_strategy_stats_events(&self) {
+        let (strategy_name, cancel_token, strategy_stats_event_receiver) = self
+            .with_ctx_read_async(|ctx| {
+                Box::pin(async move {
+                    let strategy_name = ctx.strategy_name();
+                    let cancel_token = ctx.cancel_token().clone();
+                    let strategy_stats_event_receiver = ctx
+                        .strategy_stats()
+                        .with_ctx_read(|stats| stats.strategy_stats_event_receiver())
+                        .await;
+                    (strategy_name.clone(), cancel_token, strategy_stats_event_receiver)
+                })
+            })
+            .await;
+
+        let mut stream = BroadcastStream::new(strategy_stats_event_receiver);
+
+        let context = Arc::clone(&self.context);
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = cancel_token.cancelled() => {
+                        tracing::info!("{}: 策略统计事件监听任务已中止", strategy_name);
+                        break;
+                    }
+                    event = stream.next() => {
+                        match event {
+                            Some(Ok(event)) => {
+                                let mut context_guard = context.write().await;
+                                context_guard.handle_strategy_stats_event(event).await.unwrap();
+                            }
+                        Some(Err(e)) => {
+                            tracing::error!("{}: 策略统计事件接收错误: {}", strategy_name, e);
+                        }
+                        None => {
+                            tracing::warn!("{}: 策略统计事件流已关闭", strategy_name);
+                            break;
+                        }
                         }
                     }
                 }

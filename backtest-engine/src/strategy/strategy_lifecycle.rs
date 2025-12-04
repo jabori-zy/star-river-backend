@@ -6,7 +6,7 @@ use strategy_core::{
     error::strategy_error::WaitAllNodesStoppedTimeoutSnafu,
     event::strategy_event::StrategyStateLogEvent,
     strategy::{
-        context_trait::{StrategyIdentityExt, StrategyStateMachineExt, StrategyWorkflowExt},
+        context_trait::{StrategyIdentityExt, StrategyInfoExt, StrategyStateMachineExt, StrategyTaskControlExt, StrategyWorkflowExt},
         state_machine::StrategyStateMachine,
         strategy_trait::{StrategyContextAccessor, StrategyEventListener, StrategyLifecycle},
     },
@@ -69,11 +69,8 @@ impl StrategyLifecycle for BacktestStrategy {
     async fn stop_strategy(&mut self) -> Result<(), Self::Error> {
         // 获取当前状态
         // 如果策略当前状态为 Stopped，则不进行操作
-        let (strategy_name, current_state) = self
-            .with_ctx_read_async(|ctx| Box::pin(async move { (ctx.strategy_name().clone(), ctx.run_state().await) }))
-            .await;
+        let current_state = self.with_ctx_read_async(|ctx| Box::pin(async move { ctx.run_state().await })).await;
         if current_state == BacktestStrategyRunState::Stopping {
-            tracing::info!("[{}] stopped.", strategy_name);
             return Ok(());
         }
         tracing::info!("waiting for all nodes to stop...");
@@ -135,6 +132,7 @@ impl StrategyLifecycle for BacktestStrategy {
             state_machine.transition(trigger)?
         };
 
+        tracing::info!("#[{}] transition actions: {:?}", &strategy_name, transition_result.get_actions());
         for action in transition_result.get_actions() {
             // action execute result flag
             match action {
@@ -165,7 +163,7 @@ impl StrategyLifecycle for BacktestStrategy {
                                 ctx.signal_generator
                                     .lock()
                                     .await
-                                    .init(start_time, end_time, ctx.min_interval().clone());
+                                    .init(start_time, end_time, ctx.min_interval.clone());
                                 Ok::<(), BacktestStrategyError>(())
                             } else {
                                 return Err(TimeRangeNotConfiguredSnafu {
@@ -182,15 +180,14 @@ impl StrategyLifecycle for BacktestStrategy {
                         Box::pin(async move {
                             let strategy_config = ctx.get_strategy_config().await?;
                             {
-                                let vts_guard = ctx.virtual_trading_system().lock().await;
-                                vts_guard
+                                ctx.vts
                                     .with_ctx_write(|ctx| {
                                         ctx.set_initial_balance(strategy_config.initial_balance);
                                         ctx.set_leverage(strategy_config.leverage as u32);
                                         ctx.set_fee_rate(strategy_config.fee_rate);
                                     })
                                     .await;
-                                vts_guard.start().await;
+                                ctx.vts.start().await;
                             }
                             tracing::info!("[{}] init virtual trading system success", ctx.strategy_name());
                             Ok::<(), BacktestStrategyError>(())
@@ -199,16 +196,8 @@ impl StrategyLifecycle for BacktestStrategy {
                     .await?;
                 }
                 BacktestStrategyStateAction::InitStrategyStats => {
-                    // let strategy_name_clone = strategy_name.clone();
-                    // self.with_ctx_write_async(|ctx| {
-                    //     Box::pin(async move {
-                    //         if let Err(e) = BacktestStrategyStats::handle_virtual_trading_system_events(ctx.strategy_stats()).await {
-                    //             tracing::error!("[{}] init strategy stats failed: {}", &strategy_name_clone, e);
-                    //         } else {
-                    //             tracing::info!("[{}] init strategy stats success", &strategy_name_clone);
-                    //         }
-                    //     })
-                    // }).await;
+                    self.with_ctx_write_async(|ctx| Box::pin(async move { ctx.strategy_stats().listen_vts_events().await }))
+                        .await;
                 }
 
                 BacktestStrategyStateAction::StoreStrategyStatus => {
@@ -278,7 +267,7 @@ impl StrategyLifecycle for BacktestStrategy {
                 }
                 BacktestStrategyStateAction::ListenAndHandleStrategyStatsEvent => {
                     tracing::info!("#[{}] listen strategy stats event", &strategy_name);
-                    // self.listen_strategy_stats_event().await;
+                    self.listen_strategy_stats_events().await;
                 }
                 BacktestStrategyStateAction::LogError(error) => {
                     tracing::error!("#[{}] {}", &strategy_name, error);
@@ -299,7 +288,15 @@ impl StrategyLifecycle for BacktestStrategy {
                     .into();
                     // sleep 500 milliseconds
                     tokio::time::sleep(Duration::from_millis(500)).await;
-                    let _ = EventCenterSingleton::publish(log_event.into()).await;
+                    EventCenterSingleton::publish(log_event.into()).await?;
+                }
+
+                BacktestStrategyStateAction::CancelAsyncTask => {
+                    tracing::debug!("#[{}] cancel strategyasync task", &strategy_name);
+                    self.with_ctx_read(|ctx| {
+                        ctx.request_cancel();
+                    })
+                    .await;
                 }
             };
         }

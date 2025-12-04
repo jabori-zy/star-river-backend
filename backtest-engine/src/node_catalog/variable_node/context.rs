@@ -28,16 +28,12 @@ pub type VariableNodeMetadata = NodeMetadata<VariableNodeStateMachine, BacktestN
 pub struct VariableNodeContext {
     metadata: VariableNodeMetadata,
     node_config: VariableNodeBacktestConfig,
-    virtual_trading_system: Arc<Mutex<BacktestVts>>,
+    virtual_trading_system: Arc<BacktestVts>,
     variable_cache_value: Arc<RwLock<HashMap<(NodeId, i32, String), VariableValue>>>,
 }
 
 impl VariableNodeContext {
-    pub fn new(
-        metadata: VariableNodeMetadata,
-        node_config: VariableNodeBacktestConfig,
-        virtual_trading_system: Arc<Mutex<BacktestVts>>,
-    ) -> Self {
+    pub fn new(metadata: VariableNodeMetadata, node_config: VariableNodeBacktestConfig, virtual_trading_system: Arc<BacktestVts>) -> Self {
         Self {
             metadata,
             node_config,
