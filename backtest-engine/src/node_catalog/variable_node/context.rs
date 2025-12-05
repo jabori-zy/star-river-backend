@@ -13,7 +13,7 @@ use strategy_core::{
     node::{context_trait::NodeMetaDataExt, metadata::NodeMetadata},
     variable::custom_variable::VariableValue,
 };
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 use super::{state_machine::VariableNodeStateMachine, variable_node_type::VariableNodeBacktestConfig};
 use crate::{

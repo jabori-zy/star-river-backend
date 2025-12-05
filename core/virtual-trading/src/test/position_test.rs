@@ -4,7 +4,7 @@ mod tests {
     use star_river_core::{
         exchange::Exchange,
         order::{FuturesOrderSide, OrderType},
-        position::{PositionSide, PositionState},
+        position::PositionSide,
     };
 
     use crate::types::{VirtualOrder, VirtualPosition};
@@ -59,7 +59,7 @@ mod tests {
 
         // Verify result
         assert!(result.is_ok());
-        let (position_state, transaction) = result.unwrap();
+        let (_position_state, transaction) = result.unwrap();
 
         // Position should be fully closed
         // assert!(matches!(position_state, PositionState::Closed));

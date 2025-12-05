@@ -5,11 +5,10 @@ use chrono::{DateTime, Utc};
 use futures::{StreamExt, stream::select_all};
 use key::KeyTrait;
 use star_river_event::backtest_strategy::node_event::KlineNodeEvent;
-use tokio::sync::{broadcast, watch};
+use tokio::sync::watch;
 use tokio_stream::wrappers::BroadcastStream;
 use virtual_trading::{
     Vts, VtsContext,
-    event::VtsEvent,
     vts_trait::{VTSEventHandler, VTSEventListener, VtsCtxAccessor},
 };
 

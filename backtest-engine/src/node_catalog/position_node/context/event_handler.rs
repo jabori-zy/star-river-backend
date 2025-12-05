@@ -2,8 +2,9 @@ use async_trait::async_trait;
 use event_center::Event;
 use star_river_event::backtest_strategy::node_event::IfElseNodeEvent;
 use strategy_core::{
+    benchmark::node_benchmark::CycleTracker,
     event::node_common_event::CommonEvent,
-    node::context_trait::{NodeCommunicationExt, NodeEventHandlerExt, NodeInfoExt, NodeRelationExt},
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeInfoExt, NodeRelationExt},
 };
 use virtual_trading::event::VtsEvent;
 
@@ -31,6 +32,8 @@ impl NodeEventHandlerExt for PositionNodeContext {
         match node_event {
             BacktestNodeEvent::IfElseNode(ifelse_event) => match ifelse_event {
                 IfElseNodeEvent::CaseTrue(case_true) => {
+                    let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                    node_cycle_tracker.start_phase("handle_case_true");
                     let config_ids =
                         filter_case_trigger_configs(self.node_config.position_operations.iter(), case_true.case_id, case_true.node_id());
                     for config_id in config_ids {
@@ -49,8 +52,14 @@ impl NodeEventHandlerExt for PositionNodeContext {
                             .await?;
                         }
                     }
+                    node_cycle_tracker.end_phase("handle_case_true");
+                    let completed_tracker = node_cycle_tracker.end();
+                    self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                        .await?;
                 }
                 IfElseNodeEvent::CaseFalse(case_false) => {
+                    let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                    node_cycle_tracker.start_phase("handle_case_false");
                     let config_ids = filter_case_trigger_configs(
                         self.node_config.position_operations.iter(),
                         case_false.case_id,
@@ -71,8 +80,14 @@ impl NodeEventHandlerExt for PositionNodeContext {
                             .await?;
                         }
                     }
+                    node_cycle_tracker.end_phase("handle_case_false");
+                    let completed_tracker = node_cycle_tracker.end();
+                    self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                        .await?;
                 }
                 IfElseNodeEvent::ElseTrue(else_true) => {
+                    let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                    node_cycle_tracker.start_phase("handle_else_true");
                     let config_ids = filter_else_trigger_configs(self.node_config.position_operations.iter(), else_true.node_id());
                     for config_id in config_ids {
                         if self.is_leaf_node() {
@@ -89,8 +104,14 @@ impl NodeEventHandlerExt for PositionNodeContext {
                             .await?;
                         }
                     }
+                    node_cycle_tracker.end_phase("handle_else_true");
+                    let completed_tracker = node_cycle_tracker.end();
+                    self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                        .await?;
                 }
                 IfElseNodeEvent::ElseFalse(else_false) => {
+                    let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                    node_cycle_tracker.start_phase("handle_else_false");
                     let config_ids = filter_else_trigger_configs(self.node_config.position_operations.iter(), else_false.node_id());
                     for config_id in config_ids {
                         if self.is_leaf_node() {
@@ -107,6 +128,10 @@ impl NodeEventHandlerExt for PositionNodeContext {
                             .await?;
                         }
                     }
+                    node_cycle_tracker.end_phase("handle_else_false");
+                    let completed_tracker = node_cycle_tracker.end();
+                    self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                        .await?;
                 }
             },
             _ => return Ok(()),

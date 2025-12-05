@@ -23,7 +23,7 @@ impl LeafNodeExecutionInfo {
     }
 
     pub fn is_completed(&self) -> bool {
-        self.actual_count == self.expected_count
+        self.actual_count >= self.expected_count
     }
 
     pub fn reset(&mut self) {

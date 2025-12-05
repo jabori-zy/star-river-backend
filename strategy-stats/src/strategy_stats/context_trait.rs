@@ -2,7 +2,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use snafu::IntoError;
 use star_river_core::custom_type::{StrategyId, StrategyName};
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
 use super::{error::StrategyStatsError, metadata::StrategyStatsMetadata};

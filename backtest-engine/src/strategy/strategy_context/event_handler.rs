@@ -16,7 +16,7 @@ use strategy_core::{
         StrategyBenchmarkExt, StrategyEventHandlerExt, StrategyIdentityExt, StrategyInfoExt, StrategyVariableExt, StrategyWorkflowExt,
     },
 };
-use strategy_stats::{StrategyStatsEvent, event::StrategyStatsUpdatedEvent};
+use strategy_stats::StrategyStatsEvent;
 use virtual_trading::event::VtsEvent;
 
 use super::BacktestStrategyContext;
@@ -219,11 +219,22 @@ impl StrategyEventHandlerExt for BacktestStrategyContext {
                 CommonEvent::ExecuteOver(execute_over_event) => {
                     self.leaf_node_execution_completed(execute_over_event.node_id().clone());
                     let should_finalize = self.leaf_node_execution_tracker().is_all_completed();
-                    // tracing::debug!("{} execute over. cycle_id: {}, node_id: {}, context: {:?}", execute_over_event.node_name(), execute_over_event.cycle_id(), execute_over_event.node_id(), execute_over_event.context);
-                    // tracing::debug!("leaf node: {:?}. execution info: {:?}", self.leaf_node_execution_tracker().leaf_node_ids, self.leaf_node_execution_tracker().leaf_node_execution_info);
-                    // if should_finalize {
-                    //     tracing::debug!("should_finalize: {}", should_finalize);
-                    // }
+                    tracing::debug!("======={}=======", self.cycle_id());
+                    tracing::debug!(
+                        "{} execute over. cycle_id: {}, node_id: {}, context: {:?}",
+                        execute_over_event.node_name(),
+                        execute_over_event.cycle_id(),
+                        execute_over_event.node_id(),
+                        execute_over_event.context
+                    );
+                    tracing::debug!(
+                        "leaf node: {:?}. execution info: {:?}",
+                        self.leaf_node_execution_tracker().leaf_node_ids,
+                        self.leaf_node_execution_tracker().leaf_node_execution_info
+                    );
+                    if should_finalize {
+                        tracing::debug!("should_finalize: {}", should_finalize);
+                    }
 
                     // 第二步：如果所有叶子节点都完成，先执行清理和通知，再记录 benchmark
                     if should_finalize {

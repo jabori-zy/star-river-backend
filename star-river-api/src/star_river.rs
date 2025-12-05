@@ -40,13 +40,8 @@ impl StarRiver {
         .await;
 
         let system_config = SystemConfigQuery::get_system_config(&database.get_conn()).await.unwrap();
-        tracing::info!("system_config: {:?}", system_config);
         // 初始化时区
         SystemConfigManager::initialize_from_db(system_config);
-        // 添加这行确认
-        let config_after_init = SystemConfigManager::get_config();
-        tracing::info!("config after init: {:?}", config_after_init);
-
         let timezone = SystemConfigManager::get_timezone();
         tracing::info!("current timezone: {}", timezone);
 
@@ -71,7 +66,7 @@ async fn start_heartbeat(star_river: State<StarRiver>) {
     tokio::spawn(async move {
         let heartbeat = heartbeat.lock().await;
         heartbeat.start().await.unwrap();
-        tracing::info!("心跳已启动");
+        tracing::info!("Heartbeat started");
     });
 }
 

@@ -109,7 +109,7 @@ impl VariableNodeContext {
                 }
                 StrategyResponse::Fail { error, .. } => {
                     tracing::error!("update sys variable failed: {:?}", error);
-                    let payload = TriggerPayload::new(Some(config_id), Some("handle update sys variable failed".to_string()));
+                    let payload = TriggerPayload::new(config_id, Some("handle update sys variable failed".to_string()));
                     let trigger_event: CommonEvent = TriggerEvent::new_with_time(
                         cycle_id,
                         node_id,

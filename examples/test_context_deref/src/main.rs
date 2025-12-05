@@ -1,3 +1,4 @@
+#![allow(unused)]
 use std::{ops::Deref, sync::Arc};
 
 use tokio::sync::RwLock;

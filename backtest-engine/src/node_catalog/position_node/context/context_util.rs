@@ -37,13 +37,8 @@ impl PositionNodeContext {
         // Process with stream - same pattern as variable_node
         stream::iter(handles.iter().map(|handle| Ok::<_, PositionNodeError>(handle)))
             .try_for_each_concurrent(None, |handle| async {
-                self.send_trigger_event(
-                    handle.output_handle_id(),
-                    Some(config_id),
-                    context.clone(),
-                    Some(self.strategy_time()),
-                )
-                .await?;
+                self.send_trigger_event(handle.output_handle_id(), config_id, context.clone(), Some(self.strategy_time()))
+                    .await?;
                 Ok(())
             })
             .await?;

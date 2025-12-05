@@ -1,5 +1,5 @@
 [package]
-name = "backend"
+name = "star-river-backend"
 version.workspace = true
 description.workspace = true
 authors.workspace = true
@@ -26,3 +26,6 @@ time.workspace = true
 
 # 环境变量
 dotenvy.workspace = true
+
+# 命令行参数解析
+clap.workspace = true

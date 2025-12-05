@@ -104,7 +104,7 @@ impl KlineNodeContext {
             if self.is_leaf_node() {
                 self.send_execute_over_event(Some(symbol_info.0), context, Some(self.strategy_time()))?;
             } else {
-                self.send_trigger_event(&symbol_info.1, Some(symbol_info.0), context, Some(self.strategy_time()))
+                self.send_trigger_event(&symbol_info.1, symbol_info.0, context, Some(self.strategy_time()))
                     .await?;
             }
         }

@@ -433,7 +433,7 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
     async fn send_trigger_event(
         &self,
         handle_id: &str,
-        config_id: Option<i32>,
+        config_id: i32,
         context: Option<String>,
         datetime: Option<DateTime<Utc>>,
     ) -> Result<(), NodeError> {
@@ -472,7 +472,7 @@ pub trait NodeCommunicationExt: NodeMetaDataExt + NodeInfoExt + NodeRelationExt 
 
     async fn default_output_handle_send_trigger_event(
         &self,
-        config_id: Option<i32>,
+        config_id: i32,
         context: Option<String>,
         datetime: Option<DateTime<Utc>>,
     ) -> Result<(), NodeError> {

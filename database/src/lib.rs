@@ -9,6 +9,9 @@ use log::LevelFilter;
 use migration::Migrator;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
 use sea_orm_migration::MigratorTrait;
+use snafu::{IntoError, ResultExt};
+
+use crate::error::{DatabaseError, DirCreateFailedSnafu, HomeDirNotFoundSnafu, WorkDirNotFoundSnafu};
 
 #[derive(Debug)]
 pub struct DatabaseManager {
@@ -63,7 +66,7 @@ impl DatabaseManager {
     }
 
     // 获取数据库路径
-    fn get_database_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    fn get_database_path() -> Result<PathBuf, DatabaseError> {
         // 在开发模式下，数据库文件位于工作目录
         #[cfg(debug_assertions)]
         {
@@ -74,26 +77,50 @@ impl DatabaseManager {
 
             // 检查是否存在db目录,如果没有则创建
             if !db_path.exists() {
-                std::fs::create_dir_all(&db_path)?;
+                std::fs::create_dir_all(&db_path).context(DirCreateFailedSnafu {
+                    dir: db_path.display().to_string(),
+                })?;
             }
 
             Ok(db_path)
         }
         #[cfg(not(debug_assertions))]
         {
-            let exe_path = env::current_exe()?;
-            tracing::info!("exe path: {}", exe_path.display());
-            let db_path = exe_path
-                .parent()
-                .ok_or("无法获取可执行文件所在目录")?
-                .to_path_buf();
-            tracing::info!("prod environment database path: {}", db_path.display());
-            Ok(db_path)
+            #[cfg(target_os = "macos")]
+            {
+                Self::get_darwin_database_path()
+            }
         }
     }
 
-    // 查找 workspace 根目录
-    fn find_workspace_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    /// 获取 macOS 系统下的数据库路径
+    /// 数据库存放在 ~/Library/Application Support/StarRiver/ 目录下
+    /// 避免应用更新时覆盖用户
+    #[allow(unused)]
+    #[cfg(target_os = "macos")]
+    fn get_darwin_database_path() -> Result<PathBuf, DatabaseError> {
+        let home_dir = env::var("HOME").context(HomeDirNotFoundSnafu {})?;
+
+        let app_support_path = PathBuf::from(home_dir)
+            .join("Library")
+            .join("Application Support")
+            .join("Star River")
+            .join("app_data");
+
+        // 如果目录不存在则创建
+        if !app_support_path.exists() {
+            use crate::error::DirCreateFailedSnafu;
+            std::fs::create_dir_all(&app_support_path).context(DirCreateFailedSnafu {
+                dir: app_support_path.display().to_string(),
+            })?;
+        }
+
+        tracing::info!("macOS database path: {}", app_support_path.display());
+        Ok(app_support_path)
+    }
+
+    // find workspace root directory
+    fn find_workspace_root() -> Result<PathBuf, DatabaseError> {
         // 先尝试从 CARGO_MANIFEST_DIR 向上查找（编译时）
         if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
             let mut current = PathBuf::from(manifest_dir);
@@ -110,7 +137,7 @@ impl DatabaseManager {
         }
 
         // 如果上面失败，使用当前工作目录向上查找
-        let mut current = env::current_dir()?;
+        let mut current = env::current_dir().context(WorkDirNotFoundSnafu {})?;
         loop {
             let cargo_toml = current.join("Cargo.toml");
             if cargo_toml.exists() {
@@ -125,12 +152,10 @@ impl DatabaseManager {
                 None => break,
             }
         }
-
-        // 如果都找不到，返回当前工作目录
-        env::current_dir().map_err(|e| e.into())
+        return Err(WorkDirNotFoundSnafu {}.into_error(std::io::Error::new(std::io::ErrorKind::NotFound, "work directory not found")));
     }
 
-    // 检查 Cargo.toml 是否包含 workspace 配置
+    // check if Cargo.toml contains workspace configuration
     fn is_workspace_root(cargo_toml: &PathBuf) -> bool {
         if let Ok(content) = std::fs::read_to_string(cargo_toml) {
             content.contains("[workspace]")

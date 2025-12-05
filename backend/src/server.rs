@@ -13,7 +13,7 @@ use tracing_subscriber::{
 };
 
 /// 初始化日志系统
-pub fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
+pub fn init_logging(stdout_level: tracing::Level) -> Result<(), Box<dyn std::error::Error>> {
     // 确保log目录存在
     let log_dir = Path::new("logs");
     if !log_dir.exists() {
@@ -22,7 +22,7 @@ pub fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
 
     let file_appender = RollingFileAppender::new(Rotation::DAILY, log_dir, "star-river.log");
     let (non_blocking_appender, _guard) = tracing_appender::non_blocking(file_appender);
-    let stdout = std::io::stdout.with_max_level(tracing::Level::INFO);
+    let stdout = std::io::stdout.with_max_level(stdout_level);
     let filter = EnvFilter::new("debug,hyper=error,hyper_util=error,reqwest=error");
 
     // 设置本地时区
@@ -202,9 +202,9 @@ fn print_startup_info(addr: SocketAddr) {
     let port = addr.port();
     let base_url = format!("http://{}:{}", host, port);
 
-    tracing::info!("🚀 Star River 启动成功!");
-    tracing::info!("📡 服务地址: {}", addr);
-    tracing::info!("📚 API 文档: {}/docs", base_url);
+    tracing::info!("🚀 Star River Server");
+    tracing::info!("📡 Server address: {}", addr);
+    tracing::info!("📚 API documentation: {}/docs", base_url);
     tracing::info!("🔗 OpenAPI:  {}/api-docs/openapi.json", base_url);
-    tracing::info!("按 Ctrl+C 停止服务\n");
+    tracing::info!("Press Ctrl+C to stop the service\n");
 }

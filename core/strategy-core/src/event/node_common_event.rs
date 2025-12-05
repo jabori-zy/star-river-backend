@@ -71,12 +71,12 @@ pub type ExecuteOverEvent = NodeEvent<ExecuteOverPayload>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerPayload {
-    pub config_id: Option<i32>,
+    pub config_id: i32,
     pub context: Option<String>,
 }
 
 impl TriggerPayload {
-    pub fn new(config_id: Option<i32>, context: Option<String>) -> Self {
+    pub fn new(config_id: i32, context: Option<String>) -> Self {
         Self { config_id, context }
     }
 }

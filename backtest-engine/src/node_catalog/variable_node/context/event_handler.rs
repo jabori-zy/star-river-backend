@@ -4,6 +4,7 @@ use futures::{TryStreamExt, stream};
 use star_river_event::backtest_strategy::node_event::{IfElseNodeEvent, IndicatorNodeEvent, KlineNodeEvent};
 use strategy_core::{
     benchmark::node_benchmark::CycleTracker,
+    event::node_common_event::CommonEvent,
     node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeInfoExt, NodeRelationExt},
     node_infra::variable_node::trigger::dataflow::DataFlow,
 };
@@ -67,7 +68,13 @@ impl NodeEventHandlerExt for VariableNodeContext {
                             .try_for_each_concurrent(None, |config| async {
                                 self.send_trigger_event(
                                     &config.output_handle_id(),
-                                    Some(config.confing_id()),
+                                    config.confing_id(),
+                                    Some("handle case false event for variable node".to_string()),
+                                    Some(self.strategy_time()),
+                                )
+                                .await?;
+                                self.default_output_handle_send_trigger_event(
+                                    config.confing_id(),
                                     Some("handle case false event for variable node".to_string()),
                                     Some(self.strategy_time()),
                                 )
@@ -75,12 +82,6 @@ impl NodeEventHandlerExt for VariableNodeContext {
                                 Ok(())
                             })
                             .await?;
-                        self.default_output_handle_send_trigger_event(
-                            None,
-                            Some("handle case false event for variable node".to_string()),
-                            Some(self.strategy_time()),
-                        )
-                        .await?;
 
                         Ok(())
                     }
@@ -117,7 +118,13 @@ impl NodeEventHandlerExt for VariableNodeContext {
                             .try_for_each_concurrent(None, |config| async {
                                 self.send_trigger_event(
                                     &config.output_handle_id(),
-                                    Some(config.confing_id()),
+                                    config.confing_id(),
+                                    Some("handle case true event for variable node".to_string()),
+                                    Some(self.strategy_time()),
+                                )
+                                .await?;
+                                self.default_output_handle_send_trigger_event(
+                                    config.confing_id(),
                                     Some("handle case true event for variable node".to_string()),
                                     Some(self.strategy_time()),
                                 )
@@ -125,12 +132,6 @@ impl NodeEventHandlerExt for VariableNodeContext {
                                 Ok(())
                             })
                             .await?;
-                        self.default_output_handle_send_trigger_event(
-                            None,
-                            Some("handle case true event for variable node".to_string()),
-                            Some(self.strategy_time()),
-                        )
-                        .await?;
 
                         node_cycle_tracker.end_phase("handle_condition_trigger");
                         let completed_tracker = node_cycle_tracker.end();
@@ -172,6 +173,51 @@ impl NodeEventHandlerExt for VariableNodeContext {
                 let completed_tracker = node_cycle_tracker.end();
                 self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
                     .await?;
+                Ok(())
+            }
+            BacktestNodeEvent::Common(CommonEvent::Trigger(trigger_event)) => {
+                let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                node_cycle_tracker.start_phase("handle_trigger_event");
+                let configs = filter_dataflow_trigger_configs(
+                    self.node_config.variable_configs.iter(),
+                    trigger_event.node_id(),
+                    trigger_event.config_id,
+                );
+
+                if self.is_leaf_node() {
+                    configs.iter().try_for_each(|config| {
+                        self.send_execute_over_event(
+                            Some(config.confing_id()),
+                            Some("handle case true event for variable node".to_string()),
+                            Some(self.strategy_time()),
+                        )
+                    })?;
+                    return Ok(());
+                }
+
+                stream::iter(configs.iter().map(|config| Ok::<_, VariableNodeError>(config)))
+                    .try_for_each_concurrent(None, |config| async {
+                        self.send_trigger_event(
+                            &config.output_handle_id(),
+                            config.confing_id(),
+                            Some("handle case true event for variable node".to_string()),
+                            Some(self.strategy_time()),
+                        )
+                        .await?;
+                        self.default_output_handle_send_trigger_event(
+                            config.confing_id(),
+                            Some("handle case true event for variable node".to_string()),
+                            Some(self.strategy_time()),
+                        )
+                        .await?;
+                        Ok(())
+                    })
+                    .await?;
+                node_cycle_tracker.end_phase("handle_trigger_event");
+                let completed_tracker = node_cycle_tracker.end();
+                self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                    .await?;
+
                 Ok(())
             }
             _ => Ok(()),

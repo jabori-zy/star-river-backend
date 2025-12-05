@@ -88,6 +88,7 @@ enum_dispatch = "0.3.13"
 derive_more = { version = "2.0.1", features = ["from"] }
 log = "0.4.28"
 dotenvy = "0.15.7"
+clap = { version = "4.5.53", features = ["derive"] }
 
 
 

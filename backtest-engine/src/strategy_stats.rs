@@ -4,19 +4,11 @@ mod event_listener;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use star_river_core::{
-    custom_type::{Balance, StrategyId, StrategyName},
-    system::DateTimeUtc,
-};
+use star_river_core::custom_type::{StrategyId, StrategyName};
 use strategy_stats::strategy_stats::StrategyStatsAccessor;
-use tokio::sync::{Mutex, RwLock, broadcast, watch};
-use tokio_stream::{StreamExt, wrappers::BroadcastStream};
-use tokio_util::sync::CancellationToken;
-use virtual_trading::{Vts, context::VtsContext, event::VtsEvent};
+use tokio::sync::{RwLock, watch};
 
 use crate::{strategy_stats::context::BacktestStrategyStatsContext, virtual_trading_system::BacktestVts};
-
-// T: VirtualTradingSystem
 
 #[derive(Debug)]
 pub struct BacktestStrategyStats {

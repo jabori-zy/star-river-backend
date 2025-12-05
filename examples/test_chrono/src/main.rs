@@ -1,3 +1,4 @@
+#![allow(unused)]
 use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
 
 fn main() {

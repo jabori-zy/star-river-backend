@@ -110,6 +110,7 @@ impl VariableNodeContext {
 
                     _ => VariableValue::Null,
                 };
+                tracing::debug!("value: {:?}", value);
 
                 let error_policy = dataflow_trigger.error_policy.clone();
 
@@ -129,7 +130,7 @@ impl VariableNodeContext {
                         } else {
                             self.send_trigger_event(
                                 &output_handle_id,
-                                Some(config.config_id()),
+                                config.config_id(),
                                 Some("handle dataflow trigger".to_string()),
                                 Some(self.strategy_time()),
                             )
@@ -313,6 +314,7 @@ impl VariableNodeContext {
                         .into();
                         strategy_output_handle_clone.send(var_event.clone().into())?;
                         if is_leaf_node {
+                            tracing::debug!("is_leaf_node: true");
                             let payload = ExecuteOverPayload::new(Some(config_id), Some("handle update variable".to_string()));
                             let execute_over_event: CommonEvent = ExecuteOverEvent::new_with_time(
                                 cycle_id,
@@ -323,6 +325,7 @@ impl VariableNodeContext {
                                 payload,
                             )
                             .into();
+                            tracing::debug!("execute_over_event: {:?}", execute_over_event);
                             strategy_output_handle_clone.send(execute_over_event.into())?;
                         } else {
                             output_handle.send(var_event.into())?;
@@ -330,7 +333,7 @@ impl VariableNodeContext {
                     }
                     StrategyResponse::Fail { error, .. } => {
                         tracing::error!("update_variable failed: {:?}", error);
-                        let payload = TriggerPayload::new(Some(config_id), Some("handle update variable failed".to_string()));
+                        let payload = TriggerPayload::new(config_id, Some("handle update variable failed".to_string()));
                         let trigger_event: CommonEvent = TriggerEvent::new_with_time(
                             cycle_id,
                             node_id_clone,
@@ -430,7 +433,7 @@ impl VariableNodeContext {
                     }
                     StrategyResponse::Fail { error, .. } => {
                         tracing::error!("reset_variable failed: {:?}", error);
-                        let payload = TriggerPayload::new(Some(config_id), Some("handle reset variable failed".to_string()));
+                        let payload = TriggerPayload::new(config_id, Some("handle reset variable failed".to_string()));
                         let trigger_event: CommonEvent = TriggerEvent::new_with_time(
                             cycle_id,
                             node_id_clone,

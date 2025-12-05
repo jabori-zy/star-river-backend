@@ -112,18 +112,16 @@ impl IndicatorNodeContext {
                 indicator_update_event.into()
             };
 
-            // 渠道1: 发送到策略绑定输出句柄
             let strategy_output_handle = self.strategy_bound_handle();
             let event = generate_event(strategy_output_handle.output_handle_id().clone());
             self.strategy_bound_handle_send(event)?;
 
-            // 渠道2: 根据节点类型发送到符号特定输出句柄
             if self.is_leaf_node() {
                 self.send_execute_over_event(Some(*config_id), context, Some(self.strategy_time()))?;
             } else {
                 let event = generate_event(handle_id.clone());
                 self.output_handle_send(event)?;
-                // 渠道3: 发送到默认输出句柄
+
                 let default_output_handle = self.default_output_handle()?;
                 let event = generate_event(default_output_handle.output_handle_id().clone());
                 self.default_output_handle_send(event)?;
@@ -132,7 +130,7 @@ impl IndicatorNodeContext {
             if self.is_leaf_node() {
                 self.send_execute_over_event(Some(*config_id), context, Some(self.strategy_time()))?;
             } else {
-                self.send_trigger_event(&handle_id, Some(*config_id), context, Some(self.strategy_time()))
+                self.send_trigger_event(&handle_id, *config_id, context, Some(self.strategy_time()))
                     .await?;
             }
         }

@@ -7,7 +7,7 @@ use snafu::ResultExt;
 use star_river_core::custom_type::StrategyId;
 use star_river_event::backtest_strategy::strategy_event::{BacktestStrategyEvent, PlayFinishedEvent};
 use strategy_core::{
-    benchmark::{StrategyBenchmark, strategy_benchmark::StrategyCycleTracker},
+    benchmark::strategy_benchmark::StrategyCycleTracker,
     error::strategy_error::NodeCmdRespRecvFailedSnafu,
     node::NodeTrait,
     strategy::{
@@ -48,7 +48,6 @@ struct PlayContext {
     initial_play_speed: Arc<RwLock<u32>>,
     child_cancel_play_token: CancellationToken,
     execute_over_notify: Arc<Notify>,
-    strategy_benchmark: Arc<RwLock<StrategyBenchmark>>,
     cycle_tracker: Arc<RwLock<Option<StrategyCycleTracker>>>,
     signal_generator: Arc<Mutex<SignalGenerator>>,
     current_time_watch_tx: watch::Sender<DateTime<Utc>>,
@@ -77,7 +76,6 @@ impl BacktestStrategyContext {
             initial_play_speed: self.initial_play_speed.clone(),
             child_cancel_play_token: self.cancel_play_token.child_token(),
             execute_over_notify: self.execute_over_notify.clone(),
-            strategy_benchmark: self.benchmark().clone(),
             cycle_tracker: self.cycle_tracker().clone(),
             signal_generator: self.signal_generator.clone(),
             current_time_watch_tx: self.strategy_time_watch_tx().clone(),

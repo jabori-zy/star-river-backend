@@ -25,14 +25,7 @@ impl FuturesOrderNodeContext {
         let futures = all_output_handles
             .values()
             .filter(|handle| handle.config_id() == config_id)
-            .map(|handle| {
-                self.send_trigger_event(
-                    handle.output_handle_id(),
-                    Some(config_id),
-                    context.clone(),
-                    Some(self.strategy_time()),
-                )
-            });
+            .map(|handle| self.send_trigger_event(handle.output_handle_id(), config_id, context.clone(), Some(self.strategy_time())));
 
         futures::future::try_join_all(futures).await?;
         Ok(())
