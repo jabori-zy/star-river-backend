@@ -1,0 +1,27 @@
+[package]
+name = "engine-core"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+event-center = { path = "../../event-center" }
+star-river-core = { path = "../star-river-core" }
+serde.workspace = true
+serde_json.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+futures.workspace = true
+tokio-stream.workspace = true
+tracing.workspace = true
+futures-util.workspace = true
+snafu.workspace = true
+
+
+
+[lints]
+workspace = true

@@ -1,0 +1,48 @@
+[package]
+name = "star-river-api"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+axum.workspace = true
+axum-extra.workspace = true
+headers.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tower-http.workspace = true
+futures-util.workspace = true
+futures.workspace = true
+sea-orm.workspace = true
+chrono.workspace = true
+time.workspace = true
+async-stream.workspace = true
+utoipa.workspace = true
+utoipa-scalar = {version="0.3", features=["axum"]}
+strum.workspace = true
+snafu.workspace = true
+chrono-tz.workspace = true
+heartbeat = { path = "../core/heartbeat" }
+star-river-core = { path = "../core/star-river-core" }
+star-river-event = { path = "../star-river-event" }
+database = { path = "../database" }
+migration = { path = "../core/migration" }
+exchange-engine = { path = "../exchange-engine" }
+market-engine = { path = "../market-engine" }
+backtest-engine = { path = "../backtest-engine" }
+engine-core = { path = "../core/engine-core" }
+event-center = { path = "../event-center" }
+strategy-core = { path = "../core/strategy-core" }
+key = { path = "../core/key" }
+virtual-trading = { path = "../core/virtual-trading" }
+strategy-stats = { path = "../strategy-stats" }
+exchange-core = { path = "../core/exchange-core" }
+indicator-engine = { path = "../indicator-engine" }
+
+

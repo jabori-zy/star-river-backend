@@ -1,0 +1,22 @@
+[package]
+name = "market-engine"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+engine-core = { path = "../core/engine-core" }
+event-center = { path = "../event-center" }
+star-river-core = { path = "../core/star-river-core" }
+exchange-engine = { path = "../exchange-engine" }
+star-river-event = { path = "../star-river-event" }
+key = { path = "../core/key" }
+strategy-core = { path = "../core/strategy-core" }
+tokio.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+snafu.workspace = true
+
+[lints]
+workspace = true

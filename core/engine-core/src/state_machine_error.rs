@@ -1,0 +1,42 @@
+use snafu::{Backtrace, Snafu};
+use star_river_core::error::{ErrorCode, ErrorLanguage, StarRiverErrorTrait};
+
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub))]
+pub enum EngineStateMachineError {
+    #[snafu(display("fail to transfer engine state, run_state: {run_state}, trans_trigger: {trans_trigger}"))]
+    EngineTransition {
+        run_state: String,
+        trans_trigger: String,
+        backtrace: Backtrace,
+    },
+}
+
+// Implement the StarRiverErrorTrait for BacktestNodeStateMachineError
+impl StarRiverErrorTrait for EngineStateMachineError {
+    fn get_prefix(&self) -> &'static str {
+        "ENGINE_STATE_MACHINE"
+    }
+
+    fn error_code(&self) -> ErrorCode {
+        let prefix = self.get_prefix();
+        let code = match self {
+            EngineStateMachineError::EngineTransition { .. } => 1001,
+        };
+
+        format!("{}_{:04}", prefix, code)
+    }
+
+    fn error_message(&self, language: ErrorLanguage) -> String {
+        match language {
+            ErrorLanguage::English => self.to_string(),
+            ErrorLanguage::Chinese => match self {
+                EngineStateMachineError::EngineTransition {
+                    run_state, trans_trigger, ..
+                } => {
+                    format!("State transition failed, run state: {}, trigger event: {}", run_state, trans_trigger)
+                }
+            },
+        }
+    }
+}

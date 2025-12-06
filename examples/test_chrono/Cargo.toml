@@ -1,0 +1,10 @@
+[package]
+name = "test_chrono"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono.workspace = true
+chrono-tz.workspace = true

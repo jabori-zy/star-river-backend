@@ -1,0 +1,21 @@
+[package]
+name = "exchange-core"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["sync"] }
+star-river-core = { path = "../star-river-core" }
+strategy-core = { path = "../strategy-core" }
+
+serde.workspace = true
+strum.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+snafu.workspace = true
+
+
+[lints]
+workspace = true

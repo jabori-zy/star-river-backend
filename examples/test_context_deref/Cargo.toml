@@ -1,0 +1,12 @@
+[package]
+name = "test_context_deref"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+
+[lints]
+workspace = true

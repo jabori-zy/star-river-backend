@@ -1,0 +1,332 @@
+#[macro_export]
+macro_rules! talib_fn {
+    (
+        $indicator_name:ident,
+        datetime => ($datetime_field:ident: $datetime_type:ty),
+        input => [($input_field:ident: $input_type:ty)], // Single input
+        talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?],
+        output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
+    ) => {
+        paste::paste! {
+            pub fn [<$indicator_name:lower>]($datetime_field: $datetime_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, crate::error::TaLibError> {
+                let input_size = $input_field.len();
+                let lookback = unsafe {
+                    [<TA_ $indicator_name:upper _Lookback>]
+                    (
+                        $($param_field),*
+                    ) as usize
+                };
+                if input_size <= lookback {
+                    return Err(crate::error::DataLessThenLookbackSnafu {
+                        indicator_name: stringify!($indicator_name).to_string(),
+                        lookback,
+                        data_length: input_size,
+                    }.build());
+                }
+
+                let ($([<out_ $output_name>],)*) = crate::execute_talib_function!(
+                    $indicator_name,
+                    input_size,
+                    lookback,
+                    [$input_field],
+                    [$($param_field),*],
+                    [$($output_name: $output_type),*]
+                );
+
+                let result: Vec<Indicator> = (0..input_size)
+                    .map(|i| $indicator_name {
+                        datetime: $datetime_field[i],
+                        $(
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
+                        )*
+                    }.into())
+                    .collect();
+
+                Ok(result)
+            }
+        }
+    };
+
+    (
+        $indicator_name:ident,
+        datetime => ($datetime_field:ident: $datetime_type:ty),
+        input => [$(($input_field:ident: $input_type:ty)),* $(,)?], // Multiple inputs
+        talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?],
+        output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
+    ) => {
+        paste::paste! {
+            pub fn [<$indicator_name:lower>](
+                $datetime_field: $datetime_type,
+                $($input_field: $input_type,)*
+                $($param_field: $param_type),*
+            ) -> Result<Vec<Indicator>, crate::error::TaLibError> {
+
+                let mut input_size = Vec::new();
+                // Calculate the length of each input
+                $(
+                    input_size.push($input_field.len());
+                )*
+
+                // Check if all list elements have equal length
+                let first_size = &input_size[0];
+                for size in &input_size {
+                    if size != first_size {
+                        return Err(crate::error::DataLengthNotEqualSnafu {
+                            data_length: input_size.clone(),
+                        }.build());
+                    }
+                }
+
+                // If all equal, take the first value to compare with lookback
+                let input_size = input_size[0];
+
+                let lookback = unsafe {
+                    [<TA_ $indicator_name:upper _Lookback>]
+                    (
+                        $($param_field),*
+                    ) as usize
+                };
+
+                if input_size <= lookback {
+                    return Err(crate::error::DataLessThenLookbackSnafu {
+                        indicator_name: stringify!($indicator_name).to_string(),
+                        lookback,
+                        data_length: input_size,
+                    }.build());
+                }
+
+                let ($([<out_ $output_name>],)*) = crate::execute_talib_function!(
+                    $indicator_name,
+                    input_size,
+                    lookback,
+                    [$($input_field),*],
+                    [$($param_field),*],
+                    [$($output_name: $output_type),*]
+                );
+
+                let result: Vec<Indicator> = (0..input_size)
+                    .map(|i| $indicator_name {
+                        datetime: $datetime_field[i],
+                        $(
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
+                        )*
+                    }.into())
+                    .collect();
+
+                Ok(result)
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! talib_snake_fn {
+    (
+        $indicator_name:ident,
+        datetime => ($datetime_field:ident: $datetime_type:ty),
+        input => [($input_field:ident: $input_type:ty)],
+        talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?],
+        output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
+    ) => {
+        paste::paste! {
+            pub fn [<$indicator_name:snake:lower>]($datetime_field: $datetime_type, $input_field: $input_type, $($param_field: $param_type),*) -> Result<Vec<Indicator>, crate::error::TaLibError> {
+                let input_size = $input_field.len();
+                let lookback = unsafe {
+                    [<TA_ $indicator_name:snake:upper _Lookback>]
+                    (
+                        $($param_field),*
+                    ) as usize
+                };
+                if input_size <= lookback {
+                    return Err(crate::error::DataLessThenLookbackSnafu {
+                        indicator_name: stringify!($indicator_name).to_string(),
+                        lookback,
+                        data_length: input_size,
+                    }.build());
+                }
+
+                let ($([<out_ $output_name>],)*) = crate::execute_talib_function_snake!(
+                    $indicator_name,
+                    input_size,
+                    lookback,
+                    [$input_field],
+                    [$($param_field),*],
+                    [$($output_name: $output_type),*]
+                );
+
+                let result: Vec<Indicator> = (0..input_size)
+                    .map(|i| $indicator_name {
+                        datetime: $datetime_field[i],
+                        $(
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
+                        )*
+                    }.into())
+                    .collect();
+
+                Ok(result)
+            }
+        }
+    };
+
+    (
+        $indicator_name:ident,
+        datetime => ($datetime_field:ident: $datetime_type:ty),
+        input => [$(($input_field:ident: $input_type:ty)),* $(,)?],
+        talib_params => [$(($param_field:ident: $param_type:ty)),* $(,)?],
+        output => [$(($output_name:ident: $output_type:ty)),* $(,)?],
+    ) => {
+        paste::paste! {
+            pub fn [<$indicator_name:snake:lower>](
+                $datetime_field: $datetime_type,
+                $($input_field: $input_type,)*
+                $($param_field: $param_type),*
+            ) -> Result<Vec<Indicator>, crate::error::TaLibError> {
+
+                let mut input_size = Vec::new();
+                // Calculate the length of each input
+                $(
+                    input_size.push($input_field.len());
+                )*
+
+                // Check if all list elements have equal length
+                let first_size = &input_size[0];
+                for size in &input_size {
+                    if size != first_size {
+                        return Err(crate::error::DataLengthNotEqualSnafu {
+                            data_length: input_size.clone(),
+                        }.build());
+                    }
+                }
+
+                // If all equal, take the first value to compare with lookback
+                let input_size = input_size[0];
+
+                let lookback = unsafe {
+                    [<TA_ $indicator_name:snake:upper _Lookback>]
+                    (
+                        $($param_field),*
+                    ) as usize
+                };
+
+                if input_size <= lookback {
+                    return Err(crate::error::DataLessThenLookbackSnafu {
+                        indicator_name: stringify!($indicator_name).to_string(),
+                        lookback,
+                        data_length: input_size,
+                    }.build());
+                }
+
+                let ($([<out_ $output_name>],)*) = crate::execute_talib_function_snake!(
+                    $indicator_name,
+                    input_size,
+                    lookback,
+                    [$($input_field),*],
+                    [$($param_field),*],
+                    [$($output_name: $output_type),*]
+                );
+
+                let result: Vec<Indicator> = (0..input_size)
+                    .map(|i| $indicator_name {
+                        datetime: $datetime_field[i],
+                        $(
+                            $output_name: if i < lookback { None } else { Some([<out_ $output_name>][i]) },
+                        )*
+                    }.into())
+                    .collect();
+
+                Ok(result)
+            }
+        }
+    };
+}
+
+// Internal macro: Common logic for handling TA-Lib function calls and error handling
+#[macro_export]
+macro_rules! execute_talib_function {
+    (
+        $indicator_name:ident,
+        $input_size:expr,
+        $lookback:expr,
+        [$($input_field:ident),*],
+        [$($param_field:ident),*],
+        [$($output_name:ident: $output_type:ty),*]
+    ) => {{
+        paste::paste! {
+            let mut out_begin_index = 0;
+            let mut out_number_elements = 0;
+            $(
+                let mut [<out_ $output_name>]: Vec<$output_type> = vec![$output_type::default(); $input_size];
+            )*
+
+            let ret = unsafe {
+                [<TA_ $indicator_name:upper>]
+                (
+                    0,
+                    ($input_size - 1) as i32,
+                    $(
+                        $input_field.as_ptr(),
+                    )*
+                    $($param_field,)*
+                    &mut out_begin_index,
+                    &mut out_number_elements,
+                    $(
+                        [<out_ $output_name>].as_mut_ptr().add($lookback),
+                    )*
+                )
+            };
+
+            if ret != TA_RetCode_TA_SUCCESS {
+                return Err(crate::error::TalibErrorCodeSnafu {
+                    ret_code: ret,
+                }.build());
+            }
+
+            ($(([<out_ $output_name>]),)*)
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! execute_talib_function_snake {
+    (
+        $indicator_name:ident,
+        $input_size:expr,
+        $lookback:expr,
+        [$($input_field:ident),*],
+        [$($param_field:ident),*],
+        [$($output_name:ident: $output_type:ty),*]
+    ) => {{
+        paste::paste! {
+            let mut out_begin_index = 0;
+            let mut out_number_elements = 0;
+            $(
+                let mut [<out_ $output_name>]: Vec<$output_type> = vec![$output_type::default(); $input_size];
+            )*
+
+            let ret = unsafe {
+                [<TA_ $indicator_name:snake:upper>]
+                (
+                    0,
+                    ($input_size - 1) as i32,
+                    $(
+                        $input_field.as_ptr(),
+                    )*
+                    $($param_field,)*
+                    &mut out_begin_index,
+                    &mut out_number_elements,
+                    $(
+                        [<out_ $output_name>].as_mut_ptr().add($lookback),
+                    )*
+                )
+            };
+
+            if ret != TA_RetCode_TA_SUCCESS {
+                return Err(crate::error::TalibErrorCodeSnafu {
+                    ret_code: ret,
+                }.build());
+            }
+
+            ($(([<out_ $output_name>]),)*)
+        }
+    }};
+}

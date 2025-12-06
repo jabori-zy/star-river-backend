@@ -1,0 +1,31 @@
+[package]
+name = "star-river-backend"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+# 核心库
+star-river-api = { path = "../star-river-api" }
+
+# Axum 和 Web 框架
+axum.workspace = true
+tower-http.workspace = true
+
+# 异步运行时
+tokio.workspace = true
+
+# 日志和追踪
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
+
+# 时间处理
+time.workspace = true
+
+# 环境变量
+dotenvy.workspace = true
+
+# 命令行参数解析
+clap.workspace = true

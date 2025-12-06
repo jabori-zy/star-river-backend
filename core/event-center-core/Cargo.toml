@@ -1,0 +1,19 @@
+[package]
+name = "event-center-core"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+star-river-core = { path = "../star-river-core" }
+tokio.workspace = true
+chrono.workspace = true
+serde.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+snafu.workspace = true
+
+
+[lints]
+workspace = true

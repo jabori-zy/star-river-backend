@@ -1,0 +1,239 @@
+use async_trait::async_trait;
+use event_center::Event;
+use futures::{TryStreamExt, stream};
+use star_river_event::backtest_strategy::node_event::{IfElseNodeEvent, IndicatorNodeEvent, KlineNodeEvent};
+use strategy_core::{
+    benchmark::node_benchmark::CycleTracker,
+    event::node_common_event::CommonEvent,
+    node::context_trait::{NodeBenchmarkExt, NodeCommunicationExt, NodeEventHandlerExt, NodeInfoExt, NodeRelationExt},
+    node_infra::variable_node::trigger::dataflow::DataFlow,
+};
+
+use super::{
+    VariableNodeContext,
+    config_filter::{filter_case_trigger_configs, filter_dataflow_trigger_configs, filter_else_trigger_configs},
+};
+use crate::node::{
+    node_command::{BacktestNodeCommand, NodeResetRespPayload, NodeResetResponse},
+    node_error::VariableNodeError,
+    node_event::BacktestNodeEvent,
+};
+
+#[async_trait]
+impl NodeEventHandlerExt for VariableNodeContext {
+    type EngineEvent = Event;
+
+    async fn handle_engine_event(&mut self, _event: Self::EngineEvent) -> Result<(), VariableNodeError> {
+        Ok(())
+    }
+
+    async fn handle_source_node_event(&mut self, node_event: BacktestNodeEvent) -> Result<(), VariableNodeError> {
+        match node_event {
+            BacktestNodeEvent::IfElseNode(if_else_node_event) => {
+                match if_else_node_event {
+                    IfElseNodeEvent::CaseTrue(case_true) => {
+                        let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                        node_cycle_tracker.start_phase("handle_condition_trigger");
+                        // Filter variable configurations with matching condition trigger case ID
+                        let configs =
+                            filter_case_trigger_configs(self.node_config.variable_configs.iter(), case_true.case_id, case_true.node_id());
+                        self.handle_condition_trigger(&configs).await?;
+                        node_cycle_tracker.end_phase("handle_condition_trigger");
+                        let completed_tracker = node_cycle_tracker.end();
+                        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                            .await?;
+                        Ok(())
+                    }
+                    IfElseNodeEvent::CaseFalse(case_false) => {
+                        // tracing::debug!(
+                        //     "@[{}] receive case false event for case {}",
+                        //     self.node_name(),
+                        //     case_false_event.case_id
+                        // );
+                        let configs =
+                            filter_case_trigger_configs(self.node_config.variable_configs.iter(), case_false.case_id, case_false.node_id());
+
+                        if self.is_leaf_node() {
+                            configs.iter().try_for_each(|config| {
+                                self.send_execute_over_event(
+                                    Some(config.confing_id()),
+                                    Some("handle case false event for variable node".to_string()),
+                                    Some(self.strategy_time()),
+                                )
+                            })?;
+                            return Ok(());
+                        }
+
+                        stream::iter(configs.iter().map(|config| Ok::<_, VariableNodeError>(config)))
+                            .try_for_each_concurrent(None, |config| async {
+                                self.send_trigger_event(
+                                    &config.output_handle_id(),
+                                    config.confing_id(),
+                                    Some("handle case false event for variable node".to_string()),
+                                    Some(self.strategy_time()),
+                                )
+                                .await?;
+                                self.default_output_handle_send_trigger_event(
+                                    config.confing_id(),
+                                    Some("handle case false event for variable node".to_string()),
+                                    Some(self.strategy_time()),
+                                )
+                                .await?;
+                                Ok(())
+                            })
+                            .await?;
+
+                        Ok(())
+                    }
+                    IfElseNodeEvent::ElseTrue(else_true) => {
+                        let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                        node_cycle_tracker.start_phase("handle_condition_trigger");
+                        // Filter variable configurations for else trigger
+                        let configs = filter_else_trigger_configs(self.node_config.variable_configs.iter(), else_true.node_id());
+                        self.handle_condition_trigger(&configs).await?;
+                        node_cycle_tracker.end_phase("handle_condition_trigger");
+                        let completed_tracker = node_cycle_tracker.end();
+                        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                            .await?;
+                        Ok(())
+                    }
+                    IfElseNodeEvent::ElseFalse(else_false) => {
+                        let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                        node_cycle_tracker.start_phase("handle_condition_trigger");
+                        // Filter variable configurations for else trigger
+                        let configs = filter_else_trigger_configs(self.node_config.variable_configs.iter(), else_false.node_id());
+
+                        if self.is_leaf_node() {
+                            configs.iter().try_for_each(|config| {
+                                self.send_execute_over_event(
+                                    Some(config.confing_id()),
+                                    Some("handle case true event for variable node".to_string()),
+                                    Some(self.strategy_time()),
+                                )
+                            })?;
+                            return Ok(());
+                        }
+
+                        stream::iter(configs.iter().map(|config| Ok::<_, VariableNodeError>(config)))
+                            .try_for_each_concurrent(None, |config| async {
+                                self.send_trigger_event(
+                                    &config.output_handle_id(),
+                                    config.confing_id(),
+                                    Some("handle case true event for variable node".to_string()),
+                                    Some(self.strategy_time()),
+                                )
+                                .await?;
+                                self.default_output_handle_send_trigger_event(
+                                    config.confing_id(),
+                                    Some("handle case true event for variable node".to_string()),
+                                    Some(self.strategy_time()),
+                                )
+                                .await?;
+                                Ok(())
+                            })
+                            .await?;
+
+                        node_cycle_tracker.end_phase("handle_condition_trigger");
+                        let completed_tracker = node_cycle_tracker.end();
+                        self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                            .await?;
+                        Ok(())
+                    }
+                }
+            }
+            // Kline update, handle dataflow
+            BacktestNodeEvent::KlineNode(KlineNodeEvent::KlineUpdate(kline_update_event)) => {
+                let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                node_cycle_tracker.start_phase("handle_dataflow_trigger");
+                // Filter variable configurations with matching dataflow trigger
+                let dataflow_trigger_configs = filter_dataflow_trigger_configs(
+                    self.node_config.variable_configs.iter(),
+                    kline_update_event.node_id(),
+                    kline_update_event.config_id,
+                );
+                let dataflow = DataFlow::from(kline_update_event.kline.clone());
+                self.handle_dataflow_trigger(&dataflow_trigger_configs, dataflow).await?;
+                node_cycle_tracker.end_phase("handle_dataflow_trigger");
+                let completed_tracker = node_cycle_tracker.end();
+                self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                    .await?;
+                Ok(())
+            }
+            BacktestNodeEvent::IndicatorNode(IndicatorNodeEvent::IndicatorUpdate(indicator_update_event)) => {
+                let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                node_cycle_tracker.start_phase("handle_dataflow_trigger");
+                let dataflow_trigger_configs = filter_dataflow_trigger_configs(
+                    self.node_config.variable_configs.iter(),
+                    indicator_update_event.node_id(),
+                    indicator_update_event.config_id,
+                );
+                let dataflow = DataFlow::from(indicator_update_event.indicator_value.clone());
+                self.handle_dataflow_trigger(&dataflow_trigger_configs, dataflow).await?;
+                node_cycle_tracker.end_phase("handle_dataflow_trigger");
+                let completed_tracker = node_cycle_tracker.end();
+                self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                    .await?;
+                Ok(())
+            }
+            BacktestNodeEvent::Common(CommonEvent::Trigger(trigger_event)) => {
+                let mut node_cycle_tracker = CycleTracker::new(self.cycle_id());
+                node_cycle_tracker.start_phase("handle_trigger_event");
+                let configs = filter_dataflow_trigger_configs(
+                    self.node_config.variable_configs.iter(),
+                    trigger_event.node_id(),
+                    trigger_event.config_id,
+                );
+
+                if self.is_leaf_node() {
+                    configs.iter().try_for_each(|config| {
+                        self.send_execute_over_event(
+                            Some(config.confing_id()),
+                            Some("handle case true event for variable node".to_string()),
+                            Some(self.strategy_time()),
+                        )
+                    })?;
+                    return Ok(());
+                }
+
+                stream::iter(configs.iter().map(|config| Ok::<_, VariableNodeError>(config)))
+                    .try_for_each_concurrent(None, |config| async {
+                        self.send_trigger_event(
+                            &config.output_handle_id(),
+                            config.confing_id(),
+                            Some("handle case true event for variable node".to_string()),
+                            Some(self.strategy_time()),
+                        )
+                        .await?;
+                        self.default_output_handle_send_trigger_event(
+                            config.confing_id(),
+                            Some("handle case true event for variable node".to_string()),
+                            Some(self.strategy_time()),
+                        )
+                        .await?;
+                        Ok(())
+                    })
+                    .await?;
+                node_cycle_tracker.end_phase("handle_trigger_event");
+                let completed_tracker = node_cycle_tracker.end();
+                self.mount_node_cycle_tracker(self.node_id().clone(), self.node_name().clone(), completed_tracker)
+                    .await?;
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    async fn handle_command(&mut self, node_command: BacktestNodeCommand) {
+        match node_command {
+            BacktestNodeCommand::NodeReset(cmd) => {
+                if self.node_id() == cmd.node_id() {
+                    let paylod = NodeResetRespPayload;
+                    let response = NodeResetResponse::success(self.node_id().clone(), self.node_name().clone(), paylod);
+                    cmd.respond(response);
+                }
+            }
+            _ => {}
+        }
+    }
+}

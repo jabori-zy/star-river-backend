@@ -1,0 +1,23 @@
+# style edition, use 2024 edition
+style_edition = "2024"
+
+# basic configuration (stable features)
+max_width = 140                     # max line width
+hard_tabs = false                  # use spaces instead of tabs for indentation
+tab_spaces = 4                     # number of spaces for indentation
+newline_style = "Unix"             # use Unix style line endings (\n)
+use_small_heuristics = "Default"   # use default small heuristics
+fn_params_layout="Tall"
+
+# import configuration
+reorder_imports = true             # import in alphabetical order
+# Note: imports_granularity and group_imports are unstable features (nightly only)
+# We manage import grouping and merging manually
+
+# module configuration
+reorder_modules = true             # reorder modules in alphabetical order
+
+
+imports_granularity = "crate"
+
+group_imports = "StdExternalCrate"

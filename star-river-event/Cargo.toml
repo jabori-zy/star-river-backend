@@ -1,0 +1,26 @@
+[package]
+name = "star-river-event"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+event-center-core = { path = "../core/event-center-core" }
+star-river-core = { path = "../core/star-river-core" }
+strategy-core = { path = "../core/strategy-core" }
+virtual-trading = { path = "../core/virtual-trading" }
+strategy-stats = { path = "../strategy-stats" }
+ta-lib = { path = "../core/ta-lib" }
+key = { path = "../core/key" }
+derive_more.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+tokio.workspace = true
+serde.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+utoipa.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,16 @@
+[package]
+name = "key"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+ta-lib = { path = "../ta-lib" }
+star-river-core = { path = "../star-river-core" }
+serde = { workspace = true }
+snafu = { workspace = true }
+strum = { workspace = true }
+
+[lints]
+workspace = true
