@@ -1,0 +1,77 @@
+name: Release Beta
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'  # v1.0.0-beta.1, v1.0.0-rc.1, etc.
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            name: star-river-backend-darwin-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: star-river-backend-win-x64.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename binary (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mv target/${{ matrix.target }}/release/star-river-backend ${{ matrix.name }}
+
+      - name: Rename binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mv target/${{ matrix.target }}/release/star-river-backend.exe ${{ matrix.name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display artifacts
+        run: ls -R artifacts
+
+      - name: Create GitHub Release (Pre-release)
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Pre-release ${{ github.ref_name }}
+          draft: false
+          prerelease: true
+          files: |
+            artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
