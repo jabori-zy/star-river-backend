@@ -90,6 +90,11 @@ impl DatabaseManager {
             {
                 Self::get_darwin_database_path()
             }
+
+            #[cfg(target_os = "windows")]
+            {
+                Self::get_windows_database_path()
+            }
         }
     }
 
@@ -117,6 +122,26 @@ impl DatabaseManager {
 
         tracing::info!("macOS database path: {}", app_support_path.display());
         Ok(app_support_path)
+    }
+
+    #[allow(unused)]
+    #[cfg(target_os = "windows")]
+    fn get_windows_database_path() -> Result<PathBuf, DatabaseError> {
+        let app_data = env::var("APPDATA").context(HomeDirNotFoundSnafu {})?;
+
+        let app_data_path = PathBuf::from(app_data)
+            .join("Star River")
+            .join("app_data");
+
+        // 如果目录不存在则创建
+        if !app_data_path.exists() {
+            std::fs::create_dir_all(&app_data_path).context(DirCreateFailedSnafu {
+                dir: app_data_path.display().to_string(),
+            })?;
+        }
+
+        tracing::info!("Windows database path: {}", app_data_path.display());
+        Ok(app_data_path)
     }
 
     // find workspace root directory
