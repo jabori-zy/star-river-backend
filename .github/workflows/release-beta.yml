@@ -96,7 +96,7 @@ jobs:
       - name: Create GitHub Release (Pre-release)
         uses: softprops/action-gh-release@v1
         with:
-          name: Pre-release ${{ github.ref_name }}
+          name: StarRiver ${{ github.ref_name }}
           draft: false
           prerelease: true
           files: |
