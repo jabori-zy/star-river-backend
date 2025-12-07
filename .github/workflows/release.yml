@@ -38,10 +38,12 @@ jobs:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
-            name: star-river-backend-darwin-arm64
+            arch: arm64
+            ext: ""
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            name: star-river-backend-win-x64.exe
+            arch: x64
+            ext: ".exe"
 
     runs-on: ${{ matrix.os }}
 
@@ -65,18 +67,18 @@ jobs:
       - name: Rename binary (Unix)
         if: runner.os != 'Windows'
         run: |
-          mv target/${{ matrix.target }}/release/star-river-backend ${{ matrix.name }}
+          mv target/${{ matrix.target }}/release/star-river-backend star-river-backend-${{ github.ref_name }}-${{ matrix.arch }}
 
       - name: Rename binary (Windows)
         if: runner.os == 'Windows'
         run: |
-          mv target/${{ matrix.target }}/release/star-river-backend.exe ${{ matrix.name }}
+          mv target/${{ matrix.target }}/release/star-river-backend.exe star-river-backend-${{ github.ref_name }}-${{ matrix.arch }}.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}
-          path: ${{ matrix.name }}
+          name: star-river-backend-${{ github.ref_name }}-${{ matrix.arch }}${{ matrix.ext }}
+          path: star-river-backend-${{ github.ref_name }}-${{ matrix.arch }}${{ matrix.ext }}
 
   release:
     needs: build
